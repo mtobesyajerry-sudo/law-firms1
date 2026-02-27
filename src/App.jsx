@@ -8,7 +8,6 @@ import ManagementDashboard from './components/ManagementDashboard';
 import ClientManagementDashboard from './components/ClientManagementDashboard';
 import StaffDashboard from './components/StaffDashboard';
 import ComplianceOfficerDashboard from './components/ComplianceOfficerDashboard';
-import SecurityDashboard from './components/SecurityDashboard';
 import AssessmentForm from './components/AssessmentForm';
 import AssessmentReport from './components/AssessmentReport';
 import KYCClientDetails from './components/KYCClientDetails';
@@ -174,7 +173,7 @@ function RoleBasedRedirect() {
 
   // Route users to appropriate dashboard based on role
   if (profile?.role === 'admin') {
-    return <Navigate to="/admin/dashboard" replace />;
+    return <Navigate to="/dashboard/management" replace />;
   } else if (profile?.role === 'management' || profile?.role === 'senior_partner' || profile?.role === 'partner') {
     return <Navigate to="/dashboard/management" replace />;
   } else if (profile?.role === 'staff' || profile?.role === 'lawyer') {
@@ -205,15 +204,7 @@ function AppRoutes() {
         path="/admin/dashboard"
         element={
           <ProtectedRoute adminOnly={true}>
-            <SecurityDashboard />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/admin/security"
-        element={
-          <ProtectedRoute adminOnly={true}>
-            <SecurityDashboard />
+            <ManagementDashboard />
           </ProtectedRoute>
         }
       />
@@ -221,7 +212,7 @@ function AppRoutes() {
         path="/dashboard/management"
         element={
           <ProtectedRoute managementOnly={true}>
-            <ClientManagementDashboard />
+            <ManagementDashboard />
           </ProtectedRoute>
         }
       />
