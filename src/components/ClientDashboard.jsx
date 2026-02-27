@@ -176,21 +176,159 @@ export default function ClientDashboard() {
         background: 'white',
         borderRadius: '12px',
         padding: '24px 32px',
-        border: '1px solid #d4af37',
+        border: '2px solid #d4af37',
         boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
         marginBottom: '32px'
       }}>
-        <h2 style={{
-          fontSize: '22px',
-          fontWeight: '700',
-          color: '#0a1929',
-          margin: '0 0 20px 0'
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          marginBottom: '24px'
         }}>
-          Organization Information
-        </h2>
+          <h2 style={{
+            fontSize: '22px',
+            fontWeight: '700',
+            color: '#0a1929',
+            margin: '0',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px'
+          }}>
+            <span style={{ fontSize: '28px' }}>🏢</span>
+            Organization Information
+          </h2>
+          {organization && (
+            <div style={{
+              padding: '8px 16px',
+              background: organization.is_active
+                ? 'linear-gradient(135deg, #d1fae5, #a7f3d0)'
+                : 'linear-gradient(135deg, #fee2e2, #fecaca)',
+              borderRadius: '20px',
+              border: `2px solid ${organization.is_active ? '#10b981' : '#ef4444'}`,
+              fontSize: '13px',
+              fontWeight: '700',
+              color: organization.is_active ? '#065f46' : '#991b1b',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px'
+            }}>
+              <span>{organization.is_active ? '✓' : '✕'}</span>
+              {organization.is_active ? 'Active Organization' : 'Inactive Organization'}
+            </div>
+          )}
+        </div>
 
         {organization ? (
-          <div style={{ overflowX: 'auto' }}>
+          <>
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+              gap: '16px',
+              marginBottom: '24px'
+            }}>
+              <div style={{
+                padding: '16px',
+                background: 'linear-gradient(135deg, #f0f9ff, #e0f2fe)',
+                borderRadius: '10px',
+                border: '1px solid #3b82f6'
+              }}>
+                <div style={{
+                  fontSize: '12px',
+                  color: '#1e40af',
+                  fontWeight: '600',
+                  marginBottom: '6px',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.5px'
+                }}>Business Type</div>
+                <div style={{
+                  fontSize: '18px',
+                  fontWeight: '700',
+                  color: '#0a1929'
+                }}>{organization.business_type || '-'}</div>
+              </div>
+
+              <div style={{
+                padding: '16px',
+                background: 'linear-gradient(135deg, #fef3c7, #fde68a)',
+                borderRadius: '10px',
+                border: '1px solid #f59e0b'
+              }}>
+                <div style={{
+                  fontSize: '12px',
+                  color: '#92400e',
+                  fontWeight: '600',
+                  marginBottom: '6px',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.5px'
+                }}>Organization Size</div>
+                <div style={{
+                  fontSize: '18px',
+                  fontWeight: '700',
+                  color: '#0a1929',
+                  textTransform: 'capitalize'
+                }}>{organization.size || '-'}</div>
+              </div>
+
+              <div style={{
+                padding: '16px',
+                background: 'linear-gradient(135deg, #e0e7ff, #c7d2fe)',
+                borderRadius: '10px',
+                border: '1px solid #6366f1'
+              }}>
+                <div style={{
+                  fontSize: '12px',
+                  color: '#3730a3',
+                  fontWeight: '600',
+                  marginBottom: '6px',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.5px'
+                }}>DNFBP Category</div>
+                <div style={{
+                  fontSize: '16px',
+                  fontWeight: '700',
+                  color: '#0a1929'
+                }}>{organization.dnfbp_category?.replace(/_/g, ' ') || '-'}</div>
+              </div>
+
+              <div style={{
+                padding: '16px',
+                background: organization.subscription_expiry_date && new Date(organization.subscription_expiry_date) > new Date()
+                  ? 'linear-gradient(135deg, #d1fae5, #a7f3d0)'
+                  : 'linear-gradient(135deg, #fee2e2, #fecaca)',
+                borderRadius: '10px',
+                border: `1px solid ${organization.subscription_expiry_date && new Date(organization.subscription_expiry_date) > new Date() ? '#10b981' : '#ef4444'}`
+              }}>
+                <div style={{
+                  fontSize: '12px',
+                  color: organization.subscription_expiry_date && new Date(organization.subscription_expiry_date) > new Date() ? '#065f46' : '#991b1b',
+                  fontWeight: '600',
+                  marginBottom: '6px',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.5px'
+                }}>Subscription Status</div>
+                <div style={{
+                  fontSize: '16px',
+                  fontWeight: '700',
+                  color: '#0a1929'
+                }}>
+                  {organization.subscription_expiry_date ? (
+                    new Date(organization.subscription_expiry_date) > new Date() ? 'Active' : 'Expired'
+                  ) : 'Not Set'}
+                </div>
+                {organization.subscription_expiry_date && (
+                  <div style={{
+                    fontSize: '11px',
+                    color: '#4b5563',
+                    marginTop: '4px'
+                  }}>
+                    Until {new Date(organization.subscription_expiry_date).toLocaleDateString()}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div style={{ overflowX: 'auto' }}>
             <table style={{
               width: '100%',
               borderCollapse: 'collapse'
@@ -362,6 +500,7 @@ export default function ClientDashboard() {
               </tbody>
             </table>
           </div>
+          </>
         ) : null}
       </div>
 
