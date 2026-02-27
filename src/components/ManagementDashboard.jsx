@@ -850,39 +850,6 @@ export default function ManagementDashboard() {
               </svg>
             </button>
             <button
-              onClick={() => navigate('/admin/security')}
-              style={{
-                padding: '10px 16px',
-                background: 'rgba(255, 255, 255, 0.1)',
-                border: '2px solid #d4af37',
-                borderRadius: '8px',
-                color: 'white',
-                fontSize: '13px',
-                fontWeight: '600',
-                cursor: 'pointer',
-                transition: 'all 0.2s',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                height: '40px'
-              }}
-              title="Security Dashboard"
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = 'rgba(212, 175, 55, 0.2)';
-                e.currentTarget.style.borderColor = '#f0d883';
-                e.currentTarget.style.transform = 'translateY(-1px)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
-                e.currentTarget.style.borderColor = '#d4af37';
-                e.currentTarget.style.transform = 'translateY(0)';
-              }}
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-              </svg>
-            </button>
-            <button
               onClick={() => setShowChangePassword(true)}
               style={{
                 padding: '10px 16px',
