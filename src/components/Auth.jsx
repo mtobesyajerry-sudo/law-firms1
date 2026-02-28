@@ -45,14 +45,22 @@ export default function Auth() {
           .eq('user_id', user.id)
           .maybeSingle();
 
-        if (lawFirmReg && lawFirmReg.registration_status === 'pending') {
+        // Block access if no registration found (unauthorized account)
+        if (!lawFirmReg) {
+          await supabase.auth.signOut();
+          setError('No registration found. Please complete the registration form to request access.');
+          setLoading(false);
+          return;
+        }
+
+        if (lawFirmReg.registration_status === 'pending') {
           await supabase.auth.signOut();
           setError('Your registration is pending administrator approval. You will be notified once your account is approved.');
           setLoading(false);
           return;
         }
 
-        if (lawFirmReg && lawFirmReg.registration_status === 'suspended') {
+        if (lawFirmReg.registration_status === 'suspended') {
           await supabase.auth.signOut();
           setError('Your account has been suspended. Please contact support.');
           setLoading(false);
