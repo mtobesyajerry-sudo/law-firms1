@@ -265,6 +265,20 @@ export default function DocumentUploadManager({
     }));
   };
 
+  const formatCategoryName = (category) => {
+    const categoryNames = {
+      'enhanced_dd': 'Enhanced Due Diligence Templates',
+      'identity': 'Identity Documents',
+      'address': 'Address Verification',
+      'corporate': 'Corporate Documents',
+      'financial': 'Financial Documents',
+      'ownership': 'Ownership & Control',
+      'regulatory': 'Regulatory Documents',
+      'other': 'Other Documents'
+    };
+    return categoryNames[category] || category.toUpperCase().replace(/_/g, ' ');
+  };
+
   const handleSelectDocumentType = (documentTypeId) => {
     setSelectedDocumentType(documentTypeId);
     setSelectedFile(null);
@@ -431,7 +445,7 @@ export default function DocumentUploadManager({
         <div style={{ padding: '16px' }}>
           {Object.entries(requirementsByCategory)
             .sort(([catA], [catB]) => {
-              const order = ['identity', 'address', 'corporate', 'financial', 'ownership', 'regulatory', 'other'];
+              const order = ['identity', 'address', 'corporate', 'financial', 'ownership', 'regulatory', 'enhanced_dd', 'other'];
               const indexA = order.indexOf(catA.toLowerCase());
               const indexB = order.indexOf(catB.toLowerCase());
               return (indexA === -1 ? 999 : indexA) - (indexB === -1 ? 999 : indexB);
@@ -473,7 +487,7 @@ export default function DocumentUploadManager({
                   <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                     <div style={{ textAlign: 'left' }}>
                       <div style={{ fontSize: '16px', fontWeight: '600', color: '#1f2937', marginBottom: '2px' }}>
-                        {category.toUpperCase()}
+                        {formatCategoryName(category)}
                       </div>
                       <div style={{ fontSize: '12px', color: '#6b7280' }}>
                         {categoryCompleted} of {requirements.length} completed
