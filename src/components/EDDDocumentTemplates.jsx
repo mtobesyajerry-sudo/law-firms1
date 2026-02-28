@@ -205,6 +205,7 @@ const EDDDocumentTemplates = ({ clientId, clientName, onClose, onUpdate, isReadO
         const { error: updateError } = await supabase
           .from('client_documents')
           .update({
+            file_name: selectedFile.name,
             file_path: uploadData.path,
             file_url: publicUrl,
             storage_path: fileName,
@@ -227,6 +228,7 @@ const EDDDocumentTemplates = ({ clientId, clientName, onClose, onUpdate, isReadO
             document_type: docType?.code || 'edd_template',
             document_category: 'enhanced_dd',
             document_name: docType?.name || 'EDD Template',
+            file_name: selectedFile.name,
             file_path: uploadData.path,
             file_url: publicUrl,
             storage_path: fileName,
