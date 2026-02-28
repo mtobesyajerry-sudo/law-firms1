@@ -24,6 +24,117 @@ interface CreateUserRequest {
   organization_id?: string;
 }
 
+async function handleApproveRegistration(supabaseAdmin: any, registrationId: string) {
+  console.log('Approving registration:', registrationId);
+
+  // Get the registration details
+  const { data: registration, error: fetchError } = await supabaseAdmin
+    .from('law_firm_registrations')
+    .select('*')
+    .eq('id', registrationId)
+    .single();
+
+  if (fetchError || !registration) {
+    throw new Error('Registration not found');
+  }
+
+  console.log('Registration details:', registration);
+
+  // Create organization
+  const { data: orgData, error: orgError } = await supabaseAdmin
+    .from('organizations')
+    .insert({
+      name: registration.firm_name,
+      brela_registration_number: registration.brela_number,
+      contact_email: registration.firm_email,
+      contact_phone: registration.firm_phone,
+      business_address: registration.firm_address,
+      is_active: true,
+      subscription_status: 'active',
+      subscription_fee: 0
+    })
+    .select()
+    .single();
+
+  if (orgError) {
+    console.error('Organization creation error:', orgError);
+    throw new Error(`Failed to create organization: ${orgError.message}`);
+  }
+
+  console.log('Organization created:', orgData.id);
+
+  // Decrypt password
+  const decryptedPassword = decryptPassword(registration.encrypted_password);
+  if (!decryptedPassword) {
+    throw new Error('Failed to decrypt password');
+  }
+
+  // Create auth user
+  const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
+    email: registration.firm_email,
+    password: decryptedPassword,
+    email_confirm: true,
+    user_metadata: {
+      full_name: registration.contact_person_name || registration.firm_name
+    }
+  });
+
+  if (authError) {
+    console.error('Auth user creation error:', authError);
+    throw new Error(`Failed to create user: ${authError.message}`);
+  }
+
+  console.log('Auth user created:', authData.user.id);
+
+  // Wait for user to be fully created
+  await new Promise(resolve => setTimeout(resolve, 1000));
+
+  // Create user profile
+  const { error: profileError } = await supabaseAdmin
+    .from('user_profiles')
+    .insert({
+      id: authData.user.id,
+      email: registration.firm_email,
+      role: 'management',
+      full_name: registration.contact_person_name || registration.firm_name,
+      organization_id: orgData.id,
+      password_change_required: false
+    });
+
+  if (profileError) {
+    console.error('Profile creation error:', profileError);
+    throw new Error(`Failed to create profile: ${profileError.message}`);
+  }
+
+  console.log('Profile created successfully');
+
+  // Update registration status
+  const { error: updateError } = await supabaseAdmin
+    .from('law_firm_registrations')
+    .update({
+      registration_status: 'active',
+      approved_at: new Date().toISOString()
+    })
+    .eq('id', registrationId);
+
+  if (updateError) {
+    console.error('Registration update error:', updateError);
+    throw new Error(`Failed to update registration: ${updateError.message}`);
+  }
+
+  console.log('Registration approved successfully');
+
+  return new Response(
+    JSON.stringify({
+      success: true,
+      message: 'Registration approved successfully',
+      organization_id: orgData.id,
+      user_id: authData.user.id
+    }),
+    { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+  );
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, {
@@ -51,7 +162,15 @@ Deno.serve(async (req: Request) => {
       }
     );
 
-    const { admin_user_id, email, password, full_name, role, organization_id }: CreateUserRequest = await req.json();
+    const requestBody = await req.json();
+    const { action, registrationId } = requestBody;
+
+    // Handle registration approval
+    if (action === 'approve_registration' && registrationId) {
+      return await handleApproveRegistration(supabaseAdmin, registrationId);
+    }
+
+    const { admin_user_id, email, password, full_name, role, organization_id }: CreateUserRequest = requestBody;
 
     if (!admin_user_id) {
       throw new Error('Admin user ID is required');
