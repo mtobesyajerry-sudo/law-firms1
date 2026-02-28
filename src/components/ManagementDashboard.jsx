@@ -222,15 +222,31 @@ export default function ManagementDashboard() {
 
       if (orgError) throw orgError;
 
-      const CryptoJS = (await import('crypto-js')).default;
-      const decryptedPassword = CryptoJS.AES.decrypt(
-        requestData.encrypted_password,
-        import.meta.env.VITE_ENCRYPTION_KEY || 'fallback-key'
-      ).toString(CryptoJS.enc.Utf8);
+      let passwordToUse;
+      try {
+        const CryptoJS = (await import('crypto-js')).default;
+        const decryptedPassword = CryptoJS.AES.decrypt(
+          requestData.encrypted_password,
+          import.meta.env.VITE_ENCRYPTION_KEY || 'fallback-key'
+        ).toString(CryptoJS.enc.Utf8);
+
+        console.log('Decrypted password length:', decryptedPassword.length);
+        console.log('Decrypted password exists:', !!decryptedPassword);
+
+        if (decryptedPassword && decryptedPassword.length >= 8) {
+          passwordToUse = decryptedPassword;
+        } else {
+          console.warn('Decryption resulted in invalid password, generating temporary password');
+          passwordToUse = 'TempPass' + Math.random().toString(36).slice(-10) + '!';
+        }
+      } catch (decryptError) {
+        console.error('Decryption error:', decryptError);
+        passwordToUse = 'TempPass' + Math.random().toString(36).slice(-10) + '!';
+      }
 
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: requestData.firm_email,
-        password: decryptedPassword,
+        password: passwordToUse,
         options: {
           emailRedirectTo: window.location.origin
         }
@@ -242,6 +258,8 @@ export default function ManagementDashboard() {
       }
 
       if (authData.user) {
+        const usedTempPassword = passwordToUse.startsWith('TempPass');
+
         const { error: profileError } = await supabase
           .from('user_profiles')
           .insert({
@@ -252,6 +270,7 @@ export default function ManagementDashboard() {
             position: requestData.contact_person_designation,
             organization_id: orgData.id,
             is_active: true,
+            password_change_required: usedTempPassword,
             created_by: user.id
           });
 
