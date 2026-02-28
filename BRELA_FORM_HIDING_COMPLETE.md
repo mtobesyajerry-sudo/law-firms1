@@ -140,6 +140,40 @@ To test the feature:
 - **Lines**: 500-520 (message display), 518-591 (hidden sections)
 - **Documentation**: `/tmp/cc-agent/63979527/project/BRELA_MULTI_USER_REGISTRATION_GUIDE.md`
 
+## Critical Database Fix Applied
+
+### Issue
+The `get_organization_by_brela()` database function was referencing the wrong column name:
+- **Incorrect**: `o.brela_registration_number`
+- **Correct**: `o.brela_registration`
+
+### Resolution
+Created migration `fix_brela_column_reference.sql` that:
+1. Drops the old function
+2. Recreates it with correct column reference: `WHERE o.brela_registration = brela_number`
+3. Maintains all security and performance features
+
+### Verification
+```sql
+SELECT * FROM get_organization_by_brela('2024-0023')
+```
+
+**Result**: Successfully returns:
+- Organization ID
+- Firm name: "Bower & Associates"
+- Contact email
+- User count: 0
+- Can accept users: true
+
+## System Status
+
+✅ **Database function working**: Correctly finds organizations by BRELA
+✅ **Frontend integration working**: Auth.jsx calls function successfully
+✅ **UI display working**: Shows firm found message with user count
+✅ **Field hiding working**: Law Firm Info and Contact Person sections hidden
+✅ **Auto-fill working**: Firm name and email populated from database
+✅ **Build successful**: No errors, ready for deployment
+
 ## Implementation Date
 
 February 28, 2026
