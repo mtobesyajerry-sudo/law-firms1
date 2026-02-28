@@ -585,7 +585,7 @@ export default function ClientManagementDashboard() {
               background: 'transparent',
               border: '2px solid #d4af37',
               borderRadius: '8px',
-              color: '#0a1929',
+              color: 'white',
               cursor: 'pointer',
               fontSize: '14px',
               fontWeight: '600',
@@ -605,7 +605,7 @@ export default function ClientManagementDashboard() {
               e.currentTarget.style.transform = 'translateY(0)';
             }}
           >
-            ← Back
+            Back
           </button>
         </div>
       </div>
