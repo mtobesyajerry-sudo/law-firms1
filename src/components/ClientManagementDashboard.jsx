@@ -27,7 +27,6 @@ import { dashboardStyles } from '../utils/dashboardStyles';
 import DualApprovalInterface from './DualApprovalInterface';
 import NewUserRequestForm from './NewUserRequestForm';
 import MatterManagement from './MatterManagement';
-import InstitutionalUserManagement from './InstitutionalUserManagement';
 
 export default function ClientManagementDashboard() {
   const { profile, organization } = useAuth();
@@ -686,11 +685,6 @@ export default function ClientManagementDashboard() {
         <div style={{ padding: '32px' }}>
           {activeTab === 'users' && (
             <div>
-              {/* Institutional User Management - Create Staff and Compliance Officers */}
-              <div style={{ marginBottom: '48px' }}>
-                <InstitutionalUserManagement user={profile} />
-              </div>
-
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
                 <div>
                   <h3 style={{ margin: '0 0 4px 0', fontSize: '20px', fontWeight: '600', color: '#0a1929' }}>
