@@ -29,6 +29,37 @@ import { dashboardStyles, getBadgeStyle, getRiskBadgeStyle, getStatusBadgeStyle 
 import LoadingSpinner from './LoadingSpinner';
 
 export default function ManagementDashboard() {
+  // Helper functions for display formatting
+  const formatFirmType = (lawFirmType, businessType) => {
+    if (lawFirmType) {
+      const typeMap = {
+        'small_firm': 'Small Firm',
+        'medium_firm': 'Medium Firm',
+        'large_firm': 'Large Firm',
+        'solo_practitioner': 'Solo Practitioner',
+        'boutique_firm': 'Boutique Firm'
+      };
+      return typeMap[lawFirmType] || lawFirmType;
+    }
+
+    const businessTypeMap = {
+      'law_firm': 'Law Firm',
+      'sole_proprietor': 'Sole Proprietor',
+      'partnership': 'Partnership',
+      'company': 'Company'
+    };
+    return businessTypeMap[businessType] || businessType || 'Law Firm';
+  };
+
+  const formatFirmSize = (size) => {
+    const sizeMap = {
+      'small': 'Small',
+      'medium': 'Medium',
+      'large': 'Large'
+    };
+    return sizeMap[size] || size || 'Medium';
+  };
+
   const [users, setUsers] = useState([]);
   const [organizations, setOrganizations] = useState([]);
   const [assessments, setAssessments] = useState([]);
@@ -1315,7 +1346,7 @@ export default function ManagementDashboard() {
                                 <strong>{org.name}</strong>
                                 {org.contact_email && <div style={{ fontSize: '12px', color: '#718096' }}>{org.contact_email}</div>}
                               </td>
-                              <td style={styles.td}>{org.business_type}</td>
+                              <td style={styles.td}>{formatFirmType(org.law_firm_type, org.business_type)}</td>
                               <td style={styles.td}>
                                 <span style={{
                                   ...styles.badge,
@@ -1408,7 +1439,7 @@ export default function ManagementDashboard() {
                                 <strong>{org.name}</strong>
                                 {org.contact_email && <div style={{ fontSize: '12px', color: '#718096' }}>{org.contact_email}</div>}
                               </td>
-                              <td style={styles.td}>{org.business_type}</td>
+                              <td style={styles.td}>{formatFirmType(org.law_firm_type, org.business_type)}</td>
                               <td style={styles.td}>
                                 <span style={styles.badge}>
                                   {userCount} users
@@ -1503,7 +1534,7 @@ export default function ManagementDashboard() {
                                 <strong>{org.name}</strong>
                                 {org.contact_email && <div style={{ fontSize: '12px', color: '#718096' }}>{org.contact_email}</div>}
                               </td>
-                              <td style={styles.td}>{org.business_type}</td>
+                              <td style={styles.td}>{formatFirmType(org.law_firm_type, org.business_type)}</td>
                               <td style={styles.td}>
                                 <span style={styles.badge}>
                                   {userCount} users
@@ -1596,8 +1627,8 @@ export default function ManagementDashboard() {
                 return (
                   <div key={org.id} style={styles.card}>
                     <h3 style={styles.cardTitle}>{org.name}</h3>
-                    <p style={styles.cardText}>{org.business_type}</p>
-                    <p style={styles.cardSubtext}>Firm Size: {org.size}</p>
+                    <p style={styles.cardText}>{formatFirmType(org.law_firm_type, org.business_type)}</p>
+                    <p style={styles.cardSubtext}>Firm Size: {formatFirmSize(org.size)}</p>
                     <p style={styles.cardSubtext}>
                       Assigned to: {assignedUser ? assignedUser.full_name || assignedUser.email : 'Unassigned'}
                     </p>
@@ -1645,7 +1676,7 @@ export default function ManagementDashboard() {
                     <div>
                       <h3 style={styles.orgAssessmentTitle}>{org.name}</h3>
                       <p style={styles.orgAssessmentSubtitle}>
-                        {org.business_type} • {orgAssessments.length} assessment{orgAssessments.length !== 1 ? 's' : ''}
+                        {formatFirmType(org.law_firm_type, org.business_type)} • {orgAssessments.length} assessment{orgAssessments.length !== 1 ? 's' : ''}
                       </p>
                     </div>
                     <div style={styles.orgAssessmentStats}>
@@ -1837,13 +1868,18 @@ export default function ManagementDashboard() {
               </div>
               <div style={styles.formGroup}>
                 <label style={styles.label}>Firm Type</label>
-                <input
-                  type="text"
-                  value={editOrg.business_type}
-                  onChange={(e) => setEditOrg({ ...editOrg, business_type: e.target.value })}
-                  style={styles.input}
+                <select
+                  value={editOrg.law_firm_type || editOrg.business_type}
+                  onChange={(e) => setEditOrg({ ...editOrg, law_firm_type: e.target.value })}
+                  style={styles.select}
                   required
-                />
+                >
+                  <option value="solo_practitioner">Solo Practitioner</option>
+                  <option value="small_firm">Small Firm</option>
+                  <option value="medium_firm">Medium Firm</option>
+                  <option value="large_firm">Large Firm</option>
+                  <option value="boutique_firm">Boutique Firm</option>
+                </select>
               </div>
               <div style={styles.formGroup}>
                 <label style={styles.label}>Firm Size</label>
@@ -1852,22 +1888,9 @@ export default function ManagementDashboard() {
                   onChange={(e) => setEditOrg({ ...editOrg, size: e.target.value })}
                   style={styles.select}
                 >
-                  <option value="small">Small</option>
-                  <option value="medium">Medium</option>
-                  <option value="large">Large</option>
-                </select>
-              </div>
-              <div style={styles.formGroup}>
-                <label style={styles.label}>Institution Category</label>
-                <select
-                  value={editOrg.dnfbp_category || ''}
-                  onChange={(e) => setEditOrg({ ...editOrg, dnfbp_category: e.target.value })}
-                  style={styles.select}
-                >
-                  <option value="">Select Institution Category</option>
-                  {institutionCategories.map(cat => (
-                    <option key={cat.value} value={cat.value}>{cat.label}</option>
-                  ))}
+                  <option value="small">Small (1-10 lawyers)</option>
+                  <option value="medium">Medium (11-50 lawyers)</option>
+                  <option value="large">Large (50+ lawyers)</option>
                 </select>
               </div>
               <div style={styles.modalActions}>
