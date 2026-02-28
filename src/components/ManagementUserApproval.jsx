@@ -88,13 +88,12 @@ export default function ManagementUserApproval({ user }) {
             'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
           },
           body: JSON.stringify({
+            admin_user_id: user.id,
             email: registration.user_email,
             password: decryptedPassword || 'ChangeMe123!',
             full_name: registration.user_full_name,
             role: 'management',
-            organization_id: organizationId,
-            position: registration.user_position,
-            created_by: user.id
+            organization_id: organizationId
           })
         }
       );
@@ -104,7 +103,8 @@ export default function ManagementUserApproval({ user }) {
         throw new Error(errorData.error || 'Failed to create user');
       }
 
-      const { userId } = await response.json();
+      const { user: createdUser } = await response.json();
+      const userId = createdUser?.id;
 
       // Update registration status
       const { error: updateError } = await supabase
