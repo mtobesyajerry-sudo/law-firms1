@@ -33,7 +33,7 @@ export default function ManagementDashboard() {
   const [organizations, setOrganizations] = useState([]);
   const [assessments, setAssessments] = useState([]);
   const [lawFirmRegistrations, setLawFirmRegistrations] = useState([]);
-  const [newUserRequests, setNewUserRequests] = useState([]);
+  const [adminUserRequests, setAdminUserRequests] = useState([]);
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
@@ -89,7 +89,7 @@ export default function ManagementDashboard() {
         supabase.from('organizations').select('*').order('created_at', { ascending: false }),
         supabase.from('assessments').select('*, organizations(name)').order('created_at', { ascending: false }),
         supabase.from('law_firm_registrations').select('*').order('created_at', { ascending: false }),
-        supabase.from('new_user_requests').select('*').order('created_at', { ascending: false }),
+        supabase.from('admin_user_requests').select('*').order('created_at', { ascending: false }),
         supabase.from('kyc_clients').select('*, organizations(name)').order('created_at', { ascending: false })
       ]);
 
@@ -305,25 +305,15 @@ export default function ManagementDashboard() {
 
   const approveUserRequest = async (requestId) => {
     try {
-      const request = newUserRequests.find(r => r.id === requestId);
+      const request = adminUserRequests.find(r => r.id === requestId);
       if (!request) {
         alert('Request not found');
         return;
       }
 
-      // Ask for email if not provided
-      const email = request.email || prompt(`Enter email address for ${request.full_name}:`);
-      if (!email || !email.includes('@')) {
-        alert('Valid email address is required');
-        return;
-      }
-
-      // Ask for organization
-      const orgName = request.organization_name || prompt(`Enter organization name for ${request.full_name}:`);
-      if (!orgName) {
-        alert('Organization name is required');
-        return;
-      }
+      // Email and organization_name are now required fields in the form
+      const email = request.email;
+      const orgName = request.organization_name;
 
       // Find or create organization
       let organization;
@@ -383,7 +373,7 @@ export default function ManagementDashboard() {
 
       // Update request status
       const { error: updateError } = await supabase
-        .from('new_user_requests')
+        .from('admin_user_requests')
         .update({
           status: 'approved',
           reviewed_at: new Date().toISOString(),
@@ -407,7 +397,7 @@ export default function ManagementDashboard() {
 
     try {
       const { error } = await supabase
-        .from('new_user_requests')
+        .from('admin_user_requests')
         .update({
           status: 'rejected',
           reviewed_at: new Date().toISOString(),
@@ -433,7 +423,7 @@ export default function ManagementDashboard() {
 
     try {
       const { error } = await supabase
-        .from('new_user_requests')
+        .from('admin_user_requests')
         .delete()
         .eq('id', requestId);
 
@@ -1047,7 +1037,7 @@ export default function ManagementDashboard() {
             onClick={() => setActiveTab('user-requests')}
             style={activeTab === 'user-requests' ? dashboardStyles.tabActive : dashboardStyles.tab}
           >
-            User Access Requests ({newUserRequests.filter(r => r.status === 'pending').length})
+            User Access Requests ({adminUserRequests.filter(r => r.status === 'pending').length})
           </button>
           <button
             onClick={() => setActiveTab('users')}
@@ -1202,13 +1192,13 @@ export default function ManagementDashboard() {
 
         {activeTab === 'user-requests' && (
           <div style={styles.tabContent}>
-            <h2 style={styles.sectionTitle}>User Access Requests</h2>
+            <h2 style={styles.sectionTitle}>Management User Access Requests</h2>
             <p style={styles.sectionDescription}>
-              Review and approve user access requests submitted through the public registration form.
+              Review and approve management-level user requests (Management, Senior Partner, Partner) submitted from the login page.
             </p>
 
-            {newUserRequests.length === 0 ? (
-              <p style={styles.emptyState}>No user access requests found.</p>
+            {adminUserRequests.length === 0 ? (
+              <p style={styles.emptyState}>No management user requests found.</p>
             ) : (
               <div style={styles.tableContainer}>
                 <table style={styles.table}>
@@ -1216,26 +1206,26 @@ export default function ManagementDashboard() {
                     <tr>
                       <th style={styles.th}>Full Name</th>
                       <th style={styles.th}>Email</th>
+                      <th style={styles.th}>Organization</th>
                       <th style={styles.th}>Position</th>
                       <th style={styles.th}>Requested Access</th>
-                      <th style={styles.th}>Reason</th>
                       <th style={styles.th}>Status</th>
                       <th style={styles.th}>Submitted</th>
                       <th style={styles.th}>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {newUserRequests.map(request => (
+                    {adminUserRequests.map(request => (
                       <tr key={request.id} style={styles.tr}>
                         <td style={styles.td}>{request.full_name}</td>
                         <td style={styles.td}>{request.email}</td>
-                        <td style={styles.td}>{request.position || 'Not provided'}</td>
+                        <td style={styles.td}>{request.organization_name}</td>
+                        <td style={styles.td}>{request.position}</td>
                         <td style={styles.td}>
                           <span style={getBadgeStyle(request.requested_access)}>
-                            {request.requested_access?.toUpperCase() || 'UNKNOWN'}
+                            {request.requested_access?.replace('_', ' ').toUpperCase() || 'UNKNOWN'}
                           </span>
                         </td>
-                        <td style={styles.td}>{request.reason || 'No reason provided'}</td>
                         <td style={styles.td}>
                           <span style={getStatusBadgeStyle(request.status)}>
                             {request.status?.toUpperCase() || 'PENDING'}

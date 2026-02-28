@@ -118,6 +118,7 @@ export default function ClientManagementDashboard() {
         supabase
           .from('new_user_requests')
           .select('*')
+          .eq('organization_id', organization.id)
           .order('created_at', { ascending: false }),
         supabase
           .from('new_user_request_approvals')
