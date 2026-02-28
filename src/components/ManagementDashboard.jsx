@@ -198,83 +198,25 @@ export default function ManagementDashboard() {
         throw new Error('User not authenticated');
       }
 
-      // Step 1: Decrypt the user's chosen password
-      let userPassword = null;
-      if (requestData.encrypted_password) {
-        try {
-          const CryptoJS = (await import('crypto-js')).default;
-          const encryptionKey = 'temp-encryption-key-' + new Date(requestData.created_at).getTime();
-          const bytes = CryptoJS.AES.decrypt(requestData.encrypted_password, encryptionKey);
-          userPassword = bytes.toString(CryptoJS.enc.Utf8);
-        } catch (decryptError) {
-          console.error('Failed to decrypt password:', decryptError);
-        }
-      }
+      // Step 1: Create the organization FIRST
+      const { data: orgData, error: orgError } = await supabase
+        .from('organizations')
+        .insert([{
+          name: requestData.law_firm_name,
+          business_type: 'law_firm',
+          size: 'small',
+          law_firm_type: 'small_firm',
+          brela_registration: requestData.brela_registration_number,
+          tls_registration: requestData.tls_registration_number,
+          contact_email: requestData.firm_email,
+          assigned_user_id: null
+        }])
+        .select()
+        .single();
 
-      // Step 2: Get or create the organization
-      let orgData;
-      let isNewOrganization = false;
+      if (orgError) throw orgError;
 
-      if (requestData.registration_type === 'join_existing' && requestData.existing_organization_id) {
-        // User is joining an existing organization
-        const { data: existingOrg, error: fetchError } = await supabase
-          .from('organizations')
-          .select('*')
-          .eq('id', requestData.existing_organization_id)
-          .single();
-
-        if (fetchError) throw fetchError;
-
-        // Check if organization already has 3 users
-        const { data: orgUsers, error: countError } = await supabase
-          .from('user_profiles')
-          .select('id')
-          .eq('organization_id', existingOrg.id)
-          .eq('is_active', true);
-
-        if (countError) throw countError;
-
-        if (orgUsers.length >= 3) {
-          throw new Error('This organization already has the maximum of 3 users');
-        }
-
-        orgData = existingOrg;
-        isNewOrganization = false;
-      } else {
-        // Create a new organization
-        const { data: newOrg, error: orgError } = await supabase
-          .from('organizations')
-          .insert([{
-            name: requestData.law_firm_name,
-            business_type: 'law_firm',
-            size: 'small',
-            law_firm_type: 'small_firm',
-            brela_registration: requestData.brela_registration_number,
-            tls_registration: requestData.tls_registration_number,
-            contact_email: requestData.firm_email,
-            assigned_user_id: null
-          }])
-          .select()
-          .single();
-
-        if (orgError) throw orgError;
-        orgData = newOrg;
-        isNewOrganization = true;
-      }
-
-      // Step 3: Create the user WITH the organization_id and their chosen password
-      const requestBody = {
-        admin_user_id: user.id,
-        email: requestData.firm_email,
-        full_name: requestData.contact_person_name,
-        role: 'client',
-        organization_id: orgData.id,
-      };
-
-      if (userPassword) {
-        requestBody.password = userPassword;
-      }
-
+      // Step 2: Create the user WITH the organization_id (temporary password will be auto-generated)
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-user`,
         {
@@ -283,32 +225,33 @@ export default function ManagementDashboard() {
             'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify(requestBody),
+          body: JSON.stringify({
+            admin_user_id: user.id,
+            email: requestData.firm_email,
+            full_name: requestData.contact_person_name,
+            role: 'client',
+            organization_id: orgData.id,
+          }),
         }
       );
 
       const result = await response.json();
 
       if (!response.ok || !result.success) {
-        // Only delete organization if we just created it
-        if (isNewOrganization) {
-          await supabase.from('organizations').delete().eq('id', orgData.id);
-        }
+        await supabase.from('organizations').delete().eq('id', orgData.id);
         const errorMsg = result.error || result.details || 'Failed to create user';
         throw new Error(errorMsg);
       }
 
       const newUserId = result.user?.id;
 
-      // Step 4: Update organization with the assigned user (only if this is the primary contact)
-      if (requestData.is_primary_contact) {
-        await supabase
-          .from('organizations')
-          .update({
-            assigned_user_id: newUserId
-          })
-          .eq('id', orgData.id);
-      }
+      // Step 3: Update organization with the assigned user
+      await supabase
+        .from('organizations')
+        .update({
+          assigned_user_id: newUserId
+        })
+        .eq('id', orgData.id);
 
       // Step 4: Set default subscription expiry to 30 days from now
       const defaultExpiryDate = new Date();
@@ -339,14 +282,11 @@ export default function ManagementDashboard() {
 
       await loadData();
 
-      // Show success message
-      const actionType = isNewOrganization ? 'New organization created' : 'User added to existing organization';
-      if (userPassword) {
-        alert(`Registration approved successfully!\n\n${actionType}\nOrganization: ${orgData.name}\n\nThe user can now log in with the password they provided during registration.\n\nEmail: ${requestData.firm_email}`);
-      } else if (result.temporary_password) {
-        alert(`Registration approved successfully!\n\n${actionType}\nOrganization: ${orgData.name}\n\nTemporary Password: ${result.temporary_password}\n\nPlease share this password with the user. They will be required to change it on first login.`);
+      // Show success message with temporary password
+      if (result.temporary_password) {
+        alert(`Registration approved successfully!\n\nTemporary Password: ${result.temporary_password}\n\nPlease share this password with the user. They will be required to change it on first login.`);
       } else {
-        alert(`Registration approved successfully!\n\n${actionType}\nOrganization: ${orgData.name}`);
+        alert('Registration approved successfully! User and organization have been created.');
       }
     } catch (error) {
       console.error('Error approving registration:', error);

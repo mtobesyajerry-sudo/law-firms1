@@ -163,7 +163,7 @@ Deno.serve(async (req: Request) => {
         email: email,
         role: role || 'client',
         full_name: full_name || '',
-        password_change_required: password ? false : true,
+        password_change_required: true,
       };
 
       // Only add organization_id if provided (non-admin users need it)
@@ -189,7 +189,7 @@ Deno.serve(async (req: Request) => {
       const updateData: any = {
         role: role || 'client',
         full_name: full_name || '',
-        password_change_required: password ? false : true,
+        password_change_required: true,
       };
 
       // Only update organization_id if provided

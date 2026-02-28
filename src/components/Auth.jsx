@@ -11,7 +11,6 @@ export default function Auth() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [fullName, setFullName] = useState('');
 
-  const [registrationType, setRegistrationType] = useState('new_firm');
   const [lawFirmName, setLawFirmName] = useState('');
   const [brelaRegistrationNumber, setBrelaRegistrationNumber] = useState('');
   const [firmEmail, setFirmEmail] = useState('');
@@ -23,8 +22,6 @@ export default function Auth() {
   const [privacyAccepted, setPrivacyAccepted] = useState(false);
   const [dataProcessingConsent, setDataProcessingConsent] = useState(false);
   const [amlCftConsent, setAmlCftConsent] = useState(false);
-  const [existingOrgData, setExistingOrgData] = useState(null);
-  const [brelaCheckLoading, setBrelaCheckLoading] = useState(false);
 
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -53,40 +50,6 @@ export default function Auth() {
       setIsFirstUser(false);
     } finally {
       setCheckingFirstUser(false);
-    }
-  };
-
-  const checkOrganizationByBrela = async (brelaNumber) => {
-    if (!brelaNumber || brelaNumber.length < 3) {
-      setExistingOrgData(null);
-      return;
-    }
-
-    setBrelaCheckLoading(true);
-    try {
-      const { data, error } = await supabase.rpc('get_organization_by_brela', {
-        brela_number: brelaNumber
-      });
-
-      if (error) throw error;
-
-      if (data && data.length > 0) {
-        const org = data[0];
-        if (org.can_accept_users) {
-          setExistingOrgData(org);
-          setLawFirmName(org.name);
-          setFirmEmail(org.contact_email || '');
-        } else {
-          setExistingOrgData({ ...org, full: true });
-        }
-      } else {
-        setExistingOrgData(null);
-      }
-    } catch (err) {
-      console.error('Error checking organization:', err);
-      setExistingOrgData(null);
-    } finally {
-      setBrelaCheckLoading(false);
     }
   };
 
@@ -235,24 +198,6 @@ export default function Auth() {
           return;
         }
 
-        if (existingOrgData && existingOrgData.full) {
-          setError('This organization already has the maximum of 3 users. Please contact your administrator.');
-          setLoading(false);
-          return;
-        }
-
-        if ((!existingOrgData || existingOrgData.full) && !lawFirmName) {
-          setError('Law Firm Name is required for new registrations');
-          setLoading(false);
-          return;
-        }
-
-        if ((!existingOrgData || existingOrgData.full) && (!contactPersonName || !contactPersonDesignation || !mobileNumber)) {
-          setError('Contact person details are required for new registrations');
-          setLoading(false);
-          return;
-        }
-
         if (!sectorConfirmed || !termsAccepted || !privacyAccepted || !dataProcessingConsent || !amlCftConsent) {
           setError('Please accept all required consents to proceed');
           setLoading(false);
@@ -262,43 +207,23 @@ export default function Auth() {
         const CryptoJS = (await import('crypto-js')).default;
         const encryptedPassword = CryptoJS.AES.encrypt(password, 'temp-encryption-key-' + Date.now()).toString();
 
-        const registrationData = {
-          brela_registration_number: brelaRegistrationNumber,
-          firm_email: email,
-          sector_confirmed: sectorConfirmed,
-          terms_accepted: termsAccepted,
-          privacy_policy_accepted: privacyAccepted,
-          data_processing_consent: dataProcessingConsent,
-          aml_cft_consent: amlCftConsent,
-          encrypted_password: encryptedPassword,
-          registration_status: 'pending',
-          registration_type: existingOrgData && !existingOrgData.full ? 'join_existing' : 'new_firm',
-          is_primary_contact: existingOrgData && !existingOrgData.full ? false : true,
-        };
-
-        // Only add these fields for new firm registrations
-        if (!existingOrgData || existingOrgData.full) {
-          registrationData.law_firm_name = lawFirmName;
-          registrationData.contact_person_name = contactPersonName;
-          registrationData.contact_person_designation = contactPersonDesignation;
-          registrationData.mobile_number = mobileNumber;
-          registrationData.user_position = contactPersonDesignation;
-        } else {
-          // For joining existing firms, use the firm's name
-          registrationData.law_firm_name = existingOrgData.name;
-          registrationData.contact_person_name = fullName;
-          registrationData.contact_person_designation = 'Member';
-          registrationData.mobile_number = '';
-          registrationData.user_position = 'Member';
-        }
-
-        if (existingOrgData && !existingOrgData.full) {
-          registrationData.existing_organization_id = existingOrgData.id;
-        }
-
         const { error: insertError } = await supabase
           .from('law_firm_registrations')
-          .insert(registrationData);
+          .insert({
+            law_firm_name: lawFirmName,
+            brela_registration_number: brelaRegistrationNumber,
+            firm_email: firmEmail,
+            contact_person_name: contactPersonName,
+            contact_person_designation: contactPersonDesignation,
+            mobile_number: mobileNumber,
+            sector_confirmed: sectorConfirmed,
+            terms_accepted: termsAccepted,
+            privacy_policy_accepted: privacyAccepted,
+            data_processing_consent: dataProcessingConsent,
+            aml_cft_consent: amlCftConsent,
+            encrypted_password: encryptedPassword,
+            registration_status: 'pending'
+          });
 
         if (insertError) throw insertError;
 
@@ -482,115 +407,83 @@ export default function Auth() {
 
             {!isFirstUser && (
               <>
+                <div style={styles.sectionTitle}>Law Firm Information</div>
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>Law Firm Name *</label>
+                  <input
+                    type="text"
+                    value={lawFirmName}
+                    onChange={(e) => setLawFirmName(e.target.value)}
+                    style={styles.input}
+                    placeholder="Full registered name"
+                    required
+                  />
+                </div>
+
                 <div style={styles.sectionTitle}>Registration Details</div>
                 <div style={styles.formGroup}>
                   <label style={styles.label}>Business Registration Number (BRELA) *</label>
                   <input
                     type="text"
                     value={brelaRegistrationNumber}
-                    onChange={(e) => {
-                      setBrelaRegistrationNumber(e.target.value);
-                      checkOrganizationByBrela(e.target.value);
-                    }}
+                    onChange={(e) => setBrelaRegistrationNumber(e.target.value)}
                     style={styles.input}
-                    placeholder="Enter BRELA number to check for existing firm"
+                    placeholder="Required"
                     required
                   />
-                  {brelaCheckLoading && (
-                    <div style={styles.checkingText}>Checking for existing organization...</div>
-                  )}
-                  {existingOrgData && !existingOrgData.full && (
-                    <div style={styles.existingOrgInfo}>
-                      <strong>Existing Firm Found:</strong> {existingOrgData.name}
-                      <br />
-                      <span style={{ fontSize: '13px', color: '#059669' }}>
-                        You will be added to this firm ({existingOrgData.user_count}/3 users)
-                      </span>
-                    </div>
-                  )}
-                  {existingOrgData && existingOrgData.full && (
-                    <div style={styles.warningBox}>
-                      <strong>Firm Registration Full</strong>
-                      <br />
-                      This firm already has 3 registered users. Please contact your administrator.
-                    </div>
-                  )}
                 </div>
 
-                {(!existingOrgData || existingOrgData.full) && (
-                  <>
-                    <div style={styles.sectionTitle}>Law Firm Information</div>
-                    <div style={styles.formGroup}>
-                      <label style={styles.label}>Law Firm Name *</label>
-                      <input
-                        type="text"
-                        value={lawFirmName}
-                        onChange={(e) => setLawFirmName(e.target.value)}
-                        style={styles.input}
-                        placeholder="Full registered name"
-                        required
-                      />
-                    </div>
-                  </>
-                )}
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>Firm Email Address *</label>
+                  <input
+                    type="email"
+                    value={firmEmail}
+                    onChange={(e) => setFirmEmail(e.target.value)}
+                    style={styles.input}
+                    placeholder="Official firm email"
+                    required
+                  />
+                </div>
 
-                {(!existingOrgData || existingOrgData.full) && (
-                  <div style={styles.formGroup}>
-                    <label style={styles.label}>Firm Email Address *</label>
-                    <input
-                      type="email"
-                      value={firmEmail}
-                      onChange={(e) => setFirmEmail(e.target.value)}
-                      style={styles.input}
-                      placeholder="Official firm email"
-                      required
-                    />
-                  </div>
-                )}
+                <div style={styles.sectionTitle}>Contact Person</div>
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>Full Name *</label>
+                  <input
+                    type="text"
+                    value={contactPersonName}
+                    onChange={(e) => setContactPersonName(e.target.value)}
+                    style={styles.input}
+                    required
+                  />
+                </div>
 
-                {(!existingOrgData || existingOrgData.full) && (
-                  <>
-                    <div style={styles.sectionTitle}>Contact Person</div>
-                    <div style={styles.formGroup}>
-                      <label style={styles.label}>Full Name *</label>
-                      <input
-                        type="text"
-                        value={contactPersonName}
-                        onChange={(e) => setContactPersonName(e.target.value)}
-                        style={styles.input}
-                        required
-                      />
-                    </div>
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>Designation *</label>
+                  <select
+                    value={contactPersonDesignation}
+                    onChange={(e) => setContactPersonDesignation(e.target.value)}
+                    style={styles.input}
+                    required
+                  >
+                    <option value="">Select designation</option>
+                    <option value="Partner">Partner</option>
+                    <option value="Associate">Associate</option>
+                    <option value="Compliance Officer">Compliance Officer</option>
+                    <option value="Administrator">Administrator</option>
+                  </select>
+                </div>
 
-                    <div style={styles.formGroup}>
-                      <label style={styles.label}>Designation *</label>
-                      <select
-                        value={contactPersonDesignation}
-                        onChange={(e) => setContactPersonDesignation(e.target.value)}
-                        style={styles.input}
-                        required
-                      >
-                        <option value="">Select designation</option>
-                        <option value="Partner">Partner</option>
-                        <option value="Associate">Associate</option>
-                        <option value="Compliance Officer">Compliance Officer</option>
-                        <option value="Administrator">Administrator</option>
-                      </select>
-                    </div>
-
-                    <div style={styles.formGroup}>
-                      <label style={styles.label}>Mobile Number *</label>
-                      <input
-                        type="tel"
-                        value={mobileNumber}
-                        onChange={(e) => setMobileNumber(e.target.value)}
-                        style={styles.input}
-                        placeholder="Used for secure authentication and alerts"
-                        required
-                      />
-                    </div>
-                  </>
-                )}
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>Mobile Number *</label>
+                  <input
+                    type="tel"
+                    value={mobileNumber}
+                    onChange={(e) => setMobileNumber(e.target.value)}
+                    style={styles.input}
+                    placeholder="Used for secure authentication and alerts"
+                    required
+                  />
+                </div>
 
                 <div style={styles.sectionTitle}>Sector Confirmation</div>
                 <label style={styles.checkboxLabel}>
@@ -897,31 +790,5 @@ const styles = {
     fontSize: '13px',
     color: '#15803d',
     lineHeight: '1.6',
-  },
-  checkingText: {
-    fontSize: '13px',
-    color: '#64748b',
-    fontStyle: 'italic',
-    marginTop: '4px',
-  },
-  existingOrgInfo: {
-    padding: '12px',
-    backgroundColor: '#d1fae5',
-    border: '2px solid #10b981',
-    borderRadius: '8px',
-    marginTop: '8px',
-    fontSize: '14px',
-    color: '#065f46',
-    lineHeight: '1.5',
-  },
-  warningBox: {
-    padding: '12px',
-    backgroundColor: '#fef3c7',
-    border: '2px solid #f59e0b',
-    borderRadius: '8px',
-    marginTop: '8px',
-    fontSize: '14px',
-    color: '#92400e',
-    lineHeight: '1.5',
   },
 };
