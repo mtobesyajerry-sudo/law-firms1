@@ -213,7 +213,7 @@ export default function ManagementDashboard() {
           business_type: 'law_firm',
           contact_email: requestData.firm_email,
           brela_registration: requestData.brela_registration_number,
-          law_firm_type: 'private_practice',
+          law_firm_type: 'small_firm',
           is_active: true,
           created_by: user.id
         }])
