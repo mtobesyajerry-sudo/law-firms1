@@ -247,6 +247,12 @@ export default function Auth() {
           return;
         }
 
+        if ((!existingOrgData || existingOrgData.full) && (!contactPersonName || !contactPersonDesignation || !mobileNumber)) {
+          setError('Contact person details are required for new registrations');
+          setLoading(false);
+          return;
+        }
+
         if (!sectorConfirmed || !termsAccepted || !privacyAccepted || !dataProcessingConsent || !amlCftConsent) {
           setError('Please accept all required consents to proceed');
           setLoading(false);
@@ -257,12 +263,8 @@ export default function Auth() {
         const encryptedPassword = CryptoJS.AES.encrypt(password, 'temp-encryption-key-' + Date.now()).toString();
 
         const registrationData = {
-          law_firm_name: lawFirmName,
           brela_registration_number: brelaRegistrationNumber,
           firm_email: email,
-          contact_person_name: contactPersonName,
-          contact_person_designation: contactPersonDesignation,
-          mobile_number: mobileNumber,
           sector_confirmed: sectorConfirmed,
           terms_accepted: termsAccepted,
           privacy_policy_accepted: privacyAccepted,
@@ -270,10 +272,25 @@ export default function Auth() {
           aml_cft_consent: amlCftConsent,
           encrypted_password: encryptedPassword,
           registration_status: 'pending',
-          registration_type: existingOrgData ? 'join_existing' : 'new_firm',
-          is_primary_contact: existingOrgData ? false : true,
-          user_position: contactPersonDesignation
+          registration_type: existingOrgData && !existingOrgData.full ? 'join_existing' : 'new_firm',
+          is_primary_contact: existingOrgData && !existingOrgData.full ? false : true,
         };
+
+        // Only add these fields for new firm registrations
+        if (!existingOrgData || existingOrgData.full) {
+          registrationData.law_firm_name = lawFirmName;
+          registrationData.contact_person_name = contactPersonName;
+          registrationData.contact_person_designation = contactPersonDesignation;
+          registrationData.mobile_number = mobileNumber;
+          registrationData.user_position = contactPersonDesignation;
+        } else {
+          // For joining existing firms, use the firm's name
+          registrationData.law_firm_name = existingOrgData.name;
+          registrationData.contact_person_name = fullName;
+          registrationData.contact_person_designation = 'Member';
+          registrationData.mobile_number = '';
+          registrationData.user_position = 'Member';
+        }
 
         if (existingOrgData && !existingOrgData.full) {
           registrationData.existing_organization_id = existingOrgData.id;
@@ -531,45 +548,49 @@ export default function Auth() {
                   </div>
                 )}
 
-                <div style={styles.sectionTitle}>Contact Person</div>
-                <div style={styles.formGroup}>
-                  <label style={styles.label}>Full Name *</label>
-                  <input
-                    type="text"
-                    value={contactPersonName}
-                    onChange={(e) => setContactPersonName(e.target.value)}
-                    style={styles.input}
-                    required
-                  />
-                </div>
+                {(!existingOrgData || existingOrgData.full) && (
+                  <>
+                    <div style={styles.sectionTitle}>Contact Person</div>
+                    <div style={styles.formGroup}>
+                      <label style={styles.label}>Full Name *</label>
+                      <input
+                        type="text"
+                        value={contactPersonName}
+                        onChange={(e) => setContactPersonName(e.target.value)}
+                        style={styles.input}
+                        required
+                      />
+                    </div>
 
-                <div style={styles.formGroup}>
-                  <label style={styles.label}>Designation *</label>
-                  <select
-                    value={contactPersonDesignation}
-                    onChange={(e) => setContactPersonDesignation(e.target.value)}
-                    style={styles.input}
-                    required
-                  >
-                    <option value="">Select designation</option>
-                    <option value="Partner">Partner</option>
-                    <option value="Associate">Associate</option>
-                    <option value="Compliance Officer">Compliance Officer</option>
-                    <option value="Administrator">Administrator</option>
-                  </select>
-                </div>
+                    <div style={styles.formGroup}>
+                      <label style={styles.label}>Designation *</label>
+                      <select
+                        value={contactPersonDesignation}
+                        onChange={(e) => setContactPersonDesignation(e.target.value)}
+                        style={styles.input}
+                        required
+                      >
+                        <option value="">Select designation</option>
+                        <option value="Partner">Partner</option>
+                        <option value="Associate">Associate</option>
+                        <option value="Compliance Officer">Compliance Officer</option>
+                        <option value="Administrator">Administrator</option>
+                      </select>
+                    </div>
 
-                <div style={styles.formGroup}>
-                  <label style={styles.label}>Mobile Number *</label>
-                  <input
-                    type="tel"
-                    value={mobileNumber}
-                    onChange={(e) => setMobileNumber(e.target.value)}
-                    style={styles.input}
-                    placeholder="Used for secure authentication and alerts"
-                    required
-                  />
-                </div>
+                    <div style={styles.formGroup}>
+                      <label style={styles.label}>Mobile Number *</label>
+                      <input
+                        type="tel"
+                        value={mobileNumber}
+                        onChange={(e) => setMobileNumber(e.target.value)}
+                        style={styles.input}
+                        placeholder="Used for secure authentication and alerts"
+                        required
+                      />
+                    </div>
+                  </>
+                )}
 
                 <div style={styles.sectionTitle}>Sector Confirmation</div>
                 <label style={styles.checkboxLabel}>
