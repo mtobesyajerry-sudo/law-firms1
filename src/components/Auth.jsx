@@ -93,26 +93,53 @@ export default function Auth() {
           return;
         }
 
-        navigate('/admin/dashboard');
+        if (lawFirmReg.registration_status === 'rejected') {
+          await supabase.auth.signOut();
+          setError('Your registration was rejected. Please contact support for more information.');
+          setLoading(false);
+          return;
+        }
+
+        // Only allow login if registration status is 'active'
+        if (lawFirmReg.registration_status !== 'active') {
+          await supabase.auth.signOut();
+          setError('Your account is not active. Please contact support.');
+          setLoading(false);
+          return;
+        }
+
+        // Route to appropriate dashboard based on role
+        if (profile?.role === 'management' || profile?.role === 'senior_partner' || profile?.role === 'partner') {
+          navigate('/dashboard/management');
+        } else if (profile?.role === 'staff' || profile?.role === 'lawyer') {
+          navigate('/dashboard/staff');
+        } else if (profile?.role === 'compliance_officer' || profile?.role === 'mlro') {
+          navigate('/dashboard/compliance');
+        } else if (profile?.role === 'client') {
+          navigate('/dashboard/client');
+        } else {
+          navigate('/dashboard/client');
+        }
       }
     } catch (err) {
       if (err.message === 'Invalid login credentials') {
+        // Check if there's a pending law firm registration
         const { data: pendingRequest } = await supabase
-          .from('registration_requests')
-          .select('status')
-          .eq('email', email)
+          .from('law_firm_registrations')
+          .select('registration_status')
+          .eq('firm_email', email)
           .maybeSingle();
 
         if (pendingRequest) {
-          if (pendingRequest.status === 'pending') {
-            setError('Your registration is pending approval. Please wait for an administrator to approve your account.');
-          } else if (pendingRequest.status === 'rejected') {
+          if (pendingRequest.registration_status === 'pending') {
+            setError('Your registration is pending approval. Please wait for an administrator to approve your account. You will receive notification once approved.');
+          } else if (pendingRequest.registration_status === 'rejected') {
             setError('Your registration was rejected. Please contact support for more information.');
           } else {
             setError('Invalid email or password. Please try again.');
           }
         } else {
-          setError('Invalid email or password. Please check your credentials and try again.');
+          setError('Invalid email or password. If you are a new user, please complete the registration form below.');
         }
       } else {
         setError(err.message);
