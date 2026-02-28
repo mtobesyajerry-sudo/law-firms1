@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
 import ManagementUserApproval from './ManagementUserApproval';
-import SubscriptionManagement from './SubscriptionManagement';
 
 export default function SystemAdminDashboard() {
   const [stats, setStats] = useState({
@@ -265,15 +264,6 @@ export default function SystemAdminDashboard() {
             )}
           </button>
           <button
-            onClick={() => setActiveTab('subscriptions')}
-            style={{
-              ...styles.tab,
-              ...(activeTab === 'subscriptions' ? styles.activeTab : {})
-            }}
-          >
-            Subscriptions
-          </button>
-          <button
             onClick={() => setActiveTab('activity')}
             style={{
               ...styles.tab,
@@ -350,7 +340,6 @@ export default function SystemAdminDashboard() {
                       <th style={styles.th}>Law Firm Name</th>
                       <th style={styles.th}>BRELA Number</th>
                       <th style={styles.th}>Management Users</th>
-                      <th style={styles.th}>Subscription</th>
                       <th style={styles.th}>Status</th>
                       <th style={styles.th}>Created</th>
                     </tr>
@@ -386,26 +375,14 @@ export default function SystemAdminDashboard() {
                         </td>
                         <td style={styles.td}>
                           <span style={{
-                            padding: '4px 10px',
-                            borderRadius: '6px',
-                            fontSize: '11px',
-                            fontWeight: '700',
-                            background: org.subscription_tier === 'trial' ? '#fef3c7' : '#dcfce7',
-                            color: org.subscription_tier === 'trial' ? '#92400e' : '#166534'
-                          }}>
-                            {org.subscription_tier?.toUpperCase() || 'TRIAL'}
-                          </span>
-                        </td>
-                        <td style={styles.td}>
-                          <span style={{
                             padding: '4px 12px',
                             borderRadius: '12px',
                             fontSize: '12px',
                             fontWeight: '600',
-                            background: org.subscription_status === 'active' ? '#d1fae5' : '#fee2e2',
-                            color: org.subscription_status === 'active' ? '#065f46' : '#991b1b'
+                            background: org.is_active ? '#d1fae5' : '#fee2e2',
+                            color: org.is_active ? '#065f46' : '#991b1b'
                           }}>
-                            {org.subscription_status === 'active' ? 'Active' : 'Inactive'}
+                            {org.is_active ? 'Active' : 'Inactive'}
                           </span>
                         </td>
                         <td style={styles.td}>{new Date(org.created_at).toLocaleDateString()}</td>
@@ -465,7 +442,6 @@ export default function SystemAdminDashboard() {
                     <th style={styles.th}>BRELA Number</th>
                     <th style={styles.th}>Contact Email</th>
                     <th style={styles.th}>Management Users</th>
-                    <th style={styles.th}>Subscription</th>
                     <th style={styles.th}>Status</th>
                     <th style={styles.th}>Created</th>
                   </tr>
@@ -507,30 +483,15 @@ export default function SystemAdminDashboard() {
                         </span>
                       </td>
                       <td style={styles.td}>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                          <span style={{
-                            padding: '4px 10px',
-                            borderRadius: '6px',
-                            fontSize: '11px',
-                            fontWeight: '700',
-                            background: org.subscription_tier === 'trial' ? '#fef3c7' : '#dcfce7',
-                            color: org.subscription_tier === 'trial' ? '#92400e' : '#166534',
-                            display: 'inline-block'
-                          }}>
-                            {org.subscription_tier?.toUpperCase() || 'TRIAL'}
-                          </span>
-                        </div>
-                      </td>
-                      <td style={styles.td}>
                         <span style={{
                           padding: '4px 12px',
                           borderRadius: '12px',
                           fontSize: '12px',
                           fontWeight: '600',
-                          background: org.subscription_status === 'active' ? '#d1fae5' : '#fee2e2',
-                          color: org.subscription_status === 'active' ? '#065f46' : '#991b1b'
+                          background: org.is_active ? '#d1fae5' : '#fee2e2',
+                          color: org.is_active ? '#065f46' : '#991b1b'
                         }}>
-                          {org.subscription_status === 'active' ? 'Active' : 'Inactive'}
+                          {org.is_active ? 'Active' : 'Inactive'}
                         </span>
                       </td>
                       <td style={styles.td}>{new Date(org.created_at).toLocaleDateString()}</td>
@@ -598,10 +559,6 @@ export default function SystemAdminDashboard() {
 
         {activeTab === 'registrations' && (
           <ManagementUserApproval user={profile} />
-        )}
-
-        {activeTab === 'subscriptions' && (
-          <SubscriptionManagement />
         )}
 
         {activeTab === 'activity' && (
