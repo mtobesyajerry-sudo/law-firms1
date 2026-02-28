@@ -33,6 +33,7 @@ export default function ManagementDashboard() {
   const [organizations, setOrganizations] = useState([]);
   const [assessments, setAssessments] = useState([]);
   const [registrationRequests, setRegistrationRequests] = useState([]);
+  const [lawFirmRegistrations, setLawFirmRegistrations] = useState([]);
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
@@ -83,11 +84,12 @@ export default function ManagementDashboard() {
       const { data: { session } } = await supabase.auth.getSession();
       console.log('Current session:', session?.user?.id, session?.user?.email);
 
-      const [usersRes, orgsRes, assessRes, regReqRes, clientsRes] = await Promise.all([
+      const [usersRes, orgsRes, assessRes, regReqRes, lawFirmRegRes, clientsRes] = await Promise.all([
         supabase.from('user_profiles').select('*').order('created_at', { ascending: false }),
         supabase.from('organizations').select('*').order('created_at', { ascending: false }),
         supabase.from('assessments').select('*, organizations(name)').order('created_at', { ascending: false }),
         supabase.from('registration_requests').select('*').order('created_at', { ascending: false }),
+        supabase.from('law_firm_registrations').select('*').order('created_at', { ascending: false }),
         supabase.from('kyc_clients').select('*, organizations(name)').order('created_at', { ascending: false })
       ]);
 
@@ -95,18 +97,21 @@ export default function ManagementDashboard() {
       console.log('Orgs response:', { data: orgsRes.data, error: orgsRes.error, count: orgsRes.count });
       console.log('Assessments response:', { data: assessRes.data, error: assessRes.error, count: assessRes.count });
       console.log('Reg requests response:', { data: regReqRes.data, error: regReqRes.error, count: regReqRes.count });
+      console.log('Law firm registrations response:', { data: lawFirmRegRes.data, error: lawFirmRegRes.error, count: lawFirmRegRes.count });
       console.log('Clients response:', { data: clientsRes.data, error: clientsRes.error, count: clientsRes.count });
 
       if (usersRes.error) throw new Error(`Users: ${usersRes.error.message}`);
       if (orgsRes.error) throw new Error(`Organizations: ${orgsRes.error.message}`);
       if (assessRes.error) throw new Error(`Assessments: ${assessRes.error.message}`);
       if (regReqRes.error) throw new Error(`Registration Requests: ${regReqRes.error.message}`);
+      if (lawFirmRegRes.error) throw new Error(`Law Firm Registrations: ${lawFirmRegRes.error.message}`);
       if (clientsRes.error) throw new Error(`Clients: ${clientsRes.error.message}`);
 
       setUsers(usersRes.data || []);
       setOrganizations(orgsRes.data || []);
       setAssessments(assessRes.data || []);
       setRegistrationRequests(regReqRes.data || []);
+      setLawFirmRegistrations(lawFirmRegRes.data || []);
       setClients(clientsRes.data || []);
 
       console.log('Users loaded:', usersRes.data);
@@ -309,6 +314,109 @@ export default function ManagementDashboard() {
     } catch (error) {
       console.error('Error rejecting registration:', error);
       alert('Error rejecting registration: ' + error.message);
+    }
+  };
+
+  const approveLawFirmRegistration = async (requestId, requestData) => {
+    try {
+      if (!user?.id) {
+        throw new Error('User not authenticated');
+      }
+
+      const { data: orgData, error: orgError } = await supabase
+        .from('organizations')
+        .insert([{
+          name: requestData.law_firm_name,
+          type: 'law_firm',
+          country: 'Tanzania',
+          is_active: true
+        }])
+        .select()
+        .single();
+
+      if (orgError) throw orgError;
+
+      const CryptoJS = (await import('crypto-js')).default;
+      const decryptedPassword = CryptoJS.AES.decrypt(
+        requestData.encrypted_password,
+        import.meta.env.VITE_ENCRYPTION_KEY || 'fallback-key'
+      ).toString(CryptoJS.enc.Utf8);
+
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: requestData.firm_email,
+        password: decryptedPassword
+      });
+
+      if (authError) {
+        await supabase.from('organizations').delete().eq('id', orgData.id);
+        throw authError;
+      }
+
+      if (authData.user) {
+        const { error: profileError } = await supabase
+          .from('user_profiles')
+          .insert({
+            id: authData.user.id,
+            email: requestData.firm_email,
+            full_name: requestData.contact_person_name,
+            role: 'client',
+            position: requestData.contact_person_designation,
+            organization_id: orgData.id,
+            organization_name: requestData.law_firm_name,
+            is_active: true
+          });
+
+        if (profileError) {
+          await supabase.auth.admin.deleteUser(authData.user.id);
+          await supabase.from('organizations').delete().eq('id', orgData.id);
+          throw profileError;
+        }
+
+        await supabase
+          .from('organizations')
+          .update({
+            assigned_user_id: authData.user.id
+          })
+          .eq('id', orgData.id);
+
+        const { error: updateError } = await supabase
+          .from('law_firm_registrations')
+          .update({
+            user_id: authData.user.id,
+            organization_id: orgData.id,
+            registration_status: 'active',
+            encrypted_password: null
+          })
+          .eq('id', requestId);
+
+        if (updateError) throw updateError;
+
+        await loadData();
+        alert(`Law firm registration approved successfully!\n\nFirm: ${requestData.law_firm_name}\nEmail: ${requestData.firm_email}\n\nThe user can now log in with their submitted credentials.`);
+      }
+    } catch (error) {
+      console.error('Error approving law firm registration:', error);
+      alert('Error approving law firm registration: ' + error.message);
+    }
+  };
+
+  const rejectLawFirmRegistration = async (requestId, reason) => {
+    try {
+      const { error } = await supabase
+        .from('law_firm_registrations')
+        .update({
+          registration_status: 'rejected',
+          encrypted_password: null
+        })
+        .eq('id', requestId);
+
+      if (error) throw error;
+
+      await loadData();
+      alert(`Law firm registration rejected.\nReason: ${reason}`);
+    } catch (error) {
+      console.error('Error rejecting law firm registration:', error);
+      alert('Error rejecting law firm registration: ' + error.message);
     }
   };
 
@@ -924,6 +1032,12 @@ export default function ManagementDashboard() {
       <div style={dashboardStyles.contentCard}>
         <div style={dashboardStyles.tabContainer}>
           <button
+            onClick={() => setActiveTab('lawfirm-registration')}
+            style={activeTab === 'lawfirm-registration' ? dashboardStyles.tabActive : dashboardStyles.tab}
+          >
+            Law Firm Registrations ({lawFirmRegistrations.filter(r => r.registration_status === 'pending').length})
+          </button>
+          <button
             onClick={() => setActiveTab('registration')}
             style={activeTab === 'registration' ? dashboardStyles.tabActive : dashboardStyles.tab}
           >
@@ -960,6 +1074,125 @@ export default function ManagementDashboard() {
             Content Management
           </button>
         </div>
+
+        {activeTab === 'lawfirm-registration' && (
+          <div style={styles.tabContent}>
+            <h2 style={styles.sectionTitle}>Law Firm Registration Requests</h2>
+            <p style={{ color: '#718096', marginBottom: '24px', fontSize: '14px' }}>
+              Review and approve Tanzania law firm registration requests. Approved firms will receive full system access.
+            </p>
+
+            <div style={styles.registrationSection}>
+              <div style={styles.registrationCard}>
+                <h3 style={styles.subscriptionCardTitle}>
+                  Pending Requests ({lawFirmRegistrations.filter(r => r.registration_status === 'pending').length})
+                </h3>
+                <div style={styles.tableContainer}>
+                  {lawFirmRegistrations.filter(r => r.registration_status === 'pending').length === 0 ? (
+                    <p style={styles.emptyState}>No pending law firm registration requests</p>
+                  ) : (
+                    <table style={styles.table}>
+                      <thead>
+                        <tr>
+                          <th style={styles.th}>Law Firm Name</th>
+                          <th style={styles.th}>BRELA Number</th>
+                          <th style={styles.th}>Email</th>
+                          <th style={styles.th}>Contact Person</th>
+                          <th style={styles.th}>Position</th>
+                          <th style={styles.th}>Mobile</th>
+                          <th style={styles.th}>Submitted</th>
+                          <th style={styles.th}>Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {lawFirmRegistrations.filter(r => r.registration_status === 'pending').map((request) => (
+                          <tr key={request.id} style={styles.tr}>
+                            <td style={styles.td}>{request.law_firm_name}</td>
+                            <td style={styles.td}>{request.brela_registration_number}</td>
+                            <td style={styles.td}>{request.firm_email}</td>
+                            <td style={styles.td}>{request.contact_person_name}</td>
+                            <td style={styles.td}>{request.contact_person_designation}</td>
+                            <td style={styles.td}>{request.mobile_number}</td>
+                            <td style={styles.td}>{new Date(request.created_at).toLocaleDateString()}</td>
+                            <td style={styles.td}>
+                              <div style={{ display: 'flex', gap: '8px' }}>
+                                <button
+                                  onClick={() => {
+                                    if (confirm(`Approve registration for ${request.law_firm_name}?\n\nThis will create an organization and user account.`)) {
+                                      approveLawFirmRegistration(request.id, request);
+                                    }
+                                  }}
+                                  style={styles.activateButton}
+                                >
+                                  Approve
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    const reason = prompt('Please provide a reason for rejection:');
+                                    if (reason) {
+                                      rejectLawFirmRegistration(request.id, reason);
+                                    }
+                                  }}
+                                  style={styles.dangerActionButton}
+                                >
+                                  Reject
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+              </div>
+
+              <div style={styles.registrationCard}>
+                <h3 style={styles.subscriptionCardTitle}>
+                  Processed Requests ({lawFirmRegistrations.filter(r => r.registration_status !== 'pending').length})
+                </h3>
+                <div style={styles.tableContainer}>
+                  {lawFirmRegistrations.filter(r => r.registration_status !== 'pending').length === 0 ? (
+                    <p style={styles.emptyState}>No processed requests</p>
+                  ) : (
+                    <table style={styles.table}>
+                      <thead>
+                        <tr>
+                          <th style={styles.th}>Law Firm Name</th>
+                          <th style={styles.th}>Email</th>
+                          <th style={styles.th}>Contact Person</th>
+                          <th style={styles.th}>Status</th>
+                          <th style={styles.th}>Processed</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {lawFirmRegistrations.filter(r => r.registration_status !== 'pending').map((request) => (
+                          <tr key={request.id} style={styles.tr}>
+                            <td style={styles.td}>{request.law_firm_name}</td>
+                            <td style={styles.td}>{request.firm_email}</td>
+                            <td style={styles.td}>{request.contact_person_name}</td>
+                            <td style={styles.td}>
+                              <span style={{
+                                ...styles.badge,
+                                background: request.registration_status === 'active' ? '#d1fae5' : '#fee2e2',
+                                color: request.registration_status === 'active' ? '#065f46' : '#991b1b'
+                              }}>
+                                {request.registration_status}
+                              </span>
+                            </td>
+                            <td style={styles.td}>
+                              {request.updated_at ? new Date(request.updated_at).toLocaleDateString() : '-'}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {activeTab === 'registration' && (
           <div style={styles.tabContent}>
