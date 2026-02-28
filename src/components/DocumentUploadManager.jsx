@@ -32,23 +32,28 @@ export default function DocumentUploadManager({
     try {
       setLoading(true);
 
-      // Load client to get DD level
+      // Load client to get DD level and client type
       const { data: clientData, error: clientError } = await supabase
         .from('kyc_clients')
-        .select('id, client_name, current_dd_level')
+        .select('id, client_name, current_dd_level, client_type')
         .eq('id', clientId)
         .single();
 
       if (clientError) throw clientError;
       setClient(clientData);
 
-      // Load required documents for this DD level
+      // Determine document requirement client type (individual or corporate)
+      const docClientType = clientData.client_type === 'individual' ? 'individual' : 'corporate';
+
+      // Load required documents for this DD level and client type
       const { data: requirements, error: reqError } = await supabase
-        .from('dd_level_document_requirements')
+        .from('document_requirements')
         .select(`
           id,
           dd_level,
+          client_type,
           is_mandatory,
+          description,
           document_type:document_types (
             id,
             name,
@@ -58,6 +63,7 @@ export default function DocumentUploadManager({
           )
         `)
         .eq('dd_level', clientData.current_dd_level)
+        .eq('client_type', docClientType)
         .order('is_mandatory', { ascending: false });
 
       if (reqError) throw reqError;
