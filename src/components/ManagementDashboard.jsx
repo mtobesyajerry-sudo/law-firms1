@@ -203,9 +203,9 @@ export default function ManagementDashboard() {
         .from('organizations')
         .insert([{
           name: requestData.law_firm_name,
-          business_type: 'Law Firm',
+          business_type: 'law_firm',
           size: 'small',
-          law_firm_type: 'private_practice',
+          law_firm_type: 'small_firm',
           brela_registration: requestData.brela_registration_number,
           tls_registration: requestData.tls_registration_number,
           contact_email: requestData.firm_email,
