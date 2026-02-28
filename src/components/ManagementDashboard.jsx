@@ -210,9 +210,12 @@ export default function ManagementDashboard() {
         .from('organizations')
         .insert([{
           name: requestData.law_firm_name,
-          type: 'law_firm',
-          country: 'Tanzania',
-          is_active: true
+          business_type: 'law_firm',
+          contact_email: requestData.firm_email,
+          brela_registration: requestData.brela_registration_number,
+          law_firm_type: 'private_practice',
+          is_active: true,
+          created_by: user.id
         }])
         .select()
         .single();
@@ -227,7 +230,10 @@ export default function ManagementDashboard() {
 
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: requestData.firm_email,
-        password: decryptedPassword
+        password: decryptedPassword,
+        options: {
+          emailRedirectTo: window.location.origin
+        }
       });
 
       if (authError) {
@@ -245,8 +251,8 @@ export default function ManagementDashboard() {
             role: 'client',
             position: requestData.contact_person_designation,
             organization_id: orgData.id,
-            organization_name: requestData.law_firm_name,
-            is_active: true
+            is_active: true,
+            created_by: user.id
           });
 
         if (profileError) {
