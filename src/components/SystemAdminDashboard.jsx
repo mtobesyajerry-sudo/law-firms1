@@ -12,13 +12,15 @@ export default function SystemAdminDashboard() {
     activeUsers: 0,
     pendingRegistrations: 0,
     pendingRoleUpgrades: 0,
+    pendingNewUserRequests: 0,
   });
   const [recentActivity, setRecentActivity] = useState([]);
   const [organizations, setOrganizations] = useState([]);
   const [users, setUsers] = useState([]);
+  const [registrationRequests, setRegistrationRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
-  const { signOut } = useAuth();
+  const { signOut, profile } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -37,9 +39,11 @@ export default function SystemAdminDashboard() {
         { count: activeUsers },
         { count: pendingRegs },
         { count: pendingUpgrades },
+        { count: pendingNewUsers },
         { data: orgsData },
         { data: usersData },
-        { data: activityData }
+        { data: activityData },
+        { data: regRequestsData }
       ] = await Promise.all([
         supabase.from('user_profiles').select('*', { count: 'exact', head: true }),
         supabase.from('organizations').select('*', { count: 'exact', head: true }),
@@ -48,9 +52,11 @@ export default function SystemAdminDashboard() {
         supabase.from('user_profiles').select('*', { count: 'exact', head: true }).eq('is_active', true),
         supabase.from('law_firm_registrations').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
         supabase.from('role_upgrade_requests').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
+        supabase.from('new_user_requests').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
         supabase.from('organizations').select('*').order('created_at', { ascending: false }).limit(10),
         supabase.from('user_profiles').select('*, organizations(name)').order('created_at', { ascending: false }).limit(20),
-        supabase.from('audit_logs').select('*').order('created_at', { ascending: false }).limit(20)
+        supabase.from('audit_logs').select('*').order('created_at', { ascending: false }).limit(50),
+        supabase.from('law_firm_registrations').select('*').eq('status', 'pending').order('created_at', { ascending: false })
       ]);
 
       setStats({
@@ -61,15 +67,68 @@ export default function SystemAdminDashboard() {
         activeUsers: activeUsers || 0,
         pendingRegistrations: pendingRegs || 0,
         pendingRoleUpgrades: pendingUpgrades || 0,
+        pendingNewUserRequests: pendingNewUsers || 0,
       });
 
       setOrganizations(orgsData || []);
       setUsers(usersData || []);
       setRecentActivity(activityData || []);
+      setRegistrationRequests(regRequestsData || []);
     } catch (error) {
       console.error('Error loading dashboard data:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleApproveRegistration = async (requestId) => {
+    if (!confirm('Are you sure you want to approve this registration request?')) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-user`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+        },
+        body: JSON.stringify({
+          action: 'approve_registration',
+          registrationId: requestId
+        })
+      });
+
+      if (response.ok) {
+        alert('Registration approved successfully!');
+        loadDashboardData();
+      } else {
+        const error = await response.json();
+        alert(`Error: ${error.error || 'Failed to approve registration'}`);
+      }
+    } catch (error) {
+      console.error('Error approving registration:', error);
+      alert('Failed to approve registration');
+    }
+  };
+
+  const handleRejectRegistration = async (requestId) => {
+    const reason = prompt('Please provide a reason for rejection:');
+    if (!reason) return;
+
+    try {
+      const { error } = await supabase
+        .from('law_firm_registrations')
+        .update({ status: 'rejected', rejection_reason: reason })
+        .eq('id', requestId);
+
+      if (error) throw error;
+
+      alert('Registration rejected');
+      loadDashboardData();
+    } catch (error) {
+      console.error('Error rejecting registration:', error);
+      alert('Failed to reject registration');
     }
   };
 
@@ -83,15 +142,17 @@ export default function SystemAdminDashboard() {
     );
   }
 
+  const totalPendingActions = stats.pendingRegistrations + stats.pendingRoleUpgrades + stats.pendingNewUserRequests;
+
   return (
     <div style={styles.container}>
       <header style={styles.header}>
         <div>
           <div style={{ fontSize: '14px', fontWeight: '600', color: '#ef4444', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '1px' }}>
-            System Administrator
+            SYSTEM ADMINISTRATOR
           </div>
           <h1 style={{ margin: '0 0 12px 0', fontSize: '36px', fontWeight: '800', color: 'white' }}>
-            System Administration Dashboard
+            System Administration
           </h1>
           <div style={{ display: 'flex', gap: '24px', alignItems: 'center', flexWrap: 'wrap' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -178,7 +239,7 @@ export default function SystemAdminDashboard() {
               position: 'relative'
             }}
           >
-            Registration Requests
+            Registrations
             {stats.pendingRegistrations > 0 && (
               <span style={styles.badge}>{stats.pendingRegistrations}</span>
             )}
@@ -223,30 +284,31 @@ export default function SystemAdminDashboard() {
               </div>
             </div>
 
-            {stats.pendingRegistrations > 0 && (
+            {totalPendingActions > 0 && (
               <div style={styles.alertCard}>
                 <div style={{ fontSize: '24px', marginBottom: '8px' }}>⚠️</div>
                 <h3 style={{ margin: '0 0 8px 0', fontSize: '18px', fontWeight: '700', color: '#92400e' }}>
                   Pending Actions Required
                 </h3>
                 <p style={{ margin: '0 0 16px 0', fontSize: '14px', color: '#92400e' }}>
-                  You have {stats.pendingRegistrations} pending registration request(s) and {stats.pendingRoleUpgrades} pending role upgrade request(s) awaiting review.
+                  You have {stats.pendingRegistrations} pending registration request(s), {stats.pendingRoleUpgrades} role upgrade request(s), and {stats.pendingNewUserRequests} new user request(s) awaiting review.
                 </p>
-                <button
-                  onClick={() => setActiveTab('registrations')}
-                  style={{
-                    padding: '8px 16px',
-                    background: '#f59e0b',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '6px',
-                    cursor: 'pointer',
-                    fontWeight: '600',
-                    fontSize: '14px'
-                  }}
-                >
-                  Review Requests
-                </button>
+                <div style={{ display: 'flex', gap: '12px' }}>
+                  {stats.pendingRegistrations > 0 && (
+                    <button
+                      onClick={() => setActiveTab('registrations')}
+                      style={styles.alertButton}
+                    >
+                      Review Registrations ({stats.pendingRegistrations})
+                    </button>
+                  )}
+                  <button
+                    onClick={() => navigate('/admin/security')}
+                    style={styles.alertButton}
+                  >
+                    Security Dashboard
+                  </button>
+                </div>
               </div>
             )}
 
@@ -295,6 +357,8 @@ export default function SystemAdminDashboard() {
                 <button
                   onClick={() => navigate('/admin/security')}
                   style={styles.actionButton}
+                  onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
+                  onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
                 >
                   <div style={{ fontSize: '32px', marginBottom: '8px' }}>🔒</div>
                   <div style={{ fontSize: '16px', fontWeight: '600', color: '#0a1929' }}>Security Dashboard</div>
@@ -303,18 +367,22 @@ export default function SystemAdminDashboard() {
                 <button
                   onClick={() => setActiveTab('users')}
                   style={styles.actionButton}
+                  onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
+                  onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
                 >
                   <div style={{ fontSize: '32px', marginBottom: '8px' }}>👥</div>
                   <div style={{ fontSize: '16px', fontWeight: '600', color: '#0a1929' }}>User Management</div>
-                  <div style={{ fontSize: '13px', color: '#64748b', marginTop: '4px' }}>View and manage users</div>
+                  <div style={{ fontSize: '13px', color: '#64748b', marginTop: '4px' }}>View all system users</div>
                 </button>
                 <button
                   onClick={() => setActiveTab('organizations')}
                   style={styles.actionButton}
+                  onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
+                  onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
                 >
                   <div style={{ fontSize: '32px', marginBottom: '8px' }}>🏢</div>
                   <div style={{ fontSize: '16px', fontWeight: '600', color: '#0a1929' }}>Organizations</div>
-                  <div style={{ fontSize: '13px', color: '#64748b', marginTop: '4px' }}>Manage organizations</div>
+                  <div style={{ fontSize: '13px', color: '#64748b', marginTop: '4px' }}>Manage all organizations</div>
                 </button>
               </div>
             </div>
@@ -332,7 +400,7 @@ export default function SystemAdminDashboard() {
                     <th style={styles.th}>Business Type</th>
                     <th style={styles.th}>Size</th>
                     <th style={styles.th}>Status</th>
-                    <th style={styles.th}>Subscription</th>
+                    <th style={styles.th}>Subscription Expiry</th>
                     <th style={styles.th}>Created</th>
                   </tr>
                 </thead>
@@ -355,7 +423,7 @@ export default function SystemAdminDashboard() {
                         </span>
                       </td>
                       <td style={styles.td}>
-                        {org.subscription_expiry_date ? new Date(org.subscription_expiry_date).toLocaleDateString() : 'Unlimited'}
+                        {org.subscription_expiry_date ? new Date(org.subscription_expiry_date).toLocaleDateString() : 'No Limit'}
                       </td>
                       <td style={styles.td}>{new Date(org.created_at).toLocaleDateString()}</td>
                     </tr>
@@ -368,7 +436,7 @@ export default function SystemAdminDashboard() {
 
         {activeTab === 'users' && (
           <div style={styles.sectionCard}>
-            <h3 style={styles.sectionTitle}>All Users</h3>
+            <h3 style={styles.sectionTitle}>All System Users</h3>
             <div style={{ overflowX: 'auto' }}>
               <table style={styles.table}>
                 <thead>
@@ -384,7 +452,7 @@ export default function SystemAdminDashboard() {
                 <tbody>
                   {users.map((user) => (
                     <tr key={user.id} style={styles.tr}>
-                      <td style={styles.td}>{user.full_name || 'N/A'}</td>
+                      <td style={styles.td}>{user.full_name || '-'}</td>
                       <td style={styles.td}>{user.email}</td>
                       <td style={styles.td}>
                         <span style={{
@@ -398,7 +466,7 @@ export default function SystemAdminDashboard() {
                           {user.role}
                         </span>
                       </td>
-                      <td style={styles.td}>{user.organizations?.name || 'N/A'}</td>
+                      <td style={styles.td}>{user.organizations?.name || '-'}</td>
                       <td style={styles.td}>
                         <span style={{
                           padding: '4px 12px',
@@ -422,33 +490,83 @@ export default function SystemAdminDashboard() {
 
         {activeTab === 'registrations' && (
           <div style={styles.sectionCard}>
-            <h3 style={styles.sectionTitle}>Pending Registration Requests</h3>
-            <p style={{ color: '#64748b', fontSize: '14px', marginBottom: '20px' }}>
-              Review and approve new organization registrations. Navigate to the Security Dashboard for detailed management.
-            </p>
-            <button
-              onClick={() => navigate('/admin/security')}
-              style={{
-                padding: '12px 24px',
-                background: 'linear-gradient(135deg, #d4af37 0%, #f4d03f 100%)',
-                color: '#0a1929',
-                border: 'none',
-                borderRadius: '8px',
-                cursor: 'pointer',
-                fontWeight: '700',
-                fontSize: '14px',
-                boxShadow: '0 4px 12px rgba(212,175,55,0.4)',
-                transition: 'all 0.3s ease',
-              }}
-            >
-              Go to Security Dashboard
-            </button>
+            <h3 style={styles.sectionTitle}>Pending Law Firm Registration Requests</h3>
+            {registrationRequests.length === 0 ? (
+              <p style={{ textAlign: 'center', color: '#64748b', padding: '40px' }}>
+                No pending registration requests
+              </p>
+            ) : (
+              <div style={{ display: 'grid', gap: '16px' }}>
+                {registrationRequests.map((request) => (
+                  <div key={request.id} style={styles.requestCard}>
+                    <div style={{ flex: 1 }}>
+                      <h4 style={{ margin: '0 0 8px 0', fontSize: '18px', fontWeight: '700', color: '#0a1929' }}>
+                        {request.firm_name}
+                      </h4>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
+                        <div>
+                          <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '4px' }}>Contact Person</div>
+                          <div style={{ fontSize: '14px', fontWeight: '600', color: '#2d3748' }}>{request.contact_person_name}</div>
+                        </div>
+                        <div>
+                          <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '4px' }}>Email</div>
+                          <div style={{ fontSize: '14px', fontWeight: '600', color: '#2d3748' }}>{request.contact_email}</div>
+                        </div>
+                        <div>
+                          <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '4px' }}>Phone</div>
+                          <div style={{ fontSize: '14px', fontWeight: '600', color: '#2d3748' }}>{request.contact_phone}</div>
+                        </div>
+                        <div>
+                          <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '4px' }}>Firm Size</div>
+                          <div style={{ fontSize: '14px', fontWeight: '600', color: '#2d3748' }}>{request.firm_size}</div>
+                        </div>
+                      </div>
+                      <div style={{ fontSize: '12px', color: '#94a3b8' }}>
+                        Requested: {new Date(request.created_at).toLocaleString()}
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                      <button
+                        onClick={() => handleApproveRegistration(request.id)}
+                        style={{
+                          padding: '8px 16px',
+                          background: '#10b981',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '6px',
+                          cursor: 'pointer',
+                          fontWeight: '600',
+                          fontSize: '14px'
+                        }}
+                      >
+                        Approve
+                      </button>
+                      <button
+                        onClick={() => handleRejectRegistration(request.id)}
+                        style={{
+                          padding: '8px 16px',
+                          background: '#ef4444',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '6px',
+                          cursor: 'pointer',
+                          fontWeight: '600',
+                          fontSize: '14px'
+                        }}
+                      >
+                        Reject
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
         {activeTab === 'activity' && (
           <div style={styles.sectionCard}>
-            <h3 style={styles.sectionTitle}>Recent Activity Logs</h3>
+            <h3 style={styles.sectionTitle}>System Activity Logs</h3>
             <div style={{ overflowX: 'auto' }}>
               {recentActivity.length === 0 ? (
                 <p style={{ textAlign: 'center', color: '#64748b', padding: '40px' }}>No activity logs available</p>
@@ -481,7 +599,7 @@ export default function SystemAdminDashboard() {
                         </td>
                         <td style={styles.td}>{log.user_email || 'System'}</td>
                         <td style={styles.td}>{log.table_name}</td>
-                        <td style={styles.td}>{log.ip_address || 'N/A'}</td>
+                        <td style={styles.td}>{log.ip_address || '-'}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -505,7 +623,7 @@ const styles = {
     borderRadius: '0 0 16px 16px',
     padding: '32px 40px',
     marginBottom: '32px',
-    border: '2px solid #d4af37',
+    border: '2px solid #ef4444',
     borderTop: 'none',
     boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
     display: 'flex',
@@ -524,8 +642,8 @@ const styles = {
     background: 'white',
     padding: '8px',
     borderRadius: '12px',
-    border: '2px solid #d4af37',
-    boxShadow: '0 4px 16px rgba(0,0,0,0.1)',
+    border: '2px solid #ef4444',
+    boxShadow: '0 4px 16px rgba(239, 68, 68, 0.2)',
   },
   tab: {
     flex: 1,
@@ -541,15 +659,15 @@ const styles = {
     position: 'relative',
   },
   activeTab: {
-    background: 'linear-gradient(135deg, #d4af37 0%, #f4d03f 100%)',
-    color: '#0a1929',
-    boxShadow: '0 4px 12px rgba(212, 175, 55, 0.4)',
+    background: 'linear-gradient(135deg, #ef4444, #dc2626)',
+    color: 'white',
+    boxShadow: '0 4px 12px rgba(239, 68, 68, 0.4)',
   },
   badge: {
     position: 'absolute',
     top: '8px',
     right: '8px',
-    background: '#ef4444',
+    background: '#f59e0b',
     color: 'white',
     borderRadius: '12px',
     padding: '2px 8px',
@@ -568,8 +686,8 @@ const styles = {
     background: 'white',
     borderRadius: '16px',
     padding: '24px',
-    border: '2px solid #d4af37',
-    boxShadow: '0 4px 16px rgba(0,0,0,0.1)',
+    border: '2px solid #ef4444',
+    boxShadow: '0 4px 16px rgba(239, 68, 68, 0.15)',
     textAlign: 'center',
     transition: 'all 0.3s ease',
   },
@@ -602,11 +720,21 @@ const styles = {
     textAlign: 'center',
     boxShadow: '0 4px 16px rgba(245, 158, 11, 0.2)',
   },
+  alertButton: {
+    padding: '8px 16px',
+    background: '#f59e0b',
+    color: 'white',
+    border: 'none',
+    borderRadius: '6px',
+    cursor: 'pointer',
+    fontWeight: '600',
+    fontSize: '14px',
+  },
   sectionCard: {
     background: 'white',
     borderRadius: '16px',
     boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
-    border: '2px solid #d4af37',
+    border: '2px solid #ef4444',
     padding: '24px',
     marginBottom: '24px',
   },
@@ -616,7 +744,7 @@ const styles = {
     color: '#0a1929',
     marginBottom: '20px',
     paddingBottom: '12px',
-    borderBottom: '2px solid #d4af37',
+    borderBottom: '2px solid #ef4444',
   },
   table: {
     width: '100%',
@@ -629,7 +757,7 @@ const styles = {
     fontWeight: '700',
     color: '#ffffff',
     fontSize: '14px',
-    borderBottom: '3px solid #d4af37',
+    borderBottom: '3px solid #ef4444',
     letterSpacing: '0.5px',
   },
   tr: {
@@ -643,11 +771,20 @@ const styles = {
   },
   actionButton: {
     background: 'white',
-    border: '2px solid #d4af37',
+    border: '2px solid #ef4444',
     borderRadius: '12px',
     padding: '24px',
     cursor: 'pointer',
     transition: 'all 0.3s ease',
     textAlign: 'center',
+  },
+  requestCard: {
+    background: '#f9fafb',
+    border: '2px solid #e5e7eb',
+    borderRadius: '12px',
+    padding: '20px',
+    display: 'flex',
+    gap: '20px',
+    alignItems: 'flex-start',
   },
 };
