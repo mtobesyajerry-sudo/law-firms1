@@ -123,9 +123,9 @@ export default function Auth() {
     } catch (err) {
       if (err.message === 'Invalid login credentials') {
         const { data: pendingRequest } = await supabase
-          .from('law_firm_registrations')
+          .from('management_user_registrations')
           .select('registration_status')
-          .eq('firm_email', email)
+          .eq('user_email', email)
           .maybeSingle();
 
         if (pendingRequest) {
@@ -262,42 +262,39 @@ export default function Auth() {
         const CryptoJS = (await import('crypto-js')).default;
         const encryptedPassword = CryptoJS.AES.encrypt(password, 'temp-encryption-key-' + Date.now()).toString();
 
+        // Check if this is the first user for this BRELA number
+        const { data: existingRegs } = await supabase
+          .from('management_user_registrations')
+          .select('id')
+          .eq('brela_registration_number', brelaRegistrationNumber)
+          .eq('registration_status', 'approved');
+
+        const isPrimaryContact = existingRegs?.length === 0;
+
         const registrationData = {
           brela_registration_number: brelaRegistrationNumber,
-          firm_email: email,
+          law_firm_name: existingOrgData && !existingOrgData.full ? existingOrgData.name : lawFirmName,
+          firm_email: existingOrgData && !existingOrgData.full ? (existingOrgData.contact_email || firmEmail) : firmEmail,
+          user_full_name: fullName,
+          user_email: email,
+          user_position: contactPersonDesignation || 'Management User',
+          mobile_number: mobileNumber || '',
+          encrypted_password: encryptedPassword,
+          is_primary_contact: isPrimaryContact,
           sector_confirmed: sectorConfirmed,
           terms_accepted: termsAccepted,
           privacy_policy_accepted: privacyAccepted,
           data_processing_consent: dataProcessingConsent,
           aml_cft_consent: amlCftConsent,
-          encrypted_password: encryptedPassword,
-          registration_status: 'pending',
-          registration_type: existingOrgData && !existingOrgData.full ? 'join_existing' : 'new_firm',
-          is_primary_contact: existingOrgData && !existingOrgData.full ? false : true,
+          registration_status: 'pending'
         };
-
-        // Only add these fields for new firm registrations
-        if (!existingOrgData || existingOrgData.full) {
-          registrationData.law_firm_name = lawFirmName;
-          registrationData.contact_person_name = contactPersonName;
-          registrationData.contact_person_designation = contactPersonDesignation;
-          registrationData.mobile_number = mobileNumber;
-          registrationData.user_position = contactPersonDesignation;
-        } else {
-          // For joining existing firms, use the firm's name
-          registrationData.law_firm_name = existingOrgData.name;
-          registrationData.contact_person_name = fullName;
-          registrationData.contact_person_designation = 'Member';
-          registrationData.mobile_number = '';
-          registrationData.user_position = 'Member';
-        }
 
         if (existingOrgData && !existingOrgData.full) {
           registrationData.existing_organization_id = existingOrgData.id;
         }
 
         const { error: insertError } = await supabase
-          .from('law_firm_registrations')
+          .from('management_user_registrations')
           .insert(registrationData);
 
         if (insertError) throw insertError;

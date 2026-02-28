@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
+import ManagementUserApproval from './ManagementUserApproval';
 
 export default function SystemAdminDashboard() {
   const [stats, setStats] = useState({
@@ -52,13 +53,13 @@ export default function SystemAdminDashboard() {
         supabase.from('assessments').select('*', { count: 'exact', head: true }),
         supabase.from('kyc_clients').select('*', { count: 'exact', head: true }),
         supabase.from('user_profiles').select('*', { count: 'exact', head: true }).eq('is_active', true),
-        supabase.from('law_firm_registrations').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
+        supabase.from('management_user_registrations').select('*', { count: 'exact', head: true }).eq('registration_status', 'pending'),
         supabase.from('role_upgrade_requests').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
         supabase.from('new_user_requests').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
         supabase.from('organizations').select('*').order('created_at', { ascending: false }).limit(10),
         supabase.from('user_profiles').select('*, organizations(name)').order('created_at', { ascending: false }).limit(20),
         supabase.from('audit_logs').select('*').order('created_at', { ascending: false }).limit(50),
-        supabase.from('law_firm_registrations').select('*').eq('status', 'pending').order('created_at', { ascending: false })
+        supabase.from('management_user_registrations').select('*').eq('registration_status', 'pending').order('created_at', { ascending: false })
       ]);
 
       setStats({
@@ -491,79 +492,7 @@ export default function SystemAdminDashboard() {
         )}
 
         {activeTab === 'registrations' && (
-          <div style={styles.sectionCard}>
-            <h3 style={styles.sectionTitle}>Pending Law Firm Registration Requests</h3>
-            {registrationRequests.length === 0 ? (
-              <p style={{ textAlign: 'center', color: '#64748b', padding: '40px' }}>
-                No pending registration requests
-              </p>
-            ) : (
-              <div style={{ display: 'grid', gap: '16px' }}>
-                {registrationRequests.map((request) => (
-                  <div key={request.id} style={styles.requestCard}>
-                    <div style={{ flex: 1 }}>
-                      <h4 style={{ margin: '0 0 8px 0', fontSize: '18px', fontWeight: '700', color: '#0a1929' }}>
-                        {request.firm_name}
-                      </h4>
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
-                        <div>
-                          <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '4px' }}>Contact Person</div>
-                          <div style={{ fontSize: '14px', fontWeight: '600', color: '#2d3748' }}>{request.contact_person_name}</div>
-                        </div>
-                        <div>
-                          <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '4px' }}>Email</div>
-                          <div style={{ fontSize: '14px', fontWeight: '600', color: '#2d3748' }}>{request.contact_email}</div>
-                        </div>
-                        <div>
-                          <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '4px' }}>Phone</div>
-                          <div style={{ fontSize: '14px', fontWeight: '600', color: '#2d3748' }}>{request.contact_phone}</div>
-                        </div>
-                        <div>
-                          <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '4px' }}>Firm Size</div>
-                          <div style={{ fontSize: '14px', fontWeight: '600', color: '#2d3748' }}>{request.firm_size}</div>
-                        </div>
-                      </div>
-                      <div style={{ fontSize: '12px', color: '#94a3b8' }}>
-                        Requested: {new Date(request.created_at).toLocaleString()}
-                      </div>
-                    </div>
-                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                      <button
-                        onClick={() => handleApproveRegistration(request.id)}
-                        style={{
-                          padding: '8px 16px',
-                          background: '#10b981',
-                          color: 'white',
-                          border: 'none',
-                          borderRadius: '6px',
-                          cursor: 'pointer',
-                          fontWeight: '600',
-                          fontSize: '14px'
-                        }}
-                      >
-                        Approve
-                      </button>
-                      <button
-                        onClick={() => handleRejectRegistration(request.id)}
-                        style={{
-                          padding: '8px 16px',
-                          background: '#d4af37',
-                          color: 'white',
-                          border: 'none',
-                          borderRadius: '6px',
-                          cursor: 'pointer',
-                          fontWeight: '600',
-                          fontSize: '14px'
-                        }}
-                      >
-                        Reject
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+          <ManagementUserApproval user={profile} />
         )}
 
         {activeTab === 'activity' && (
