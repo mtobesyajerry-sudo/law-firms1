@@ -87,7 +87,7 @@ export default function ManagementDashboard() {
         supabase.from('user_profiles').select('*').order('created_at', { ascending: false }),
         supabase.from('organizations').select('*').order('created_at', { ascending: false }),
         supabase.from('assessments').select('*, organizations(name)').order('created_at', { ascending: false }),
-        supabase.from('registration_requests').select('*').order('created_at', { ascending: false }),
+        supabase.from('law_firm_registrations').select('*').order('created_at', { ascending: false }),
         supabase.from('kyc_clients').select('*, organizations(name)').order('created_at', { ascending: false })
       ]);
 
@@ -264,7 +264,7 @@ export default function ManagementDashboard() {
 
       // Step 5: Mark registration as approved and clear encrypted password
       const { error: updateError } = await supabase
-        .from('registration_requests')
+        .from('law_firm_registrations')
         .update({
           status: 'approved',
           reviewed_by: user.id,
@@ -293,7 +293,7 @@ export default function ManagementDashboard() {
   const rejectRegistration = async (requestId, reason) => {
     try {
       const { error } = await supabase
-        .from('registration_requests')
+        .from('law_firm_registrations')
         .update({
           status: 'rejected',
           reason: reason,
@@ -319,7 +319,7 @@ export default function ManagementDashboard() {
 
     try {
       const { error } = await supabase
-        .from('registration_requests')
+        .from('law_firm_registrations')
         .delete()
         .eq('id', requestId);
 

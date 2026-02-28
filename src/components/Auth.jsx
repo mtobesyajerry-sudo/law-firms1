@@ -77,15 +77,15 @@ export default function Auth() {
     } catch (err) {
       if (err.message === 'Invalid login credentials') {
         const { data: pendingRequest } = await supabase
-          .from('registration_requests')
-          .select('status')
-          .eq('email', email)
+          .from('law_firm_registrations')
+          .select('registration_status')
+          .eq('firm_email', email)
           .maybeSingle();
 
         if (pendingRequest) {
-          if (pendingRequest.status === 'pending') {
+          if (pendingRequest.registration_status === 'pending') {
             setError('Your registration is pending approval. Please wait for an administrator to approve your account.');
-          } else if (pendingRequest.status === 'rejected') {
+          } else if (pendingRequest.registration_status === 'rejected') {
             setError('Your registration was rejected. Please contact support for more information.');
           } else {
             setError('Invalid email or password. Please try again.');
@@ -186,21 +186,9 @@ export default function Auth() {
           }, 2000);
         }
       } else {
-        const { error: insertError } = await supabase
-          .from('registration_requests')
-          .insert([{
-            full_name: fullName,
-            email: email,
-            organization_name: organizationName,
-            business_type: businessType,
-            size: size,
-            dnfbp_category: dnfbpCategory || null,
-            status: 'pending'
-          }]);
-
-        if (insertError) throw insertError;
-
-        setSuccess('Registration request submitted successfully! An administrator will review your request. You will receive an email when approved and can then login.');
+        setError('The system has been initialized. Please use the Law Firm Registration portal to register your organization.');
+        setLoading(false);
+        return;
 
         setEmail('');
         setPassword('');
