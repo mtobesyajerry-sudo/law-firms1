@@ -260,7 +260,8 @@ export default function Auth() {
         }
 
         const CryptoJS = (await import('crypto-js')).default;
-        const encryptedPassword = CryptoJS.AES.encrypt(password, 'temp-encryption-key-' + Date.now()).toString();
+        const ENCRYPTION_KEY = 'user-registration-encryption-key-2026';
+        const encryptedPassword = CryptoJS.AES.encrypt(password, ENCRYPTION_KEY).toString();
 
         // Check if this is the first user for this BRELA number
         const { data: existingRegs } = await supabase

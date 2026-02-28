@@ -50,10 +50,24 @@ export default function ManagementUserApproval({ user }) {
     setProcessing(registration.id);
     try {
       const CryptoJS = (await import('crypto-js')).default;
-      const decryptedPassword = CryptoJS.AES.decrypt(
-        registration.encrypted_password,
-        'temp-encryption-key-' + registration.created_at
-      ).toString(CryptoJS.enc.Utf8);
+      const ENCRYPTION_KEY = 'user-registration-encryption-key-2026';
+      let decryptedPassword = '';
+
+      try {
+        decryptedPassword = CryptoJS.AES.decrypt(
+          registration.encrypted_password,
+          ENCRYPTION_KEY
+        ).toString(CryptoJS.enc.Utf8);
+
+        if (!decryptedPassword || decryptedPassword.length < 8) {
+          throw new Error('Password decryption failed or password too short');
+        }
+      } catch (decryptError) {
+        console.error('Password decryption error:', decryptError);
+        alert('Error: Failed to decrypt user password. The registration may be corrupted. Please ask the user to register again.');
+        setProcessing(null);
+        return;
+      }
 
       // If no organization exists, create it
       let organizationId = registration.existing_organization_id;
@@ -90,7 +104,7 @@ export default function ManagementUserApproval({ user }) {
           body: JSON.stringify({
             admin_user_id: user.id,
             email: registration.user_email,
-            password: decryptedPassword || 'ChangeMe123!',
+            password: decryptedPassword,
             full_name: registration.user_full_name,
             role: 'management',
             organization_id: organizationId
