@@ -33,6 +33,7 @@ export default function ManagementDashboard() {
   const [organizations, setOrganizations] = useState([]);
   const [assessments, setAssessments] = useState([]);
   const [lawFirmRegistrations, setLawFirmRegistrations] = useState([]);
+  const [newUserRequests, setNewUserRequests] = useState([]);
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
@@ -83,11 +84,12 @@ export default function ManagementDashboard() {
       const { data: { session } } = await supabase.auth.getSession();
       console.log('Current session:', session?.user?.id, session?.user?.email);
 
-      const [usersRes, orgsRes, assessRes, lawFirmRegRes, clientsRes] = await Promise.all([
+      const [usersRes, orgsRes, assessRes, lawFirmRegRes, newUserReqRes, clientsRes] = await Promise.all([
         supabase.from('user_profiles').select('*').order('created_at', { ascending: false }),
         supabase.from('organizations').select('*').order('created_at', { ascending: false }),
         supabase.from('assessments').select('*, organizations(name)').order('created_at', { ascending: false }),
         supabase.from('law_firm_registrations').select('*').order('created_at', { ascending: false }),
+        supabase.from('new_user_requests').select('*').order('created_at', { ascending: false }),
         supabase.from('kyc_clients').select('*, organizations(name)').order('created_at', { ascending: false })
       ]);
 
@@ -95,18 +97,21 @@ export default function ManagementDashboard() {
       console.log('Orgs response:', { data: orgsRes.data, error: orgsRes.error, count: orgsRes.count });
       console.log('Assessments response:', { data: assessRes.data, error: assessRes.error, count: assessRes.count });
       console.log('Law firm registrations response:', { data: lawFirmRegRes.data, error: lawFirmRegRes.error, count: lawFirmRegRes.count });
+      console.log('New user requests response:', { data: newUserReqRes.data, error: newUserReqRes.error, count: newUserReqRes.count });
       console.log('Clients response:', { data: clientsRes.data, error: clientsRes.error, count: clientsRes.count });
 
       if (usersRes.error) throw new Error(`Users: ${usersRes.error.message}`);
       if (orgsRes.error) throw new Error(`Organizations: ${orgsRes.error.message}`);
       if (assessRes.error) throw new Error(`Assessments: ${assessRes.error.message}`);
       if (lawFirmRegRes.error) throw new Error(`Law Firm Registrations: ${lawFirmRegRes.error.message}`);
+      if (newUserReqRes.error) throw new Error(`New User Requests: ${newUserReqRes.error.message}`);
       if (clientsRes.error) throw new Error(`Clients: ${clientsRes.error.message}`);
 
       setUsers(usersRes.data || []);
       setOrganizations(orgsRes.data || []);
       setAssessments(assessRes.data || []);
       setLawFirmRegistrations(lawFirmRegRes.data || []);
+      setNewUserRequests(newUserReqRes.data || []);
       setClients(clientsRes.data || []);
 
       console.log('Users loaded:', usersRes.data);
@@ -115,6 +120,9 @@ export default function ManagementDashboard() {
       console.log('Law Firm Registrations loaded:', lawFirmRegRes.data);
       console.log('Law Firm Registrations count:', (lawFirmRegRes.data || []).length);
       console.log('Pending count:', (lawFirmRegRes.data || []).filter(r => r.registration_status === 'pending').length);
+      console.log('New User Requests loaded:', newUserReqRes.data);
+      console.log('New User Requests count:', (newUserReqRes.data || []).length);
+      console.log('Pending new user requests:', (newUserReqRes.data || []).filter(r => r.status === 'pending').length);
 
       setSystemContent({});
     } catch (error) {
@@ -292,6 +300,150 @@ export default function ManagementDashboard() {
     } catch (error) {
       console.error('Error rejecting law firm registration:', error);
       alert('Error rejecting law firm registration: ' + error.message);
+    }
+  };
+
+  const approveUserRequest = async (requestId) => {
+    try {
+      const request = newUserRequests.find(r => r.id === requestId);
+      if (!request) {
+        alert('Request not found');
+        return;
+      }
+
+      // Ask for email if not provided
+      const email = request.email || prompt(`Enter email address for ${request.full_name}:`);
+      if (!email || !email.includes('@')) {
+        alert('Valid email address is required');
+        return;
+      }
+
+      // Ask for organization
+      const orgName = request.organization_name || prompt(`Enter organization name for ${request.full_name}:`);
+      if (!orgName) {
+        alert('Organization name is required');
+        return;
+      }
+
+      // Find or create organization
+      let organization;
+      const { data: existingOrgs } = await supabase
+        .from('organizations')
+        .select('*')
+        .ilike('name', orgName)
+        .limit(1);
+
+      if (existingOrgs && existingOrgs.length > 0) {
+        organization = existingOrgs[0];
+      } else {
+        const { data: newOrg, error: orgError } = await supabase
+          .from('organizations')
+          .insert([{
+            name: orgName,
+            type: 'law_firm',
+            country: 'Tanzania',
+            is_active: true,
+            created_by: user.id
+          }])
+          .select()
+          .single();
+
+        if (orgError) throw orgError;
+        organization = newOrg;
+      }
+
+      // Generate temporary password
+      const tempPassword = 'Temp' + Math.random().toString(36).substring(2, 10) + '!';
+
+      // Create user account via edge function
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-user`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: email,
+          password: tempPassword,
+          full_name: request.full_name,
+          role: request.requested_access || 'staff',
+          position: request.position,
+          organization_id: organization.id,
+          organization_name: organization.name,
+          password_change_required: true
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to create user');
+      }
+
+      const result = await response.json();
+
+      // Update request status
+      const { error: updateError } = await supabase
+        .from('new_user_requests')
+        .update({
+          status: 'approved',
+          reviewed_at: new Date().toISOString(),
+          reviewed_by: user.id,
+          created_user_id: result.userId
+        })
+        .eq('id', requestId);
+
+      if (updateError) throw updateError;
+
+      alert(`User account created successfully!\n\nName: ${request.full_name}\nEmail: ${email}\nTemporary Password: ${tempPassword}\nOrganization: ${organization.name}\n\nPlease share these credentials with the user.`);
+      await loadData();
+    } catch (error) {
+      console.error('Error approving user request:', error);
+      alert('Error approving user request: ' + error.message);
+    }
+  };
+
+  const rejectUserRequest = async (requestId) => {
+    const reason = prompt('Enter rejection reason (optional):');
+
+    try {
+      const { error } = await supabase
+        .from('new_user_requests')
+        .update({
+          status: 'rejected',
+          reviewed_at: new Date().toISOString(),
+          reviewed_by: user.id,
+          rejection_reason: reason || 'No reason provided'
+        })
+        .eq('id', requestId);
+
+      if (error) throw error;
+
+      alert('User request rejected.');
+      await loadData();
+    } catch (error) {
+      console.error('Error rejecting user request:', error);
+      alert('Error rejecting user request: ' + error.message);
+    }
+  };
+
+  const deleteUserRequest = async (requestId) => {
+    if (!confirm('Are you sure you want to delete this user request? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('new_user_requests')
+        .delete()
+        .eq('id', requestId);
+
+      if (error) throw error;
+
+      alert('User request deleted.');
+      await loadData();
+    } catch (error) {
+      console.error('Error deleting user request:', error);
+      alert('Error deleting user request: ' + error.message);
     }
   };
 
@@ -892,6 +1044,12 @@ export default function ManagementDashboard() {
             Law Firm Registrations ({lawFirmRegistrations.filter(r => r.registration_status === 'pending').length})
           </button>
           <button
+            onClick={() => setActiveTab('user-requests')}
+            style={activeTab === 'user-requests' ? dashboardStyles.tabActive : dashboardStyles.tab}
+          >
+            User Access Requests ({newUserRequests.filter(r => r.status === 'pending').length})
+          </button>
+          <button
             onClick={() => setActiveTab('users')}
             style={activeTab === 'users' ? dashboardStyles.tabActive : dashboardStyles.tab}
           >
@@ -1039,6 +1197,85 @@ export default function ManagementDashboard() {
                 </div>
               </div>
             </div>
+          </div>
+        )}
+
+        {activeTab === 'user-requests' && (
+          <div style={styles.tabContent}>
+            <h2 style={styles.sectionTitle}>User Access Requests</h2>
+            <p style={styles.sectionDescription}>
+              Review and approve user access requests submitted through the public registration form.
+            </p>
+
+            {newUserRequests.length === 0 ? (
+              <p style={styles.emptyState}>No user access requests found.</p>
+            ) : (
+              <div style={styles.tableContainer}>
+                <table style={styles.table}>
+                  <thead>
+                    <tr>
+                      <th style={styles.th}>Full Name</th>
+                      <th style={styles.th}>Email</th>
+                      <th style={styles.th}>Position</th>
+                      <th style={styles.th}>Requested Access</th>
+                      <th style={styles.th}>Reason</th>
+                      <th style={styles.th}>Status</th>
+                      <th style={styles.th}>Submitted</th>
+                      <th style={styles.th}>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {newUserRequests.map(request => (
+                      <tr key={request.id} style={styles.tr}>
+                        <td style={styles.td}>{request.full_name}</td>
+                        <td style={styles.td}>{request.email}</td>
+                        <td style={styles.td}>{request.position || 'Not provided'}</td>
+                        <td style={styles.td}>
+                          <span style={getBadgeStyle(request.requested_access)}>
+                            {request.requested_access?.toUpperCase() || 'UNKNOWN'}
+                          </span>
+                        </td>
+                        <td style={styles.td}>{request.reason || 'No reason provided'}</td>
+                        <td style={styles.td}>
+                          <span style={getStatusBadgeStyle(request.status)}>
+                            {request.status?.toUpperCase() || 'PENDING'}
+                          </span>
+                        </td>
+                        <td style={styles.td}>
+                          {new Date(request.created_at).toLocaleDateString()}
+                        </td>
+                        <td style={styles.td}>
+                          {request.status === 'pending' && (
+                            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                              <button
+                                onClick={() => approveUserRequest(request.id)}
+                                style={styles.approveButton}
+                              >
+                                Approve
+                              </button>
+                              <button
+                                onClick={() => rejectUserRequest(request.id)}
+                                style={styles.rejectButton}
+                              >
+                                Reject
+                              </button>
+                            </div>
+                          )}
+                          {request.status !== 'pending' && (
+                            <button
+                              onClick={() => deleteUserRequest(request.id)}
+                              style={styles.deleteButton}
+                            >
+                              Delete
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         )}
 
