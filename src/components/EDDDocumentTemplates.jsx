@@ -6,6 +6,11 @@ const EDDDocumentTemplates = ({ clientId, clientName, onClose, onUpdate, isReadO
   const [documentTypes, setDocumentTypes] = useState([]);
   const [eddDocuments, setEddDocuments] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showUploadSection, setShowUploadSection] = useState(true);
+  const [uploadingDocumentType, setUploadingDocumentType] = useState(null);
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [uploadError, setUploadError] = useState('');
+  const [uploadSuccess, setUploadSuccess] = useState('');
 
   useEffect(() => {
     fetchDocumentTypes();
@@ -139,6 +144,114 @@ const EDDDocumentTemplates = ({ clientId, clientName, onClose, onUpdate, isReadO
   const getDocumentStatus = (documentTypeId) => {
     const doc = eddDocuments.find(d => d.document_type_id === documentTypeId);
     return doc?.verification_status === 'verified' ? 'completed' : 'pending';
+  };
+
+  const handleFileSelect = (e, documentTypeId) => {
+    const file = e.target.files[0];
+    if (file) {
+      const maxSize = 10 * 1024 * 1024;
+      if (file.size > maxSize) {
+        setUploadError('File size must be less than 10MB');
+        return;
+      }
+
+      const allowedTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
+      if (!allowedTypes.includes(file.type)) {
+        setUploadError('Only PDF, JPG, JPEG, and PNG files are allowed');
+        return;
+      }
+
+      setSelectedFile(file);
+      setUploadingDocumentType(documentTypeId);
+      setUploadError('');
+      setUploadSuccess('');
+    }
+  };
+
+  const handleUpload = async () => {
+    if (!selectedFile || !uploadingDocumentType) return;
+
+    try {
+      setUploadError('');
+      setUploadSuccess('');
+
+      const { data: { user } } = await supabase.auth.getUser();
+      const { data: profile } = await supabase
+        .from('user_profiles')
+        .select('organization_id')
+        .eq('id', user.id)
+        .single();
+
+      if (!profile?.organization_id) {
+        throw new Error('Organization ID not found');
+      }
+
+      const docType = documentTypes.find(dt => dt.id === uploadingDocumentType);
+      const fileName = `${clientId}/${docType.code}_${Date.now()}.${selectedFile.name.split('.').pop()}`;
+
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('client-documents')
+        .upload(fileName, selectedFile);
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('client-documents')
+        .getPublicUrl(fileName);
+
+      const existingDoc = eddDocuments.find(doc => doc.document_type_id === uploadingDocumentType);
+
+      if (existingDoc) {
+        const { error: updateError } = await supabase
+          .from('client_documents')
+          .update({
+            file_path: uploadData.path,
+            file_url: publicUrl,
+            storage_path: fileName,
+            mime_type: selectedFile.type,
+            file_size: selectedFile.size,
+            verification_status: 'pending',
+            uploaded_at: new Date().toISOString(),
+            uploaded_by: user.id
+          })
+          .eq('id', existingDoc.id);
+
+        if (updateError) throw updateError;
+      } else {
+        const { error: insertError } = await supabase
+          .from('client_documents')
+          .insert({
+            client_id: clientId,
+            organization_id: profile.organization_id,
+            document_type_id: uploadingDocumentType,
+            document_type: docType?.code || 'edd_template',
+            document_category: 'enhanced_dd',
+            document_name: docType?.name || 'EDD Template',
+            file_path: uploadData.path,
+            file_url: publicUrl,
+            storage_path: fileName,
+            mime_type: selectedFile.type,
+            file_size: selectedFile.size,
+            verification_status: 'pending',
+            uploaded_at: new Date().toISOString(),
+            uploaded_by: user.id
+          });
+
+        if (insertError) throw insertError;
+      }
+
+      setUploadSuccess(`${docType?.name} uploaded successfully!`);
+      setSelectedFile(null);
+      setUploadingDocumentType(null);
+
+      await fetchEDDDocuments();
+      if (onUpdate) await onUpdate();
+
+      setTimeout(() => setUploadSuccess(''), 5000);
+    } catch (error) {
+      console.error('Error uploading document:', error);
+      setUploadError('Failed to upload document: ' + error.message);
+    }
   };
 
   if (loading) {
@@ -283,9 +396,86 @@ const EDDDocumentTemplates = ({ clientId, clientName, onClose, onUpdate, isReadO
         <div style={styles.infoBox}>
           <p style={styles.clientName}>Client: {clientName}</p>
           <p style={styles.infoText}>
-            Select a template below to view, print, or mark as completed
+            Upload completed EDD templates or select a template below to view and print
           </p>
         </div>
+
+        {!isReadOnly && (
+          <div style={styles.uploadSection}>
+            <div style={styles.uploadHeader}>
+              <h3 style={styles.uploadTitle}>📤 Upload Completed EDD Templates</h3>
+              <button
+                onClick={() => setShowUploadSection(!showUploadSection)}
+                style={styles.toggleButton}
+              >
+                {showUploadSection ? 'Hide' : 'Show'}
+              </button>
+            </div>
+
+            {showUploadSection && (
+              <div style={styles.uploadContent}>
+                {uploadSuccess && (
+                  <div style={styles.successMessage}>
+                    ✓ {uploadSuccess}
+                  </div>
+                )}
+
+                {uploadError && (
+                  <div style={styles.errorMessage}>
+                    ✗ {uploadError}
+                  </div>
+                )}
+
+                <div style={styles.uploadGrid}>
+                  {documentTypes.map((docType) => {
+                    const status = getDocumentStatus(docType.id);
+                    const hasDocument = eddDocuments.find(d => d.document_type_id === docType.id && d.file_url);
+
+                    return (
+                      <div key={docType.id} style={styles.uploadCard}>
+                        <div style={styles.uploadCardHeader}>
+                          <span style={styles.uploadCardTitle}>{docType.name}</span>
+                          {hasDocument && (
+                            <span style={styles.uploadedBadge}>✓ Uploaded</span>
+                          )}
+                        </div>
+
+                        <div style={styles.uploadCardBody}>
+                          <input
+                            type="file"
+                            id={`file-${docType.id}`}
+                            accept=".pdf,.jpg,.jpeg,.png"
+                            onChange={(e) => handleFileSelect(e, docType.id)}
+                            style={{ display: 'none' }}
+                          />
+
+                          <label
+                            htmlFor={`file-${docType.id}`}
+                            style={styles.fileSelectButton}
+                          >
+                            Choose File
+                          </label>
+
+                          {uploadingDocumentType === docType.id && selectedFile && (
+                            <div style={styles.selectedFile}>
+                              <span style={styles.fileName}>{selectedFile.name}</span>
+                              <button
+                                onClick={handleUpload}
+                                style={styles.uploadButton}
+                              >
+                                Upload
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         <div style={styles.templateGrid}>
           {documentTypes.map((docType) => {
@@ -497,6 +687,136 @@ const styles = {
     fontSize: '14px',
     fontWeight: '500',
     cursor: 'pointer',
+  },
+  uploadSection: {
+    background: 'white',
+    border: '1px solid #e5e7eb',
+    borderRadius: '8px',
+    marginBottom: '24px',
+    overflow: 'hidden',
+  },
+  uploadHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: '16px',
+    background: '#f9fafb',
+    borderBottom: '1px solid #e5e7eb',
+  },
+  uploadTitle: {
+    fontSize: '16px',
+    fontWeight: '600',
+    color: '#1f2937',
+    margin: 0,
+  },
+  toggleButton: {
+    padding: '6px 12px',
+    background: 'white',
+    color: '#374151',
+    border: '1px solid #d1d5db',
+    borderRadius: '6px',
+    fontSize: '13px',
+    cursor: 'pointer',
+    fontWeight: '500',
+  },
+  uploadContent: {
+    padding: '16px',
+  },
+  uploadGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
+    gap: '12px',
+  },
+  uploadCard: {
+    border: '1px solid #e5e7eb',
+    borderRadius: '6px',
+    padding: '12px',
+    background: '#fafafa',
+  },
+  uploadCardHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: '8px',
+  },
+  uploadCardTitle: {
+    fontSize: '13px',
+    fontWeight: '600',
+    color: '#1f2937',
+    flex: 1,
+  },
+  uploadedBadge: {
+    fontSize: '11px',
+    padding: '3px 8px',
+    borderRadius: '4px',
+    background: '#d1fae5',
+    color: '#065f46',
+    fontWeight: '600',
+  },
+  uploadCardBody: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '8px',
+  },
+  fileSelectButton: {
+    display: 'inline-block',
+    padding: '8px 16px',
+    background: '#3b82f6',
+    color: 'white',
+    border: 'none',
+    borderRadius: '6px',
+    fontSize: '13px',
+    cursor: 'pointer',
+    fontWeight: '500',
+    textAlign: 'center',
+    transition: 'background 0.2s',
+  },
+  selectedFile: {
+    display: 'flex',
+    gap: '8px',
+    alignItems: 'center',
+    padding: '8px',
+    background: '#f0f9ff',
+    border: '1px solid #bfdbfe',
+    borderRadius: '6px',
+  },
+  fileName: {
+    fontSize: '12px',
+    color: '#1e40af',
+    flex: 1,
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
+  },
+  uploadButton: {
+    padding: '6px 12px',
+    background: '#059669',
+    color: 'white',
+    border: 'none',
+    borderRadius: '4px',
+    fontSize: '12px',
+    cursor: 'pointer',
+    fontWeight: '500',
+  },
+  successMessage: {
+    padding: '12px',
+    background: '#d1fae5',
+    color: '#065f46',
+    border: '1px solid #6ee7b7',
+    borderRadius: '6px',
+    marginBottom: '16px',
+    fontSize: '13px',
+    fontWeight: '500',
+  },
+  errorMessage: {
+    padding: '12px',
+    background: '#fee2e2',
+    color: '#991b1b',
+    border: '1px solid #fca5a5',
+    borderRadius: '6px',
+    marginBottom: '16px',
+    fontSize: '13px',
+    fontWeight: '500',
   },
 };
 
