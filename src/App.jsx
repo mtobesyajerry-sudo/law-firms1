@@ -173,7 +173,7 @@ function RoleBasedRedirect() {
 
   // Route users to appropriate dashboard based on role
   if (profile?.role === 'admin') {
-    return <Navigate to="/dashboard/management" replace />;
+    return <Navigate to="/admin/dashboard" replace />;
   } else if (profile?.role === 'management' || profile?.role === 'senior_partner' || profile?.role === 'partner') {
     return <Navigate to="/dashboard/management" replace />;
   } else if (profile?.role === 'staff' || profile?.role === 'lawyer') {
@@ -220,7 +220,7 @@ function AppRoutes() {
         path="/dashboard/management"
         element={
           <ProtectedRoute managementOnly={true}>
-            <ManagementDashboard />
+            <ClientManagementDashboard />
           </ProtectedRoute>
         }
       />
