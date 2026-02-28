@@ -8,10 +8,10 @@ export default function DualApprovalInterface({ user, organizationId }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (user?.id && organizationId) {
+    if (user?.id) {
       checkAccessAndLoadData();
     } else {
-      console.log('DualApprovalInterface: Missing user or organizationId', { user, organizationId });
+      console.log('DualApprovalInterface: Missing user', { user, organizationId });
       setLoading(false);
     }
   }, [user?.id, organizationId]);
@@ -21,21 +21,30 @@ export default function DualApprovalInterface({ user, organizationId }) {
       setLoading(true);
       console.log('DualApprovalInterface: Checking access for', { userId: user.id, organizationId });
 
-      // Check both organization_user_access AND user role
-      const [{ data: accessCheck }, { data: userProfile }] = await Promise.all([
-        supabase
+      // Get user profile first
+      const { data: userProfile, error: profileError } = await supabase
+        .from('user_profiles')
+        .select('role, organization_id')
+        .eq('id', user.id)
+        .single();
+
+      if (profileError) {
+        console.error('Error fetching user profile:', profileError);
+        throw profileError;
+      }
+
+      // Check organization_user_access only if organizationId is provided
+      let accessCheck = null;
+      if (organizationId) {
+        const { data } = await supabase
           .from('organization_user_access')
           .select('*')
           .eq('user_id', user.id)
           .eq('organization_id', organizationId)
           .eq('is_active', true)
-          .maybeSingle(),
-        supabase
-          .from('user_profiles')
-          .select('role')
-          .eq('id', user.id)
-          .single()
-      ]);
+          .maybeSingle();
+        accessCheck = data;
+      }
 
       // User has management access if they have org access OR management role
       const hasAccess = !!accessCheck ||
@@ -63,12 +72,18 @@ export default function DualApprovalInterface({ user, organizationId }) {
   const loadRequests = async () => {
     try {
       // First get the requests
-      const { data: requestsData, error: requestsError } = await supabase
+      // If organizationId is provided, filter by it. If null (admin), show all requests
+      let query = supabase
         .from('role_upgrade_requests')
         .select('*')
-        .eq('organization_id', organizationId)
         .in('status', ['pending', 'approved'])
         .order('created_at', { ascending: false });
+
+      if (organizationId) {
+        query = query.eq('organization_id', organizationId);
+      }
+
+      const { data: requestsData, error: requestsError } = await query;
 
       if (requestsError) {
         console.error('Error loading requests:', requestsError);
