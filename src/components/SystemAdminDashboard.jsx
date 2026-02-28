@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
 import ManagementUserApproval from './ManagementUserApproval';
+import SubscriptionManagement from './SubscriptionManagement';
 
 export default function SystemAdminDashboard() {
   const [stats, setStats] = useState({
@@ -262,6 +263,15 @@ export default function SystemAdminDashboard() {
             {stats.pendingRegistrations > 0 && (
               <span style={styles.badge}>{stats.pendingRegistrations}</span>
             )}
+          </button>
+          <button
+            onClick={() => setActiveTab('subscriptions')}
+            style={{
+              ...styles.tab,
+              ...(activeTab === 'subscriptions' ? styles.activeTab : {})
+            }}
+          >
+            Subscriptions
           </button>
           <button
             onClick={() => setActiveTab('activity')}
@@ -588,6 +598,10 @@ export default function SystemAdminDashboard() {
 
         {activeTab === 'registrations' && (
           <ManagementUserApproval user={profile} />
+        )}
+
+        {activeTab === 'subscriptions' && (
+          <SubscriptionManagement />
         )}
 
         {activeTab === 'activity' && (

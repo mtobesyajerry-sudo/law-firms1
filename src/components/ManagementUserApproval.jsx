@@ -59,6 +59,9 @@ export default function ManagementUserApproval({ user }) {
       let organizationId = registration.existing_organization_id;
 
       if (!organizationId) {
+        const trialEndDate = new Date();
+        trialEndDate.setDate(trialEndDate.getDate() + 30);
+
         const { data: orgData, error: orgError } = await supabase
           .from('organizations')
           .insert({
@@ -69,7 +72,13 @@ export default function ManagementUserApproval({ user }) {
             business_type: 'Law Firm',
             law_firm_type: 'Private Practice',
             is_active: true,
-            max_users: 10
+            max_users: 5,
+            subscription_tier: 'trial',
+            subscription_status: 'active',
+            trial_ends_at: trialEndDate.toISOString(),
+            subscription_expiry_date: trialEndDate.toISOString(),
+            monthly_fee: 0,
+            payment_status: 'paid'
           })
           .select()
           .single();
