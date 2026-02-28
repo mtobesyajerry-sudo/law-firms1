@@ -11,6 +11,7 @@ const EDDDocumentTemplates = ({ clientId, clientName, onClose, onUpdate, isReadO
   const [selectedFile, setSelectedFile] = useState(null);
   const [uploadError, setUploadError] = useState('');
   const [uploadSuccess, setUploadSuccess] = useState('');
+  const [documentUrls, setDocumentUrls] = useState({});
 
   useEffect(() => {
     fetchDocumentTypes();
@@ -62,6 +63,20 @@ const EDDDocumentTemplates = ({ clientId, clientName, onClose, onUpdate, isReadO
     } else if (data) {
       console.log('EDD documents loaded:', data);
       setEddDocuments(data);
+
+      const urls = {};
+      for (const doc of data) {
+        if (doc.storage_path) {
+          const { data: signedUrlData } = await supabase.storage
+            .from('client-documents')
+            .createSignedUrl(doc.storage_path, 3600);
+
+          if (signedUrlData?.signedUrl) {
+            urls[doc.id] = signedUrlData.signedUrl;
+          }
+        }
+      }
+      setDocumentUrls(urls);
     }
   };
 
@@ -203,9 +218,13 @@ const EDDDocumentTemplates = ({ clientId, clientName, onClose, onUpdate, isReadO
 
       if (uploadError) throw uploadError;
 
-      const { data: { publicUrl } } = supabase.storage
+      const { data: signedUrlData, error: signedUrlError } = await supabase.storage
         .from('client-documents')
-        .getPublicUrl(fileName);
+        .createSignedUrl(fileName, 31536000);
+
+      if (signedUrlError) throw signedUrlError;
+
+      const fileUrl = signedUrlData.signedUrl;
 
       const existingDoc = eddDocuments.find(doc => doc.document_type_id === uploadingDocumentType);
 
@@ -215,7 +234,7 @@ const EDDDocumentTemplates = ({ clientId, clientName, onClose, onUpdate, isReadO
           .update({
             file_name: selectedFile.name,
             file_path: uploadData.path,
-            file_url: publicUrl,
+            file_url: fileUrl,
             storage_path: fileName,
             mime_type: selectedFile.type,
             file_size: selectedFile.size,
@@ -238,7 +257,7 @@ const EDDDocumentTemplates = ({ clientId, clientName, onClose, onUpdate, isReadO
             document_name: docType?.name || 'EDD Template',
             file_name: selectedFile.name,
             file_path: uploadData.path,
-            file_url: publicUrl,
+            file_url: fileUrl,
             storage_path: fileName,
             mime_type: selectedFile.type,
             file_size: selectedFile.size,
@@ -491,7 +510,7 @@ const EDDDocumentTemplates = ({ clientId, clientName, onClose, onUpdate, isReadO
           <div style={styles.uploadedSection}>
             <h3 style={styles.uploadedTitle}>Uploaded EDD Documents</h3>
             <div style={styles.uploadedList}>
-              {eddDocuments.filter(doc => doc.file_url).map((doc) => (
+              {eddDocuments.filter(doc => doc.storage_path).map((doc) => (
                 <div key={doc.id} style={styles.uploadedItem}>
                   <div style={styles.uploadedInfo}>
                     <span style={styles.uploadedName}>{doc.document_name}</span>
@@ -500,14 +519,20 @@ const EDDDocumentTemplates = ({ clientId, clientName, onClose, onUpdate, isReadO
                     </span>
                   </div>
                   <div style={styles.uploadedActions}>
-                    <a
-                      href={doc.file_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      style={styles.viewButton}
-                    >
-                      View
-                    </a>
+                    {documentUrls[doc.id] ? (
+                      <a
+                        href={documentUrls[doc.id]}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={styles.viewButton}
+                      >
+                        View
+                      </a>
+                    ) : (
+                      <span style={{...styles.viewButton, opacity: 0.5, cursor: 'not-allowed'}}>
+                        Loading...
+                      </span>
+                    )}
                     <span style={{
                       ...styles.statusBadge,
                       ...(doc.verification_status === 'verified' ? styles.statusBadgeCompleted : styles.statusBadgePending)
