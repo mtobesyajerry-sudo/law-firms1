@@ -226,7 +226,7 @@ const EDDDocumentTemplates = ({ clientId, clientName, onClose, onUpdate, isReadO
             organization_id: profile.organization_id,
             document_type_id: uploadingDocumentType,
             document_type: docType?.code || 'edd_template',
-            document_category: 'enhanced_dd',
+            document_category: 'legal',
             document_name: docType?.name || 'EDD Template',
             file_name: selectedFile.name,
             file_path: uploadData.path,
