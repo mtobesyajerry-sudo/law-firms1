@@ -49,6 +49,7 @@ async function handleApproveRegistration(supabaseAdmin: any, registrationId: str
       contact_email: registration.firm_email,
       contact_phone: registration.firm_phone,
       business_address: registration.firm_address,
+      law_firm_type: 'small_firm',
       is_active: true,
       subscription_status: 'active',
       subscription_fee: 0
