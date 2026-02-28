@@ -1172,8 +1172,8 @@ export default function ManagementDashboard() {
                     <th style={styles.th}>Position</th>
                     <th style={styles.th}>Role</th>
                     <th style={styles.th}>Organization</th>
-                    <th style={styles.th}>Account Status</th>
-                    <th style={styles.th}>Subscription</th>
+                    <th style={styles.th}>Status</th>
+                    <th style={styles.th}>License</th>
                     <th style={styles.th}>Actions</th>
                   </tr>
                 </thead>
@@ -1294,11 +1294,11 @@ export default function ManagementDashboard() {
                     <table style={styles.table}>
                       <thead>
                         <tr>
-                          <th style={styles.th}>Organization</th>
-                          <th style={styles.th}>Business Type</th>
-                          <th style={styles.th}>Users</th>
-                          <th style={styles.th}>Max Users</th>
-                          <th style={styles.th}>Subscription Expiry</th>
+                          <th style={styles.th}>Law Firm</th>
+                          <th style={styles.th}>Firm Type</th>
+                          <th style={styles.th}>Active Users</th>
+                          <th style={styles.th}>User Limit</th>
+                          <th style={styles.th}>License Expiry</th>
                           <th style={styles.th}>Actions</th>
                         </tr>
                       </thead>
@@ -1392,10 +1392,10 @@ export default function ManagementDashboard() {
                     <table style={styles.table}>
                       <thead>
                         <tr>
-                          <th style={styles.th}>Organization</th>
-                          <th style={styles.th}>Business Type</th>
-                          <th style={styles.th}>Users</th>
-                          <th style={styles.th}>Subscription Expiry</th>
+                          <th style={styles.th}>Law Firm</th>
+                          <th style={styles.th}>Firm Type</th>
+                          <th style={styles.th}>Active Users</th>
+                          <th style={styles.th}>License Expiry</th>
                           <th style={styles.th}>Actions</th>
                         </tr>
                       </thead>
@@ -1484,12 +1484,12 @@ export default function ManagementDashboard() {
                     <table style={styles.table}>
                       <thead>
                         <tr>
-                          <th style={styles.th}>Organization</th>
-                          <th style={styles.th}>Business Type</th>
-                          <th style={styles.th}>Users</th>
-                          <th style={styles.th}>Suspended At</th>
+                          <th style={styles.th}>Law Firm</th>
+                          <th style={styles.th}>Firm Type</th>
+                          <th style={styles.th}>Active Users</th>
+                          <th style={styles.th}>Suspended Date</th>
                           <th style={styles.th}>Reason</th>
-                          <th style={styles.th}>Subscription Status</th>
+                          <th style={styles.th}>License Status</th>
                           <th style={styles.th}>Actions</th>
                         </tr>
                       </thead>
@@ -1597,7 +1597,7 @@ export default function ManagementDashboard() {
                   <div key={org.id} style={styles.card}>
                     <h3 style={styles.cardTitle}>{org.name}</h3>
                     <p style={styles.cardText}>{org.business_type}</p>
-                    <p style={styles.cardSubtext}>Size: {org.size}</p>
+                    <p style={styles.cardSubtext}>Firm Size: {org.size}</p>
                     <p style={styles.cardSubtext}>
                       Assigned to: {assignedUser ? assignedUser.full_name || assignedUser.email : 'Unassigned'}
                     </p>
@@ -1826,7 +1826,7 @@ export default function ManagementDashboard() {
             <h2 style={styles.modalTitle}>Edit Organization</h2>
             <form onSubmit={updateOrganization}>
               <div style={styles.formGroup}>
-                <label style={styles.label}>Organization Name</label>
+                <label style={styles.label}>Law Firm Name</label>
                 <input
                   type="text"
                   value={editOrg.name}
@@ -1836,7 +1836,7 @@ export default function ManagementDashboard() {
                 />
               </div>
               <div style={styles.formGroup}>
-                <label style={styles.label}>Business Type</label>
+                <label style={styles.label}>Firm Type</label>
                 <input
                   type="text"
                   value={editOrg.business_type}
@@ -1846,7 +1846,7 @@ export default function ManagementDashboard() {
                 />
               </div>
               <div style={styles.formGroup}>
-                <label style={styles.label}>Size</label>
+                <label style={styles.label}>Firm Size</label>
                 <select
                   value={editOrg.size}
                   onChange={(e) => setEditOrg({ ...editOrg, size: e.target.value })}
