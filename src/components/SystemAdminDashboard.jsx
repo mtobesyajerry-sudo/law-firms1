@@ -24,8 +24,10 @@ export default function SystemAdminDashboard() {
   const navigate = useNavigate();
 
   useEffect(() => {
+    console.log('=== SYSTEM ADMIN DASHBOARD LOADED ===');
+    console.log('Current user profile:', profile);
     loadDashboardData();
-  }, []);
+  }, [profile]);
 
   const loadDashboardData = async () => {
     try {
