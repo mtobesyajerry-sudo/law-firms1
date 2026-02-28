@@ -400,13 +400,13 @@ export default function Auth() {
             <div style={{
               marginTop: '24px',
               padding: '16px',
-              background: '#f0fdf4',
+              background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)',
               borderRadius: '10px',
-              border: '2px solid #86efac'
+              border: '2px solid #d4af37'
             }}>
               <div style={{
                 fontSize: '14px',
-                color: '#15803d',
+                color: '#0a1929',
                 textAlign: 'center',
                 fontWeight: '600'
               }}>
