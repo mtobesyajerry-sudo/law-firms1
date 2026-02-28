@@ -32,7 +32,6 @@ export default function ManagementDashboard() {
   const [users, setUsers] = useState([]);
   const [organizations, setOrganizations] = useState([]);
   const [assessments, setAssessments] = useState([]);
-  const [registrationRequests, setRegistrationRequests] = useState([]);
   const [lawFirmRegistrations, setLawFirmRegistrations] = useState([]);
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -84,11 +83,10 @@ export default function ManagementDashboard() {
       const { data: { session } } = await supabase.auth.getSession();
       console.log('Current session:', session?.user?.id, session?.user?.email);
 
-      const [usersRes, orgsRes, assessRes, regReqRes, lawFirmRegRes, clientsRes] = await Promise.all([
+      const [usersRes, orgsRes, assessRes, lawFirmRegRes, clientsRes] = await Promise.all([
         supabase.from('user_profiles').select('*').order('created_at', { ascending: false }),
         supabase.from('organizations').select('*').order('created_at', { ascending: false }),
         supabase.from('assessments').select('*, organizations(name)').order('created_at', { ascending: false }),
-        supabase.from('registration_requests').select('*').order('created_at', { ascending: false }),
         supabase.from('law_firm_registrations').select('*').order('created_at', { ascending: false }),
         supabase.from('kyc_clients').select('*, organizations(name)').order('created_at', { ascending: false })
       ]);
@@ -96,30 +94,27 @@ export default function ManagementDashboard() {
       console.log('Users response:', { data: usersRes.data, error: usersRes.error, count: usersRes.count });
       console.log('Orgs response:', { data: orgsRes.data, error: orgsRes.error, count: orgsRes.count });
       console.log('Assessments response:', { data: assessRes.data, error: assessRes.error, count: assessRes.count });
-      console.log('Reg requests response:', { data: regReqRes.data, error: regReqRes.error, count: regReqRes.count });
       console.log('Law firm registrations response:', { data: lawFirmRegRes.data, error: lawFirmRegRes.error, count: lawFirmRegRes.count });
       console.log('Clients response:', { data: clientsRes.data, error: clientsRes.error, count: clientsRes.count });
 
       if (usersRes.error) throw new Error(`Users: ${usersRes.error.message}`);
       if (orgsRes.error) throw new Error(`Organizations: ${orgsRes.error.message}`);
       if (assessRes.error) throw new Error(`Assessments: ${assessRes.error.message}`);
-      if (regReqRes.error) throw new Error(`Registration Requests: ${regReqRes.error.message}`);
       if (lawFirmRegRes.error) throw new Error(`Law Firm Registrations: ${lawFirmRegRes.error.message}`);
       if (clientsRes.error) throw new Error(`Clients: ${clientsRes.error.message}`);
 
       setUsers(usersRes.data || []);
       setOrganizations(orgsRes.data || []);
       setAssessments(assessRes.data || []);
-      setRegistrationRequests(regReqRes.data || []);
       setLawFirmRegistrations(lawFirmRegRes.data || []);
       setClients(clientsRes.data || []);
 
       console.log('Users loaded:', usersRes.data);
       console.log('Users count:', (usersRes.data || []).length);
       console.log('Organizations loaded:', orgsRes.data);
-      console.log('Registration Requests loaded:', regReqRes.data);
-      console.log('Registration Requests count:', (regReqRes.data || []).length);
-      console.log('Pending count:', (regReqRes.data || []).filter(r => r.status === 'pending').length);
+      console.log('Law Firm Registrations loaded:', lawFirmRegRes.data);
+      console.log('Law Firm Registrations count:', (lawFirmRegRes.data || []).length);
+      console.log('Pending count:', (lawFirmRegRes.data || []).filter(r => r.registration_status === 'pending').length);
 
       setSystemContent({});
     } catch (error) {
@@ -194,126 +189,6 @@ export default function ManagementDashboard() {
       alert('Error recalculating scores: ' + error.message);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const approveRegistration = async (requestId, requestData) => {
-    try {
-      if (!user?.id) {
-        throw new Error('User not authenticated');
-      }
-
-      // Step 1: Create the organization FIRST
-      const { data: orgData, error: orgError } = await supabase
-        .from('organizations')
-        .insert([{
-          name: requestData.organization_name,
-          business_type: requestData.business_type,
-          size: requestData.size,
-          dnfbp_category: requestData.dnfbp_category || null,
-          assigned_user_id: null
-        }])
-        .select()
-        .single();
-
-      if (orgError) throw orgError;
-
-      // Step 2: Create the user WITH the organization_id (temporary password will be auto-generated)
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-user`,
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            admin_user_id: user.id,
-            email: requestData.email,
-            full_name: requestData.full_name,
-            role: 'client',
-            organization_id: orgData.id,
-          }),
-        }
-      );
-
-      const result = await response.json();
-
-      if (!response.ok || !result.success) {
-        await supabase.from('organizations').delete().eq('id', orgData.id);
-        const errorMsg = result.error || result.details || 'Failed to create user';
-        throw new Error(errorMsg);
-      }
-
-      const newUserId = result.user?.id;
-
-      // Step 3: Update organization with the assigned user
-      await supabase
-        .from('organizations')
-        .update({
-          assigned_user_id: newUserId
-        })
-        .eq('id', orgData.id);
-
-      // Step 4: Set default subscription expiry to 30 days from now
-      const defaultExpiryDate = new Date();
-      defaultExpiryDate.setDate(defaultExpiryDate.getDate() + 30);
-      const formattedExpiryDate = defaultExpiryDate.toISOString().split('T')[0];
-
-      await supabase
-        .from('user_profiles')
-        .update({
-          subscription_expiry_date: formattedExpiryDate
-        })
-        .eq('id', newUserId);
-
-      // Step 5: Mark registration as approved and clear encrypted password
-      const { error: updateError } = await supabase
-        .from('registration_requests')
-        .update({
-          status: 'approved',
-          reviewed_by: user.id,
-          reviewed_at: new Date().toISOString(),
-          encrypted_password: null,
-          password_hash: null
-        })
-        .eq('id', requestId);
-
-      if (updateError) throw updateError;
-
-      await loadData();
-
-      // Show success message with temporary password
-      if (result.temporary_password) {
-        alert(`Registration approved successfully!\n\nTemporary Password: ${result.temporary_password}\n\nPlease share this password with the user. They will be required to change it on first login.`);
-      } else {
-        alert('Registration approved successfully! User and organization have been created.');
-      }
-    } catch (error) {
-      console.error('Error approving registration:', error);
-      alert('Error approving registration: ' + error.message);
-    }
-  };
-
-  const rejectRegistration = async (requestId, reason) => {
-    try {
-      const { error } = await supabase
-        .from('registration_requests')
-        .update({
-          status: 'rejected',
-          reason: reason,
-          reviewed_by: user.id,
-          reviewed_at: new Date().toISOString()
-        })
-        .eq('id', requestId);
-
-      if (error) throw error;
-
-      await loadData();
-      alert('Registration rejected');
-    } catch (error) {
-      console.error('Error rejecting registration:', error);
-      alert('Error rejecting registration: ' + error.message);
     }
   };
 
@@ -417,27 +292,6 @@ export default function ManagementDashboard() {
     } catch (error) {
       console.error('Error rejecting law firm registration:', error);
       alert('Error rejecting law firm registration: ' + error.message);
-    }
-  };
-
-  const deleteRegistrationRequest = async (requestId) => {
-    if (!window.confirm('Are you sure you want to delete this registration request? This action cannot be undone.')) {
-      return;
-    }
-
-    try {
-      const { error } = await supabase
-        .from('registration_requests')
-        .delete()
-        .eq('id', requestId);
-
-      if (error) throw error;
-
-      await loadData();
-      alert('Registration request deleted successfully');
-    } catch (error) {
-      console.error('Error deleting registration request:', error);
-      alert('Error deleting registration request: ' + error.message);
     }
   };
 
@@ -1038,12 +892,6 @@ export default function ManagementDashboard() {
             Law Firm Registrations ({lawFirmRegistrations.filter(r => r.registration_status === 'pending').length})
           </button>
           <button
-            onClick={() => setActiveTab('registration')}
-            style={activeTab === 'registration' ? dashboardStyles.tabActive : dashboardStyles.tab}
-          >
-            Registration Requests ({registrationRequests.filter(r => r.status === 'pending').length})
-          </button>
-          <button
             onClick={() => setActiveTab('users')}
             style={activeTab === 'users' ? dashboardStyles.tabActive : dashboardStyles.tab}
           >
@@ -1182,139 +1030,6 @@ export default function ManagementDashboard() {
                             </td>
                             <td style={styles.td}>
                               {request.updated_at ? new Date(request.updated_at).toLocaleDateString() : '-'}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'registration' && (
-          <div style={styles.tabContent}>
-            <h2 style={styles.sectionTitle}>Registration Requests</h2>
-            <p style={{ color: '#718096', marginBottom: '24px', fontSize: '14px' }}>
-              Review and approve or reject user registration requests.
-            </p>
-
-            <div style={styles.registrationSection}>
-              <div style={styles.registrationCard}>
-                <h3 style={styles.subscriptionCardTitle}>
-                  Pending Requests ({registrationRequests.filter(r => r.status === 'pending').length})
-                </h3>
-                <div style={styles.tableContainer}>
-                  {registrationRequests.filter(r => r.status === 'pending').length === 0 ? (
-                    <p style={styles.emptyState}>No pending registration requests</p>
-                  ) : (
-                    <table style={styles.table}>
-                      <thead>
-                        <tr>
-                          <th style={styles.th}>Full Name</th>
-                          <th style={styles.th}>Email</th>
-                          <th style={styles.th}>Organization</th>
-                          <th style={styles.th}>Business Type</th>
-                          <th style={styles.th}>Institution Category</th>
-                          <th style={styles.th}>Submitted</th>
-                          <th style={styles.th}>Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {registrationRequests.filter(r => r.status === 'pending').map((request) => {
-                          const dnfbpCat = institutionCategories.find(c => c.value === request.dnfbp_category);
-                          return (
-                            <tr key={request.id} style={styles.tr}>
-                              <td style={styles.td}>{request.full_name}</td>
-                              <td style={styles.td}>{request.email}</td>
-                              <td style={styles.td}>{request.organization_name}</td>
-                              <td style={styles.td}>{request.business_type}</td>
-                              <td style={styles.td}>{dnfbpCat ? dnfbpCat.label : 'Not specified'}</td>
-                              <td style={styles.td}>{new Date(request.created_at).toLocaleDateString()}</td>
-                              <td style={styles.td}>
-                                <div style={{ display: 'flex', gap: '8px' }}>
-                                  <button
-                                    onClick={() => {
-                                      if (confirm(`Approve registration for ${request.full_name}?`)) {
-                                        approveRegistration(request.id, request);
-                                      }
-                                    }}
-                                    style={styles.activateButton}
-                                  >
-                                    Approve
-                                  </button>
-                                  <button
-                                    onClick={() => {
-                                      const reason = prompt('Please provide a reason for rejection:');
-                                      if (reason) {
-                                        rejectRegistration(request.id, reason);
-                                      }
-                                    }}
-                                    style={styles.dangerActionButton}
-                                  >
-                                    Reject
-                                  </button>
-                                </div>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  )}
-                </div>
-              </div>
-
-              <div style={styles.registrationCard}>
-                <h3 style={styles.subscriptionCardTitle}>
-                  Processed Requests ({registrationRequests.filter(r => r.status !== 'pending').length})
-                </h3>
-                <div style={styles.tableContainer}>
-                  {registrationRequests.filter(r => r.status !== 'pending').length === 0 ? (
-                    <p style={styles.emptyState}>No processed requests</p>
-                  ) : (
-                    <table style={styles.table}>
-                      <thead>
-                        <tr>
-                          <th style={styles.th}>Full Name</th>
-                          <th style={styles.th}>Email</th>
-                          <th style={styles.th}>Organization</th>
-                          <th style={styles.th}>Status</th>
-                          <th style={styles.th}>Processed</th>
-                          <th style={styles.th}>Reason/Notes</th>
-                          <th style={styles.th}>Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {registrationRequests.filter(r => r.status !== 'pending').map((request) => (
-                          <tr key={request.id} style={styles.tr}>
-                            <td style={styles.td}>{request.full_name}</td>
-                            <td style={styles.td}>{request.email}</td>
-                            <td style={styles.td}>{request.organization_name}</td>
-                            <td style={styles.td}>
-                              <span style={{
-                                ...styles.badge,
-                                background: request.status === 'approved' ? '#d1fae5' : '#fee2e2',
-                                color: request.status === 'approved' ? '#065f46' : '#991b1b'
-                              }}>
-                                {request.status}
-                              </span>
-                            </td>
-                            <td style={styles.td}>
-                              {request.reviewed_at ? new Date(request.reviewed_at).toLocaleDateString() : '-'}
-                            </td>
-                            <td style={styles.td}>
-                              {request.reason || '-'}
-                            </td>
-                            <td style={styles.td}>
-                              <button
-                                onClick={() => deleteRegistrationRequest(request.id)}
-                                style={styles.dangerActionButton}
-                              >
-                                Delete
-                              </button>
                             </td>
                           </tr>
                         ))}
