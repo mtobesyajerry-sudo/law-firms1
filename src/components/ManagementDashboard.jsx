@@ -198,7 +198,20 @@ export default function ManagementDashboard() {
         throw new Error('User not authenticated');
       }
 
-      // Step 1: Create the organization FIRST
+      // Step 1: Decrypt the user's chosen password
+      let userPassword = null;
+      if (requestData.encrypted_password) {
+        try {
+          const CryptoJS = (await import('crypto-js')).default;
+          const encryptionKey = 'temp-encryption-key-' + new Date(requestData.created_at).getTime();
+          const bytes = CryptoJS.AES.decrypt(requestData.encrypted_password, encryptionKey);
+          userPassword = bytes.toString(CryptoJS.enc.Utf8);
+        } catch (decryptError) {
+          console.error('Failed to decrypt password:', decryptError);
+        }
+      }
+
+      // Step 2: Create the organization FIRST
       const { data: orgData, error: orgError } = await supabase
         .from('organizations')
         .insert([{
@@ -216,7 +229,19 @@ export default function ManagementDashboard() {
 
       if (orgError) throw orgError;
 
-      // Step 2: Create the user WITH the organization_id (temporary password will be auto-generated)
+      // Step 3: Create the user WITH the organization_id and their chosen password
+      const requestBody = {
+        admin_user_id: user.id,
+        email: requestData.firm_email,
+        full_name: requestData.contact_person_name,
+        role: 'client',
+        organization_id: orgData.id,
+      };
+
+      if (userPassword) {
+        requestBody.password = userPassword;
+      }
+
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-user`,
         {
@@ -225,13 +250,7 @@ export default function ManagementDashboard() {
             'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({
-            admin_user_id: user.id,
-            email: requestData.firm_email,
-            full_name: requestData.contact_person_name,
-            role: 'client',
-            organization_id: orgData.id,
-          }),
+          body: JSON.stringify(requestBody),
         }
       );
 
@@ -282,8 +301,10 @@ export default function ManagementDashboard() {
 
       await loadData();
 
-      // Show success message with temporary password
-      if (result.temporary_password) {
+      // Show success message
+      if (userPassword) {
+        alert(`Registration approved successfully!\n\nThe user can now log in with the password they provided during registration.\n\nEmail: ${requestData.firm_email}`);
+      } else if (result.temporary_password) {
         alert(`Registration approved successfully!\n\nTemporary Password: ${result.temporary_password}\n\nPlease share this password with the user. They will be required to change it on first login.`);
       } else {
         alert('Registration approved successfully! User and organization have been created.');
