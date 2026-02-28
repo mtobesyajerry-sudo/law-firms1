@@ -11,7 +11,6 @@ const TanzaniaLawFirmRegistration = () => {
 
   const [formData, setFormData] = useState({
     lawFirmName: '',
-    tlsRegistrationNumber: '',
     brelaRegistrationNumber: '',
     firmEmail: '',
     contactPersonName: '',
@@ -184,7 +183,7 @@ const TanzaniaLawFirmRegistration = () => {
             user_id: authData.user.id,
             organization_id: organizationId,
             law_firm_name: formData.lawFirmName,
-            tls_registration_number: formData.tlsRegistrationNumber || null,
+            tls_registration_number: null,
             brela_registration_number: formData.brelaRegistrationNumber,
             firm_email: formData.firmEmail,
             contact_person_name: formData.contactPersonName,
@@ -264,31 +263,17 @@ const TanzaniaLawFirmRegistration = () => {
               />
             </div>
 
-            <div style={styles.formRow}>
-              <div style={styles.formGroup}>
-                <label style={styles.label}>TLS Registration Number</label>
-                <input
-                  type="text"
-                  name="tlsRegistrationNumber"
-                  value={formData.tlsRegistrationNumber}
-                  onChange={handleChange}
-                  style={styles.input}
-                  placeholder="Optional"
-                />
-              </div>
-
-              <div style={styles.formGroup}>
-                <label style={styles.label}>BRELA Registration Number *</label>
-                <input
-                  type="text"
-                  name="brelaRegistrationNumber"
-                  value={formData.brelaRegistrationNumber}
-                  onChange={handleChange}
-                  style={styles.input}
-                  placeholder="Required"
-                  required
-                />
-              </div>
+            <div style={styles.formGroup}>
+              <label style={styles.label}>BRELA Registration Number *</label>
+              <input
+                type="text"
+                name="brelaRegistrationNumber"
+                value={formData.brelaRegistrationNumber}
+                onChange={handleChange}
+                style={styles.input}
+                placeholder="Required"
+                required
+              />
             </div>
 
             <div style={styles.formGroup}>
