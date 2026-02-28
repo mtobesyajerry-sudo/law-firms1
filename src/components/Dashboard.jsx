@@ -219,6 +219,8 @@ export default function Dashboard() {
   const [systemContent, setSystemContent] = useState({});
   const [integrationData, setIntegrationData] = useState(null);
   const [loadingIntegration, setLoadingIntegration] = useState(false);
+  const [registrationRequests, setRegistrationRequests] = useState([]);
+  const [loadingRequests, setLoadingRequests] = useState(false);
   const { user, profile, signOut, hasActiveSubscription } = useAuth();
   const navigate = useNavigate();
 
@@ -344,6 +346,59 @@ export default function Dashboard() {
     } catch (error) {
       console.error('Error deleting assessment:', error);
       alert('Error deleting assessment: ' + error.message);
+    }
+  };
+
+  const loadRegistrationRequests = async () => {
+    try {
+      setLoadingRequests(true);
+      const { data, error } = await supabase
+        .from('law_firm_registrations')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setRegistrationRequests(data || []);
+    } catch (error) {
+      console.error('Error loading registration requests:', error);
+    } finally {
+      setLoadingRequests(false);
+    }
+  };
+
+  const handleApproveRequest = async (requestId) => {
+    if (!confirm('Are you sure you want to approve this registration request?')) return;
+
+    try {
+      const { error } = await supabase
+        .from('law_firm_registrations')
+        .update({ registration_status: 'approved', reviewed_at: new Date().toISOString() })
+        .eq('id', requestId);
+
+      if (error) throw error;
+      alert('Registration request approved successfully');
+      loadRegistrationRequests();
+    } catch (error) {
+      console.error('Error approving request:', error);
+      alert('Error approving request: ' + error.message);
+    }
+  };
+
+  const handleRejectRequest = async (requestId) => {
+    if (!confirm('Are you sure you want to reject this registration request?')) return;
+
+    try {
+      const { error } = await supabase
+        .from('law_firm_registrations')
+        .update({ registration_status: 'rejected', reviewed_at: new Date().toISOString() })
+        .eq('id', requestId);
+
+      if (error) throw error;
+      alert('Registration request rejected');
+      loadRegistrationRequests();
+    } catch (error) {
+      console.error('Error rejecting request:', error);
+      alert('Error rejecting request: ' + error.message);
     }
   };
 
@@ -626,6 +681,40 @@ export default function Dashboard() {
                 boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
               }}>
                 {alertCount}
+              </span>
+            )}
+          </button>
+          <button
+            onClick={() => {
+              setActiveView('registrations');
+              loadRegistrationRequests();
+            }}
+            style={{
+              ...styles.viewToggleButton,
+              ...(activeView === 'registrations' ? styles.viewToggleButtonActive : {}),
+              position: 'relative'
+            }}
+          >
+            <svg style={styles.viewToggleIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+            </svg>
+            Registration Requests
+            {registrationRequests.filter(r => r.registration_status === 'pending').length > 0 && (
+              <span style={{
+                position: 'absolute',
+                top: '8px',
+                right: '8px',
+                background: '#2563eb',
+                color: 'white',
+                borderRadius: '12px',
+                padding: '2px 8px',
+                fontSize: '11px',
+                fontWeight: '700',
+                minWidth: '20px',
+                textAlign: 'center',
+                boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+              }}>
+                {registrationRequests.filter(r => r.registration_status === 'pending').length}
               </span>
             )}
           </button>
@@ -981,9 +1070,158 @@ export default function Dashboard() {
           </div>
         </div>
           </>
-        ) : (
+        ) : activeView === 'str' ? (
           <STRAlertDashboard />
-        )}
+        ) : activeView === 'registrations' ? (
+          <div style={styles.sectionCard}>
+            <div style={styles.sectionHeader}>
+              <h2 style={styles.sectionTitle}>Law Firm Registration Requests</h2>
+            </div>
+
+            {loadingRequests ? (
+              <div style={{ textAlign: 'center', padding: '40px' }}>
+                <LoadingSpinner text="Loading registration requests..." />
+              </div>
+            ) : registrationRequests.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '40px', color: '#64748b' }}>
+                No registration requests found.
+              </div>
+            ) : (
+              <div style={{ display: 'grid', gap: '16px' }}>
+                {registrationRequests.map((request) => (
+                  <div
+                    key={request.id}
+                    style={{
+                      padding: '20px',
+                      background: '#f9fafb',
+                      borderRadius: '8px',
+                      border: '2px solid #d4af37',
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
+                      <div style={{ flex: 1 }}>
+                        <h3 style={{ margin: '0 0 8px 0', fontSize: '18px', fontWeight: '700', color: '#0a1929' }}>
+                          {request.law_firm_name}
+                        </h3>
+                        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginBottom: '12px' }}>
+                          <span style={{
+                            padding: '4px 12px',
+                            borderRadius: '6px',
+                            fontSize: '12px',
+                            fontWeight: '600',
+                            background: request.registration_status === 'pending' ? '#fef3c7' :
+                                       request.registration_status === 'approved' ? '#d1fae5' : '#fee2e2',
+                            color: request.registration_status === 'pending' ? '#92400e' :
+                                   request.registration_status === 'approved' ? '#065f46' : '#991b1b'
+                          }}>
+                            {request.registration_status.toUpperCase()}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '16px', marginBottom: '16px' }}>
+                      <div>
+                        <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '4px' }}>BRELA Registration</div>
+                        <div style={{ fontSize: '14px', color: '#0a1929', fontWeight: '600' }}>{request.brela_registration_number}</div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '4px' }}>Firm Email</div>
+                        <div style={{ fontSize: '14px', color: '#0a1929', fontWeight: '600' }}>{request.firm_email}</div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '4px' }}>Contact Person</div>
+                        <div style={{ fontSize: '14px', color: '#0a1929', fontWeight: '600' }}>{request.contact_person_name}</div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '4px' }}>Designation</div>
+                        <div style={{ fontSize: '14px', color: '#0a1929', fontWeight: '600' }}>{request.contact_person_designation}</div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '4px' }}>Mobile</div>
+                        <div style={{ fontSize: '14px', color: '#0a1929', fontWeight: '600' }}>{request.mobile_number}</div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '4px' }}>Submitted</div>
+                        <div style={{ fontSize: '14px', color: '#0a1929', fontWeight: '600' }}>
+                          {new Date(request.created_at).toLocaleDateString()}
+                        </div>
+                      </div>
+                    </div>
+
+                    {request.registration_status === 'pending' && (
+                      <div style={{ display: 'flex', gap: '12px', paddingTop: '16px', borderTop: '1px solid #e2e8f0' }}>
+                        <button
+                          onClick={() => handleApproveRequest(request.id)}
+                          style={{
+                            padding: '10px 20px',
+                            background: 'linear-gradient(135deg, #059669, #047857)',
+                            border: '2px solid #d4af37',
+                            borderRadius: '8px',
+                            color: 'white',
+                            fontSize: '14px',
+                            fontWeight: '600',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s',
+                            flex: 1
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.background = 'linear-gradient(135deg, #047857, #065f46)';
+                            e.currentTarget.style.transform = 'translateY(-1px)';
+                            e.currentTarget.style.boxShadow = '0 4px 12px rgba(5, 150, 105, 0.3)';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.background = 'linear-gradient(135deg, #059669, #047857)';
+                            e.currentTarget.style.transform = 'translateY(0)';
+                            e.currentTarget.style.boxShadow = 'none';
+                          }}
+                        >
+                          Approve
+                        </button>
+                        <button
+                          onClick={() => handleRejectRequest(request.id)}
+                          style={{
+                            padding: '10px 20px',
+                            background: 'linear-gradient(135deg, #dc2626, #b91c1c)',
+                            border: '2px solid #d4af37',
+                            borderRadius: '8px',
+                            color: 'white',
+                            fontSize: '14px',
+                            fontWeight: '600',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s',
+                            flex: 1
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.background = 'linear-gradient(135deg, #b91c1c, #991b1b)';
+                            e.currentTarget.style.transform = 'translateY(-1px)';
+                            e.currentTarget.style.boxShadow = '0 4px 12px rgba(220, 38, 38, 0.3)';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.background = 'linear-gradient(135deg, #dc2626, #b91c1c)';
+                            e.currentTarget.style.transform = 'translateY(0)';
+                            e.currentTarget.style.boxShadow = 'none';
+                          }}
+                        >
+                          Reject
+                        </button>
+                      </div>
+                    )}
+
+                    {request.reviewed_at && (
+                      <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid #e2e8f0' }}>
+                        <div style={{ fontSize: '12px', color: '#64748b' }}>
+                          Reviewed on {new Date(request.reviewed_at).toLocaleDateString()}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        ) : null}
       </div>
 
       {deleteConfirm.show && (
