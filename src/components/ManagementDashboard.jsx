@@ -111,7 +111,7 @@ export default function ManagementDashboard() {
       setOrganizations(orgsRes.data || []);
       setAssessments(assessRes.data || []);
       setLawFirmRegistrations(lawFirmRegRes.data || []);
-      setNewUserRequests(newUserReqRes.data || []);
+      setAdminUserRequests(newUserReqRes.data || []);
       setClients(clientsRes.data || []);
 
       console.log('Users loaded:', usersRes.data);
