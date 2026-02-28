@@ -301,7 +301,7 @@ export default function Auth() {
               ...(mode === 'register' ? styles.tabActive : {})
             }}
           >
-            Tanzania Law Firm Registration
+            Registration
           </button>
         </div>
 
