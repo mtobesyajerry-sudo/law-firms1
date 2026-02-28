@@ -12,7 +12,6 @@ export default function Auth() {
   const [fullName, setFullName] = useState('');
 
   const [lawFirmName, setLawFirmName] = useState('');
-  const [tlsRegistrationNumber, setTlsRegistrationNumber] = useState('');
   const [brelaRegistrationNumber, setBrelaRegistrationNumber] = useState('');
   const [firmEmail, setFirmEmail] = useState('');
   const [contactPersonName, setContactPersonName] = useState('');
@@ -212,7 +211,6 @@ export default function Auth() {
           .from('law_firm_registrations')
           .insert({
             law_firm_name: lawFirmName,
-            tls_registration_number: tlsRegistrationNumber || null,
             brela_registration_number: brelaRegistrationNumber,
             firm_email: firmEmail,
             contact_person_name: contactPersonName,
@@ -232,7 +230,6 @@ export default function Auth() {
         setSuccess('Registration request submitted successfully! An administrator will review your request and you will receive confirmation via email.');
 
         setLawFirmName('');
-        setTlsRegistrationNumber('');
         setBrelaRegistrationNumber('');
         setFirmEmail('');
         setContactPersonName('');
@@ -424,17 +421,6 @@ export default function Auth() {
                 </div>
 
                 <div style={styles.sectionTitle}>Registration Details</div>
-                <div style={styles.formGroup}>
-                  <label style={styles.label}>TLS Registration Number</label>
-                  <input
-                    type="text"
-                    value={tlsRegistrationNumber}
-                    onChange={(e) => setTlsRegistrationNumber(e.target.value)}
-                    style={styles.input}
-                    placeholder="If applicable"
-                  />
-                </div>
-
                 <div style={styles.formGroup}>
                   <label style={styles.label}>Business Registration Number (BRELA) *</label>
                   <input
