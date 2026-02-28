@@ -522,11 +522,11 @@ export default function KYCClientDetails() {
           <div style={styles.headerBadges}>
             <span style={{
               ...styles.badge,
-              background: getRiskColor(client.risk_level) + '25',
-              color: getRiskColor(client.risk_level),
-              borderColor: getRiskColor(client.risk_level)
+              background: getRiskColor(client.current_risk_rating) + '25',
+              color: getRiskColor(client.current_risk_rating),
+              borderColor: getRiskColor(client.current_risk_rating)
             }}>
-              {client.risk_level.toUpperCase()} RISK
+              {client.current_risk_rating?.toUpperCase()} RISK
             </span>
           </div>
         </div>
@@ -932,8 +932,8 @@ export default function KYCClientDetails() {
                     </div>
                     <div style={styles.infoRow}>
                       <span style={styles.infoLabel}>Risk Rating:</span>
-                      <span style={{...styles.riskBadge, background: getRiskColor(client.risk_level)}}>
-                        {client.risk_level}
+                      <span style={{...styles.riskBadge, background: getRiskColor(client.current_risk_rating)}}>
+                        {client.current_risk_rating}
                       </span>
                     </div>
                     <div style={styles.ddDescription}>
@@ -1062,9 +1062,9 @@ export default function KYCClientDetails() {
               <h3 style={styles.riskCardTitle}>Risk Assessment Summary</h3>
               <div style={styles.riskScoreDisplay}>
                 <div style={styles.riskScoreLabel}>Overall Risk Score</div>
-                <div style={styles.riskScoreValue}>{client.risk_score || 0}</div>
-                <div style={{...styles.riskRatingBadge, background: getRiskColor(client.risk_level)}}>
-                  {client.risk_level}
+                <div style={styles.riskScoreValue}>{client.base_risk_score || 0}</div>
+                <div style={{...styles.riskRatingBadge, background: getRiskColor(client.current_risk_rating)}}>
+                  {client.current_risk_rating}
                 </div>
               </div>
 
