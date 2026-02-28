@@ -205,7 +205,10 @@ export default function ManagementDashboard() {
           name: requestData.law_firm_name,
           business_type: 'Law Firm',
           size: 'small',
-          dnfbp_category: 'legal_professionals',
+          law_firm_type: 'private_practice',
+          brela_registration: requestData.brela_registration_number,
+          tls_registration: requestData.tls_registration_number,
+          contact_email: requestData.firm_email,
           assigned_user_id: null
         }])
         .select()
