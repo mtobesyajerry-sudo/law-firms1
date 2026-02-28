@@ -46,6 +46,7 @@ async function handleApproveRegistration(supabaseAdmin: any, registrationId: str
     .insert({
       name: registration.law_firm_name,
       business_type: 'law_firm',
+      law_firm_type: 'small_firm',
       brela_registration: registration.brela_registration_number,
       tls_registration: registration.tls_registration_number,
       contact_email: registration.firm_email,
