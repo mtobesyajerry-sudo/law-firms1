@@ -64,11 +64,12 @@ export default function ManagementUserApproval({ user }) {
           .insert({
             name: registration.law_firm_name,
             contact_email: registration.firm_email,
-            brela_registration_number: registration.brela_registration_number,
-            tls_registration_number: registration.tls_registration_number,
+            brela_registration: registration.brela_registration_number,
+            tls_registration: registration.tls_registration_number,
             business_type: 'Law Firm',
-            subscription_tier: 'trial',
-            subscription_status: 'active'
+            law_firm_type: 'Private Practice',
+            is_active: true,
+            max_users: 10
           })
           .select()
           .single();
