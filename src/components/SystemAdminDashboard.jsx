@@ -443,7 +443,7 @@ export default function SystemAdminDashboard() {
                             color: '#0a1929',
                             fontWeight: '600'
                           }}>
-                            {org.brela_registration_number || 'N/A'}
+                            {org.brela_registration || 'N/A'}
                           </span>
                         </td>
                         <td style={styles.td}>
@@ -549,7 +549,7 @@ export default function SystemAdminDashboard() {
                           padding: '4px 8px',
                           borderRadius: '6px'
                         }}>
-                          {org.brela_registration_number || 'N/A'}
+                          {org.brela_registration || 'N/A'}
                         </span>
                       </td>
                       <td style={styles.td}>
