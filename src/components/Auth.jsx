@@ -303,9 +303,27 @@ export default function Auth() {
               <div style={{
                 fontSize: '14px',
                 color: '#475569',
-                textAlign: 'center'
+                textAlign: 'center',
+                marginBottom: '12px'
               }}>
                 Contact your administrator to request an account
+              </div>
+              <div style={{
+                textAlign: 'center',
+                borderTop: '1px solid #e2e8f0',
+                paddingTop: '12px'
+              }}>
+                <a
+                  href="/register/tanzania-law-firm"
+                  style={{
+                    color: '#1e40af',
+                    textDecoration: 'none',
+                    fontSize: '14px',
+                    fontWeight: '600'
+                  }}
+                >
+                  Tanzania Law Firm? Register Here
+                </a>
               </div>
             </div>
           </form>

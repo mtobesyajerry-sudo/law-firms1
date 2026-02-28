@@ -3,6 +3,8 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { supabase } from './supabaseClient';
 import Auth from './components/Auth';
+import TanzaniaLawFirmRegistration from './components/TanzaniaLawFirmRegistration';
+import LawFirmOnboardingWizard from './components/LawFirmOnboardingWizard';
 import ClientDashboard from './components/ClientDashboard';
 import ManagementDashboard from './components/ManagementDashboard';
 import ClientManagementDashboard from './components/ClientManagementDashboard';
@@ -191,15 +193,24 @@ function AppRoutes() {
 
   return (
     <Routes>
-      <Route path="/auth" element={user ? <Navigate to="/" /> : <Auth />} />
-      <Route
-        path="/"
-        element={
-          <ProtectedRoute>
-            <RoleBasedRedirect />
-          </ProtectedRoute>
-        }
-      />
+          <Route path="/auth" element={user ? <Navigate to="/" /> : <Auth />} />
+          <Route path="/register/tanzania-law-firm" element={<TanzaniaLawFirmRegistration />} />
+          <Route
+            path="/onboarding"
+            element={
+              <ProtectedRoute>
+                <LawFirmOnboardingWizard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/"
+            element={
+              <ProtectedRoute>
+                <RoleBasedRedirect />
+              </ProtectedRoute>
+            }
+          />
       <Route
         path="/admin/dashboard"
         element={
