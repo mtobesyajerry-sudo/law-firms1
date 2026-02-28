@@ -227,8 +227,8 @@ export default function Auth() {
     <div style={styles.container}>
       <div style={mode === 'register' ? styles.cardLarge : styles.card}>
         <div style={styles.header}>
-          <h1 style={styles.title}>Law Firm AML Compliance System</h1>
-          <p style={styles.subtitle}>Comprehensive AML/CFT Compliance Management for Legal Professionals</p>
+          <h1 style={styles.title}>Tanzania Law Firm Registration</h1>
+          <p style={styles.subtitle}>Professional AML/CFT Compliance Management for Legal Practitioners</p>
         </div>
 
         <div style={styles.tabContainer}>
