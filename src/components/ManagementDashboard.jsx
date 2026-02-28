@@ -36,7 +36,7 @@ export default function ManagementDashboard() {
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
-  const [activeTab, setActiveTab] = useState('users');
+  const [activeTab, setActiveTab] = useState('registration');
 
   const [editUser, setEditUser] = useState(null);
   const [editOrg, setEditOrg] = useState(null);
@@ -114,7 +114,7 @@ export default function ManagementDashboard() {
       console.log('Organizations loaded:', orgsRes.data);
       console.log('Registration Requests loaded:', regReqRes.data);
       console.log('Registration Requests count:', (regReqRes.data || []).length);
-      console.log('Pending count:', (regReqRes.data || []).filter(r => r.status === 'pending').length);
+      console.log('Pending count:', (regReqRes.data || []).filter(r => r.registration_status === 'pending').length);
 
       setSystemContent({});
     } catch (error) {
@@ -927,7 +927,7 @@ export default function ManagementDashboard() {
             onClick={() => setActiveTab('registration')}
             style={activeTab === 'registration' ? dashboardStyles.tabActive : dashboardStyles.tab}
           >
-            Registration Requests ({registrationRequests.filter(r => r.status === 'pending').length})
+            Registration Requests ({registrationRequests.filter(r => r.registration_status === 'pending').length})
           </button>
           <button
             onClick={() => setActiveTab('users')}
@@ -971,40 +971,41 @@ export default function ManagementDashboard() {
             <div style={styles.registrationSection}>
               <div style={styles.registrationCard}>
                 <h3 style={styles.subscriptionCardTitle}>
-                  Pending Requests ({registrationRequests.filter(r => r.status === 'pending').length})
+                  Pending Requests ({registrationRequests.filter(r => r.registration_status === 'pending').length})
                 </h3>
                 <div style={styles.tableContainer}>
-                  {registrationRequests.filter(r => r.status === 'pending').length === 0 ? (
+                  {registrationRequests.filter(r => r.registration_status === 'pending').length === 0 ? (
                     <p style={styles.emptyState}>No pending registration requests</p>
                   ) : (
                     <table style={styles.table}>
                       <thead>
                         <tr>
-                          <th style={styles.th}>Full Name</th>
-                          <th style={styles.th}>Email</th>
-                          <th style={styles.th}>Organization</th>
-                          <th style={styles.th}>Business Type</th>
-                          <th style={styles.th}>Institution Category</th>
+                          <th style={styles.th}>Law Firm Name</th>
+                          <th style={styles.th}>BRELA #</th>
+                          <th style={styles.th}>Firm Email</th>
+                          <th style={styles.th}>Contact Person</th>
+                          <th style={styles.th}>Designation</th>
+                          <th style={styles.th}>Mobile</th>
                           <th style={styles.th}>Submitted</th>
                           <th style={styles.th}>Actions</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {registrationRequests.filter(r => r.status === 'pending').map((request) => {
-                          const dnfbpCat = institutionCategories.find(c => c.value === request.dnfbp_category);
+                        {registrationRequests.filter(r => r.registration_status === 'pending').map((request) => {
                           return (
                             <tr key={request.id} style={styles.tr}>
-                              <td style={styles.td}>{request.full_name}</td>
-                              <td style={styles.td}>{request.email}</td>
-                              <td style={styles.td}>{request.organization_name}</td>
-                              <td style={styles.td}>{request.business_type}</td>
-                              <td style={styles.td}>{dnfbpCat ? dnfbpCat.label : 'Not specified'}</td>
+                              <td style={styles.td}>{request.law_firm_name}</td>
+                              <td style={styles.td}>{request.brela_registration_number}</td>
+                              <td style={styles.td}>{request.firm_email}</td>
+                              <td style={styles.td}>{request.contact_person_name}</td>
+                              <td style={styles.td}>{request.contact_person_designation}</td>
+                              <td style={styles.td}>{request.mobile_number}</td>
                               <td style={styles.td}>{new Date(request.created_at).toLocaleDateString()}</td>
                               <td style={styles.td}>
                                 <div style={{ display: 'flex', gap: '8px' }}>
                                   <button
                                     onClick={() => {
-                                      if (confirm(`Approve registration for ${request.full_name}?`)) {
+                                      if (confirm(`Approve registration for ${request.law_firm_name}?`)) {
                                         approveRegistration(request.id, request);
                                       }
                                     }}
@@ -1036,44 +1037,42 @@ export default function ManagementDashboard() {
 
               <div style={styles.registrationCard}>
                 <h3 style={styles.subscriptionCardTitle}>
-                  Processed Requests ({registrationRequests.filter(r => r.status !== 'pending').length})
+                  Processed Requests ({registrationRequests.filter(r => r.registration_status !== 'pending').length})
                 </h3>
                 <div style={styles.tableContainer}>
-                  {registrationRequests.filter(r => r.status !== 'pending').length === 0 ? (
+                  {registrationRequests.filter(r => r.registration_status !== 'pending').length === 0 ? (
                     <p style={styles.emptyState}>No processed requests</p>
                   ) : (
                     <table style={styles.table}>
                       <thead>
                         <tr>
-                          <th style={styles.th}>Full Name</th>
-                          <th style={styles.th}>Email</th>
-                          <th style={styles.th}>Organization</th>
+                          <th style={styles.th}>Law Firm Name</th>
+                          <th style={styles.th}>BRELA #</th>
+                          <th style={styles.th}>Firm Email</th>
+                          <th style={styles.th}>Contact Person</th>
                           <th style={styles.th}>Status</th>
                           <th style={styles.th}>Processed</th>
-                          <th style={styles.th}>Reason/Notes</th>
                           <th style={styles.th}>Actions</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {registrationRequests.filter(r => r.status !== 'pending').map((request) => (
+                        {registrationRequests.filter(r => r.registration_status !== 'pending').map((request) => (
                           <tr key={request.id} style={styles.tr}>
-                            <td style={styles.td}>{request.full_name}</td>
-                            <td style={styles.td}>{request.email}</td>
-                            <td style={styles.td}>{request.organization_name}</td>
+                            <td style={styles.td}>{request.law_firm_name}</td>
+                            <td style={styles.td}>{request.brela_registration_number}</td>
+                            <td style={styles.td}>{request.firm_email}</td>
+                            <td style={styles.td}>{request.contact_person_name}</td>
                             <td style={styles.td}>
                               <span style={{
                                 ...styles.badge,
-                                background: request.status === 'approved' ? '#d1fae5' : '#fee2e2',
-                                color: request.status === 'approved' ? '#065f46' : '#991b1b'
+                                background: request.registration_status === 'approved' ? '#d1fae5' : '#fee2e2',
+                                color: request.registration_status === 'approved' ? '#065f46' : '#991b1b'
                               }}>
-                                {request.status}
+                                {request.registration_status}
                               </span>
                             </td>
                             <td style={styles.td}>
                               {request.reviewed_at ? new Date(request.reviewed_at).toLocaleDateString() : '-'}
-                            </td>
-                            <td style={styles.td}>
-                              {request.reason || '-'}
                             </td>
                             <td style={styles.td}>
                               <button
