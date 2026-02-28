@@ -49,7 +49,6 @@ async function handleApproveRegistration(supabaseAdmin: any, registrationId: str
       brela_registration: registration.brela_registration_number,
       tls_registration: registration.tls_registration_number,
       contact_email: registration.firm_email,
-      law_firm_type: 'small_firm',
       is_active: true,
       subscription_status: 'active',
       subscription_fee: 0
