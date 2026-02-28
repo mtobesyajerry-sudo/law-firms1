@@ -182,105 +182,74 @@ export default function Auth() {
     setLoading(true);
 
     try {
-      const { data: authData, error: signUpError } = await supabase.auth.signUp({
-        email: formData.firmEmail,
-        password: formData.registerPassword,
-        options: {
-          data: {
-            full_name: formData.contactPersonName,
-            user_type: 'law_firm_tanzania'
-          }
+      const { data: existingRequest } = await supabase
+        .from('law_firm_registrations')
+        .select('id, registration_status')
+        .eq('firm_email', formData.firmEmail)
+        .maybeSingle();
+
+      if (existingRequest) {
+        if (existingRequest.registration_status === 'pending') {
+          setError('A registration request with this email is already pending approval.');
+          setLoading(false);
+          return;
         }
+        if (existingRequest.registration_status === 'active') {
+          setError('An account with this email already exists. Please login.');
+          setLoading(false);
+          return;
+        }
+      }
+
+      const CryptoJS = (await import('crypto-js')).default;
+      const encryptedPassword = CryptoJS.AES.encrypt(
+        formData.registerPassword,
+        import.meta.env.VITE_ENCRYPTION_KEY || 'fallback-key'
+      ).toString();
+
+      const { error: regError } = await supabase
+        .from('law_firm_registrations')
+        .insert([{
+          user_id: null,
+          organization_id: null,
+          law_firm_name: formData.lawFirmName,
+          tls_registration_number: null,
+          brela_registration_number: formData.brelaRegistrationNumber,
+          firm_email: formData.firmEmail,
+          contact_person_name: formData.contactPersonName,
+          contact_person_designation: formData.contactPersonDesignation,
+          mobile_number: formData.mobileNumber,
+          sector_confirmed: formData.sectorConfirmed,
+          terms_accepted: formData.termsAccepted,
+          privacy_policy_accepted: formData.privacyPolicyAccepted,
+          data_processing_consent: formData.dataProcessingConsent,
+          aml_cft_consent: formData.amlCftConsent,
+          registration_status: 'pending',
+          encrypted_password: encryptedPassword
+        }]);
+
+      if (regError) throw regError;
+
+      setError('');
+      alert('Registration submitted successfully! Your request will be reviewed by our administrators. You will receive an email notification once your account is approved.');
+
+      setFormData({
+        lawFirmName: '',
+        brelaRegistrationNumber: '',
+        firmEmail: '',
+        contactPersonName: '',
+        contactPersonDesignation: 'Partner',
+        mobileNumber: '',
+        registerPassword: '',
+        confirmPassword: '',
+        sectorConfirmed: false,
+        termsAccepted: false,
+        privacyPolicyAccepted: false,
+        dataProcessingConsent: false,
+        amlCftConsent: false
       });
 
-      if (signUpError) throw signUpError;
-
-      if (authData.user) {
-        await new Promise(resolve => setTimeout(resolve, 1000));
-
-        const { data: existingOrg } = await supabase
-          .from('organizations')
-          .select('id')
-          .eq('name', formData.lawFirmName)
-          .maybeSingle();
-
-        let organizationId;
-
-        if (existingOrg) {
-          organizationId = existingOrg.id;
-        } else {
-          const { data: newOrg, error: orgError } = await supabase
-            .from('organizations')
-            .insert([{
-              name: formData.lawFirmName,
-              type: 'law_firm',
-              country: 'Tanzania'
-            }])
-            .select()
-            .single();
-
-          if (orgError) throw orgError;
-          organizationId = newOrg.id;
-        }
-
-        const { data: existingProfile } = await supabase
-          .from('user_profiles')
-          .select('id')
-          .eq('id', authData.user.id)
-          .maybeSingle();
-
-        if (!existingProfile) {
-          const { error: profileError } = await supabase
-            .from('user_profiles')
-            .insert({
-              id: authData.user.id,
-              email: formData.firmEmail,
-              full_name: formData.contactPersonName,
-              role: 'client',
-              position: formData.contactPersonDesignation,
-              organization_id: organizationId,
-              organization_name: formData.lawFirmName,
-              is_active: true
-            });
-
-          if (profileError) throw profileError;
-        }
-
-        const { error: regError } = await supabase
-          .from('law_firm_registrations')
-          .insert([{
-            user_id: authData.user.id,
-            organization_id: organizationId,
-            law_firm_name: formData.lawFirmName,
-            tls_registration_number: null,
-            brela_registration_number: formData.brelaRegistrationNumber,
-            firm_email: formData.firmEmail,
-            contact_person_name: formData.contactPersonName,
-            contact_person_designation: formData.contactPersonDesignation,
-            mobile_number: formData.mobileNumber,
-            sector_confirmed: formData.sectorConfirmed,
-            terms_accepted: formData.termsAccepted,
-            privacy_policy_accepted: formData.privacyPolicyAccepted,
-            data_processing_consent: formData.dataProcessingConsent,
-            aml_cft_consent: formData.amlCftConsent,
-            registration_status: 'active'
-          }]);
-
-        if (regError) throw regError;
-
-        const { error: onboardingError } = await supabase
-          .from('onboarding_progress')
-          .insert([{
-            user_id: authData.user.id,
-            organization_id: organizationId,
-            current_step: 1
-          }]);
-
-        if (onboardingError) throw onboardingError;
-
-        await signIn(formData.firmEmail, formData.registerPassword);
-        navigate('/onboarding');
-      }
+      setMode('login');
     } catch (err) {
       console.error('Registration error:', err);
       setError(err.message || 'Registration failed. Please try again.');
