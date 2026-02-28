@@ -256,7 +256,7 @@ export default function SystemAdminDashboard() {
             SYSTEM ADMINISTRATOR
           </div>
           <h1 style={{ margin: '0 0 12px 0', fontSize: '36px', fontWeight: '800', color: 'white' }}>
-            System Administration
+            {profile?.first_name ? `Welcome, ${profile.first_name}` : 'System Administration'}
           </h1>
           <div style={{ display: 'flex', gap: '24px', alignItems: 'center', flexWrap: 'wrap' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>

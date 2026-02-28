@@ -142,6 +142,11 @@ export default function ClientDashboard() {
             <h1 style={{ margin: '0', fontSize: '44px', fontWeight: '800', color: 'white', lineHeight: '1.2' }}>
               {organization?.name || 'Organization'}
             </h1>
+            {profile?.first_name && (
+              <p style={{ color: '#d4af37', fontSize: '18px', margin: '12px 0 0 0', fontWeight: '600' }}>
+                Welcome, {profile.first_name}
+              </p>
+            )}
           </div>
           <button
             onClick={signOut}

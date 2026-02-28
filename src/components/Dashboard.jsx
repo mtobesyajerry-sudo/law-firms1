@@ -440,6 +440,11 @@ export default function Dashboard() {
             <h1 style={{ margin: '0 0 12px 0', fontSize: '36px', fontWeight: '800', color: 'white' }}>
               {organization.name}
             </h1>
+            {profile?.first_name && (
+              <p style={{ color: '#d4af37', fontSize: '16px', margin: '0 0 12px 0', fontWeight: '600' }}>
+                Welcome, {profile.first_name}
+              </p>
+            )}
             <div style={{ display: 'flex', gap: '24px', alignItems: 'center', flexWrap: 'wrap' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#10b981' }}></div>
