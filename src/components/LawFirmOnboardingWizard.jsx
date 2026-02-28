@@ -91,7 +91,7 @@ const LawFirmOnboardingWizard = () => {
           servesForeignClients: firmProfile.serves_foreign_clients || false,
           servesMultinationals: firmProfile.serves_multinationals || false,
           servesFinancialInstitutions: firmProfile.serves_financial_institutions || false,
-          servesDnfbps: firmProfile.serves_dnfbps || false,
+          servesHighRiskBusinesses: firmProfile.serves_high_risk_businesses || false,
           servesNgosForeignFunding: firmProfile.serves_ngos_foreign_funding || false,
           handlesClientFunds: firmProfile.handles_client_funds || false,
           actsAsCompanySecretary: firmProfile.acts_as_company_secretary || false,
@@ -141,7 +141,7 @@ const LawFirmOnboardingWizard = () => {
         serves_foreign_clients: formData.servesForeignClients,
         serves_multinationals: formData.servesMultinationals,
         serves_financial_institutions: formData.servesFinancialInstitutions,
-        serves_dnfbps: formData.servesDnfbps,
+        serves_high_risk_businesses: formData.servesHighRiskBusinesses,
         serves_ngos_foreign_funding: formData.servesNgosForeignFunding,
         handles_client_funds: formData.handlesClientFunds,
         acts_as_company_secretary: formData.actsAsCompanySecretary,
@@ -375,11 +375,11 @@ const LawFirmOnboardingWizard = () => {
         <label style={styles.checkboxLabel}>
           <input
             type="checkbox"
-            checked={formData.servesDnfbps}
-            onChange={() => handleCheckboxChange('servesDnfbps')}
+            checked={formData.servesHighRiskBusinesses}
+            onChange={() => handleCheckboxChange('servesHighRiskBusinesses')}
             style={styles.checkbox}
           />
-          <span>DNFBPs (Designated Non-Financial Businesses and Professions)</span>
+          <span>High-Risk Businesses (Real Estate, Precious Metals, Casinos, etc.)</span>
         </label>
 
         <label style={styles.checkboxLabel}>

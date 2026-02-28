@@ -87,7 +87,7 @@ export default function AssessmentForm() {
 
       const mappedAssessData = {
         ...assessData,
-        entity_category: assessData.dnfbp_category
+        entity_category: assessData.law_firm_category || assessData.entity_category
       };
       setAssessment(mappedAssessData);
 
@@ -112,8 +112,8 @@ export default function AssessmentForm() {
         return;
       }
 
-      const framework = 'banks_financial_institutions';
-      const tier = assessData.entity_tier || assessData.dnfbp_tier || 2;
+      const framework = 'legal_professionals';
+      const tier = assessData.entity_tier || 2;
       setEntityTier(tier);
       const sections = getFilteredSections(framework, tier);
       console.log('🔍 Loading assessment - Total modules:', sections.length);
@@ -212,8 +212,7 @@ export default function AssessmentForm() {
         .update({
           ...dbData,
           framework_type: framework,
-          dnfbp_category: entity_category,
-          dnfbp_tier: calculatedTier,
+          law_firm_category: entity_category,
           introduction_completed: true,
           status: 'in_progress'
         })
@@ -234,7 +233,7 @@ export default function AssessmentForm() {
         framework_type: framework,
         entity_tier: calculatedTier,
         entity_category: introData.entity_category,
-        dnfbp_tier: calculatedTier,
+        law_firm_category: introData.entity_category,
         introduction_completed: true
       });
       setShowIntroduction(false);
