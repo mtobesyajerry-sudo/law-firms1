@@ -194,7 +194,7 @@ const TanzaniaLawFirmRegistration = () => {
             privacy_policy_accepted: formData.privacyPolicyAccepted,
             data_processing_consent: formData.dataProcessingConsent,
             aml_cft_consent: formData.amlCftConsent,
-            registration_status: 'active'
+            registration_status: 'pending'
           }]);
 
         if (regError) throw regError;
@@ -209,11 +209,12 @@ const TanzaniaLawFirmRegistration = () => {
 
         if (onboardingError) throw onboardingError;
 
-        setSuccess('Registration successful! Redirecting to onboarding...');
+        setSuccess('Registration submitted successfully! Your account is pending administrator approval. You will be notified once approved.');
 
-        setTimeout(() => {
-          navigate('/onboarding');
-        }, 2000);
+        setTimeout(async () => {
+          await supabase.auth.signOut();
+          navigate('/auth');
+        }, 3000);
       }
     } catch (err) {
       console.error('Registration error:', err);

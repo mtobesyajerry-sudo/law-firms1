@@ -39,6 +39,26 @@ export default function Auth() {
 
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
+        const { data: lawFirmReg } = await supabase
+          .from('law_firm_registrations')
+          .select('registration_status')
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+        if (lawFirmReg && lawFirmReg.registration_status === 'pending') {
+          await supabase.auth.signOut();
+          setError('Your registration is pending administrator approval. You will be notified once your account is approved.');
+          setLoading(false);
+          return;
+        }
+
+        if (lawFirmReg && lawFirmReg.registration_status === 'suspended') {
+          await supabase.auth.signOut();
+          setError('Your account has been suspended. Please contact support.');
+          setLoading(false);
+          return;
+        }
+
         let profile = null;
         let retries = 0;
 
