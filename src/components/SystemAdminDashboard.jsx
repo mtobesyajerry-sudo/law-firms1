@@ -73,7 +73,23 @@ export default function SystemAdminDashboard() {
         pendingNewUserRequests: pendingNewUsers || 0,
       });
 
-      setOrganizations(orgsData || []);
+      // Enrich organizations with management user count
+      const enrichedOrgs = await Promise.all(
+        (orgsData || []).map(async (org) => {
+          const { count } = await supabase
+            .from('user_profiles')
+            .select('*', { count: 'exact', head: true })
+            .eq('organization_id', org.id)
+            .eq('role', 'management');
+
+          return {
+            ...org,
+            management_user_count: count || 0
+          };
+        })
+      );
+
+      setOrganizations(enrichedOrgs);
       setUsers(usersData || []);
       setRecentActivity(activityData || []);
       setRegistrationRequests(regRequestsData || []);
@@ -223,7 +239,7 @@ export default function SystemAdminDashboard() {
               ...(activeTab === 'organizations' ? styles.activeTab : {})
             }}
           >
-            Organizations
+            Law Firms
           </button>
           <button
             onClick={() => setActiveTab('users')}
@@ -268,9 +284,9 @@ export default function SystemAdminDashboard() {
                 <div style={styles.statSubtext}>{stats.activeUsers} active</div>
               </div>
               <div style={styles.statCard}>
-                <div style={styles.statIcon}>🏢</div>
+                <div style={styles.statIcon}>⚖️</div>
                 <div style={styles.statValue}>{stats.totalOrganizations}</div>
-                <div style={styles.statLabel}>Organizations</div>
+                <div style={styles.statLabel}>Law Firms</div>
                 <div style={styles.statSubtext}>Registered firms</div>
               </div>
               <div style={styles.statCard}>
@@ -316,14 +332,15 @@ export default function SystemAdminDashboard() {
             )}
 
             <div style={styles.sectionCard}>
-              <h3 style={styles.sectionTitle}>Recent Organizations</h3>
+              <h3 style={styles.sectionTitle}>Recent Law Firms</h3>
               <div style={{ overflowX: 'auto' }}>
                 <table style={styles.table}>
                   <thead>
                     <tr>
-                      <th style={styles.th}>Organization Name</th>
-                      <th style={styles.th}>Business Type</th>
-                      <th style={styles.th}>Size</th>
+                      <th style={styles.th}>Law Firm Name</th>
+                      <th style={styles.th}>BRELA Number</th>
+                      <th style={styles.th}>Management Users</th>
+                      <th style={styles.th}>Subscription</th>
                       <th style={styles.th}>Status</th>
                       <th style={styles.th}>Created</th>
                     </tr>
@@ -331,19 +348,54 @@ export default function SystemAdminDashboard() {
                   <tbody>
                     {organizations.map((org) => (
                       <tr key={org.id} style={styles.tr}>
-                        <td style={styles.td}>{org.name}</td>
-                        <td style={styles.td}>{org.business_type}</td>
-                        <td style={styles.td}>{org.size}</td>
+                        <td style={styles.td}>
+                          <div style={{ fontWeight: '600', color: '#0a1929' }}>{org.name}</div>
+                          <div style={{ fontSize: '12px', color: '#64748b' }}>{org.contact_email}</div>
+                        </td>
+                        <td style={styles.td}>
+                          <span style={{
+                            fontFamily: 'monospace',
+                            fontSize: '13px',
+                            color: '#0a1929',
+                            fontWeight: '600'
+                          }}>
+                            {org.brela_registration_number || 'N/A'}
+                          </span>
+                        </td>
+                        <td style={styles.td}>
+                          <span style={{
+                            padding: '6px 12px',
+                            borderRadius: '8px',
+                            fontSize: '12px',
+                            fontWeight: '700',
+                            background: '#dbeafe',
+                            color: '#1e40af'
+                          }}>
+                            {org.management_user_count || 0}/3
+                          </span>
+                        </td>
+                        <td style={styles.td}>
+                          <span style={{
+                            padding: '4px 10px',
+                            borderRadius: '6px',
+                            fontSize: '11px',
+                            fontWeight: '700',
+                            background: org.subscription_tier === 'trial' ? '#fef3c7' : '#dcfce7',
+                            color: org.subscription_tier === 'trial' ? '#92400e' : '#166534'
+                          }}>
+                            {org.subscription_tier?.toUpperCase() || 'TRIAL'}
+                          </span>
+                        </td>
                         <td style={styles.td}>
                           <span style={{
                             padding: '4px 12px',
                             borderRadius: '12px',
                             fontSize: '12px',
                             fontWeight: '600',
-                            background: org.is_active ? '#d1fae5' : '#fee2e2',
-                            color: org.is_active ? '#065f46' : '#991b1b'
+                            background: org.subscription_status === 'active' ? '#d1fae5' : '#fee2e2',
+                            color: org.subscription_status === 'active' ? '#065f46' : '#991b1b'
                           }}>
-                            {org.is_active ? 'Active' : 'Inactive'}
+                            {org.subscription_status === 'active' ? 'Active' : 'Inactive'}
                           </span>
                         </td>
                         <td style={styles.td}>{new Date(org.created_at).toLocaleDateString()}</td>
@@ -383,9 +435,9 @@ export default function SystemAdminDashboard() {
                   onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
                   onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
                 >
-                  <div style={{ fontSize: '32px', marginBottom: '8px' }}>🏢</div>
-                  <div style={{ fontSize: '16px', fontWeight: '600', color: '#0a1929' }}>Organizations</div>
-                  <div style={{ fontSize: '13px', color: '#64748b', marginTop: '4px' }}>Manage all organizations</div>
+                  <div style={{ fontSize: '32px', marginBottom: '8px' }}>⚖️</div>
+                  <div style={{ fontSize: '16px', fontWeight: '600', color: '#0a1929' }}>Law Firms</div>
+                  <div style={{ fontSize: '13px', color: '#64748b', marginTop: '4px' }}>Manage all law firms</div>
                 </button>
               </div>
             </div>
@@ -394,39 +446,82 @@ export default function SystemAdminDashboard() {
 
         {activeTab === 'organizations' && (
           <div style={styles.sectionCard}>
-            <h3 style={styles.sectionTitle}>All Organizations</h3>
+            <h3 style={styles.sectionTitle}>All Law Firms</h3>
             <div style={{ overflowX: 'auto' }}>
               <table style={styles.table}>
                 <thead>
                   <tr>
-                    <th style={styles.th}>Organization Name</th>
-                    <th style={styles.th}>Business Type</th>
-                    <th style={styles.th}>Size</th>
+                    <th style={styles.th}>Law Firm Name</th>
+                    <th style={styles.th}>BRELA Number</th>
+                    <th style={styles.th}>Contact Email</th>
+                    <th style={styles.th}>Management Users</th>
+                    <th style={styles.th}>Subscription</th>
                     <th style={styles.th}>Status</th>
-                    <th style={styles.th}>Subscription Expiry</th>
                     <th style={styles.th}>Created</th>
                   </tr>
                 </thead>
                 <tbody>
                   {organizations.map((org) => (
                     <tr key={org.id} style={styles.tr}>
-                      <td style={styles.td}>{org.name}</td>
-                      <td style={styles.td}>{org.business_type}</td>
-                      <td style={styles.td}>{org.size}</td>
+                      <td style={styles.td}>
+                        <div style={{ fontWeight: '600', color: '#0a1929' }}>{org.name}</div>
+                      </td>
+                      <td style={styles.td}>
+                        <span style={{
+                          fontFamily: 'monospace',
+                          fontSize: '13px',
+                          color: '#0a1929',
+                          fontWeight: '600',
+                          background: '#f1f5f9',
+                          padding: '4px 8px',
+                          borderRadius: '6px'
+                        }}>
+                          {org.brela_registration_number || 'N/A'}
+                        </span>
+                      </td>
+                      <td style={styles.td}>
+                        <span style={{ fontSize: '13px', color: '#64748b' }}>
+                          {org.contact_email || 'N/A'}
+                        </span>
+                      </td>
+                      <td style={styles.td}>
+                        <span style={{
+                          padding: '6px 12px',
+                          borderRadius: '8px',
+                          fontSize: '12px',
+                          fontWeight: '700',
+                          background: '#dbeafe',
+                          color: '#1e40af'
+                        }}>
+                          {org.management_user_count || 0}/3
+                        </span>
+                      </td>
+                      <td style={styles.td}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                          <span style={{
+                            padding: '4px 10px',
+                            borderRadius: '6px',
+                            fontSize: '11px',
+                            fontWeight: '700',
+                            background: org.subscription_tier === 'trial' ? '#fef3c7' : '#dcfce7',
+                            color: org.subscription_tier === 'trial' ? '#92400e' : '#166534',
+                            display: 'inline-block'
+                          }}>
+                            {org.subscription_tier?.toUpperCase() || 'TRIAL'}
+                          </span>
+                        </div>
+                      </td>
                       <td style={styles.td}>
                         <span style={{
                           padding: '4px 12px',
                           borderRadius: '12px',
                           fontSize: '12px',
                           fontWeight: '600',
-                          background: org.is_active ? '#d1fae5' : '#fee2e2',
-                          color: org.is_active ? '#065f46' : '#991b1b'
+                          background: org.subscription_status === 'active' ? '#d1fae5' : '#fee2e2',
+                          color: org.subscription_status === 'active' ? '#065f46' : '#991b1b'
                         }}>
-                          {org.is_active ? 'Active' : 'Inactive'}
+                          {org.subscription_status === 'active' ? 'Active' : 'Inactive'}
                         </span>
-                      </td>
-                      <td style={styles.td}>
-                        {org.subscription_expiry_date ? new Date(org.subscription_expiry_date).toLocaleDateString() : 'No Limit'}
                       </td>
                       <td style={styles.td}>{new Date(org.created_at).toLocaleDateString()}</td>
                     </tr>
