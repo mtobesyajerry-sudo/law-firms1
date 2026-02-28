@@ -10,10 +10,20 @@ export default function Auth() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [fullName, setFullName] = useState('');
-  const [organizationName, setOrganizationName] = useState('');
-  const [businessType, setBusinessType] = useState('');
-  const [size, setSize] = useState('medium');
-  const [dnfbpCategory, setDnfbpCategory] = useState('');
+
+  const [lawFirmName, setLawFirmName] = useState('');
+  const [tlsRegistrationNumber, setTlsRegistrationNumber] = useState('');
+  const [brelaRegistrationNumber, setBrelaRegistrationNumber] = useState('');
+  const [firmEmail, setFirmEmail] = useState('');
+  const [contactPersonName, setContactPersonName] = useState('');
+  const [contactPersonDesignation, setContactPersonDesignation] = useState('');
+  const [mobileNumber, setMobileNumber] = useState('');
+  const [sectorConfirmed, setSectorConfirmed] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [privacyAccepted, setPrivacyAccepted] = useState(false);
+  const [dataProcessingConsent, setDataProcessingConsent] = useState(false);
+  const [amlCftConsent, setAmlCftConsent] = useState(false);
+
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
@@ -112,8 +122,8 @@ export default function Auth() {
       return;
     }
 
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters');
+    if (password.length < 8) {
+      setError('Password must be at least 8 characters');
       setLoading(false);
       return;
     }
@@ -139,7 +149,6 @@ export default function Auth() {
         if (authData.user) {
           await new Promise(resolve => setTimeout(resolve, 1000));
 
-          // Check if profile exists, if not create it
           const { data: existingProfile } = await supabase
             .from('user_profiles')
             .select('id')
@@ -147,7 +156,6 @@ export default function Auth() {
             .maybeSingle();
 
           if (!existingProfile) {
-            // Create new profile for first user (admin)
             const { error: insertError } = await supabase
               .from('user_profiles')
               .insert({
@@ -164,7 +172,6 @@ export default function Auth() {
               throw insertError;
             }
           } else {
-            // Update existing profile
             const { error: profileError } = await supabase
               .from('user_profiles')
               .update({
@@ -186,23 +193,63 @@ export default function Auth() {
           }, 2000);
         }
       } else {
-        setError('The system has been initialized. Please use the Law Firm Registration portal to register your organization.');
-        setLoading(false);
-        return;
+        if (!brelaRegistrationNumber) {
+          setError('Business Registration Number (BRELA) is required');
+          setLoading(false);
+          return;
+        }
 
-        setEmail('');
+        if (!sectorConfirmed || !termsAccepted || !privacyAccepted || !dataProcessingConsent || !amlCftConsent) {
+          setError('Please accept all required consents to proceed');
+          setLoading(false);
+          return;
+        }
+
+        const CryptoJS = (await import('crypto-js')).default;
+        const encryptedPassword = CryptoJS.AES.encrypt(password, 'temp-encryption-key-' + Date.now()).toString();
+
+        const { error: insertError } = await supabase
+          .from('law_firm_registrations')
+          .insert({
+            law_firm_name: lawFirmName,
+            tls_registration_number: tlsRegistrationNumber || null,
+            brela_registration_number: brelaRegistrationNumber,
+            firm_email: firmEmail,
+            contact_person_name: contactPersonName,
+            contact_person_designation: contactPersonDesignation,
+            mobile_number: mobileNumber,
+            sector_confirmed: sectorConfirmed,
+            terms_accepted: termsAccepted,
+            privacy_policy_accepted: privacyAccepted,
+            data_processing_consent: dataProcessingConsent,
+            aml_cft_consent: amlCftConsent,
+            encrypted_password: encryptedPassword,
+            registration_status: 'pending'
+          });
+
+        if (insertError) throw insertError;
+
+        setSuccess('Registration request submitted successfully! An administrator will review your request and you will receive confirmation via email.');
+
+        setLawFirmName('');
+        setTlsRegistrationNumber('');
+        setBrelaRegistrationNumber('');
+        setFirmEmail('');
+        setContactPersonName('');
+        setContactPersonDesignation('');
+        setMobileNumber('');
         setPassword('');
         setConfirmPassword('');
-        setFullName('');
-        setOrganizationName('');
-        setBusinessType('');
-        setSize('medium');
-        setDnfbpCategory('');
+        setSectorConfirmed(false);
+        setTermsAccepted(false);
+        setPrivacyAccepted(false);
+        setDataProcessingConsent(false);
+        setAmlCftConsent(false);
 
         setTimeout(() => {
           setMode('login');
           setSuccess('');
-        }, 3000);
+        }, 5000);
       }
     } catch (err) {
       setError(err.message);
@@ -365,55 +412,169 @@ export default function Auth() {
               <>
                 <div style={styles.sectionTitle}>Law Firm Information</div>
                 <div style={styles.formGroup}>
-                  <label style={styles.label}>Firm Name *</label>
+                  <label style={styles.label}>Law Firm Name *</label>
                   <input
                     type="text"
-                    value={organizationName}
-                    onChange={(e) => setOrganizationName(e.target.value)}
+                    value={lawFirmName}
+                    onChange={(e) => setLawFirmName(e.target.value)}
                     style={styles.input}
-                    placeholder="e.g., Smith & Associates Law Firm"
+                    placeholder="Full registered name"
+                    required
+                  />
+                </div>
+
+                <div style={styles.sectionTitle}>Registration Details</div>
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>TLS Registration Number</label>
+                  <input
+                    type="text"
+                    value={tlsRegistrationNumber}
+                    onChange={(e) => setTlsRegistrationNumber(e.target.value)}
+                    style={styles.input}
+                    placeholder="If applicable"
+                  />
+                </div>
+
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>Business Registration Number (BRELA) *</label>
+                  <input
+                    type="text"
+                    value={brelaRegistrationNumber}
+                    onChange={(e) => setBrelaRegistrationNumber(e.target.value)}
+                    style={styles.input}
+                    placeholder="Required"
                     required
                   />
                 </div>
 
                 <div style={styles.formGroup}>
-                  <label style={styles.label}>Practice Areas *</label>
+                  <label style={styles.label}>Firm Email Address *</label>
+                  <input
+                    type="email"
+                    value={firmEmail}
+                    onChange={(e) => setFirmEmail(e.target.value)}
+                    style={styles.input}
+                    placeholder="Official firm email"
+                    required
+                  />
+                </div>
+
+                <div style={styles.sectionTitle}>Contact Person</div>
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>Full Name *</label>
                   <input
                     type="text"
-                    value={businessType}
-                    onChange={(e) => setBusinessType(e.target.value)}
+                    value={contactPersonName}
+                    onChange={(e) => setContactPersonName(e.target.value)}
                     style={styles.input}
-                    placeholder="e.g., Corporate Law, Real Estate, Litigation"
                     required
                   />
                 </div>
 
                 <div style={styles.formGroup}>
-                  <label style={styles.label}>Firm Size *</label>
+                  <label style={styles.label}>Designation *</label>
                   <select
-                    value={size}
-                    onChange={(e) => setSize(e.target.value)}
+                    value={contactPersonDesignation}
+                    onChange={(e) => setContactPersonDesignation(e.target.value)}
                     style={styles.input}
                     required
                   >
-                    <option value="small">Small (1-10 lawyers)</option>
-                    <option value="medium">Medium (11-50 lawyers)</option>
-                    <option value="large">Large (51+ lawyers)</option>
+                    <option value="">Select designation</option>
+                    <option value="Partner">Partner</option>
+                    <option value="Associate">Associate</option>
+                    <option value="Compliance Officer">Compliance Officer</option>
+                    <option value="Administrator">Administrator</option>
                   </select>
                 </div>
 
                 <div style={styles.formGroup}>
-                  <label style={styles.label}>Firm Type</label>
-                  <select
-                    value={dnfbpCategory}
-                    onChange={(e) => setDnfbpCategory(e.target.value)}
+                  <label style={styles.label}>Mobile Number *</label>
+                  <input
+                    type="tel"
+                    value={mobileNumber}
+                    onChange={(e) => setMobileNumber(e.target.value)}
                     style={styles.input}
-                  >
-                    <option value="">Select Category (Optional)</option>
-                    {institutionCategories.map(cat => (
-                      <option key={cat.value} value={cat.value}>{cat.label}</option>
-                    ))}
-                  </select>
+                    placeholder="Used for secure authentication and alerts"
+                    required
+                  />
+                </div>
+
+                <div style={styles.sectionTitle}>Sector Confirmation</div>
+                <label style={styles.checkboxLabel}>
+                  <input
+                    type="checkbox"
+                    checked={sectorConfirmed}
+                    onChange={(e) => setSectorConfirmed(e.target.checked)}
+                    style={styles.checkbox}
+                    required
+                  />
+                  <span style={styles.checkboxText}>
+                    We confirm that we are a law firm or advocate licensed in Tanzania.
+                  </span>
+                </label>
+
+                <div style={styles.sectionTitle}>Consent & Compliance</div>
+                <div style={styles.consentBox}>
+                  <label style={styles.checkboxLabel}>
+                    <input
+                      type="checkbox"
+                      checked={termsAccepted}
+                      onChange={(e) => setTermsAccepted(e.target.checked)}
+                      style={styles.checkbox}
+                      required
+                    />
+                    <span style={styles.checkboxText}>
+                      I accept the Terms and Conditions
+                    </span>
+                  </label>
+
+                  <label style={styles.checkboxLabel}>
+                    <input
+                      type="checkbox"
+                      checked={privacyAccepted}
+                      onChange={(e) => setPrivacyAccepted(e.target.checked)}
+                      style={styles.checkbox}
+                      required
+                    />
+                    <span style={styles.checkboxText}>
+                      I accept the Privacy Policy
+                    </span>
+                  </label>
+
+                  <label style={styles.checkboxLabel}>
+                    <input
+                      type="checkbox"
+                      checked={dataProcessingConsent}
+                      onChange={(e) => setDataProcessingConsent(e.target.checked)}
+                      style={styles.checkbox}
+                      required
+                    />
+                    <span style={styles.checkboxText}>
+                      I consent to secure processing of personal data under the Personal Data Protection Act
+                    </span>
+                  </label>
+
+                  <label style={styles.checkboxLabel}>
+                    <input
+                      type="checkbox"
+                      checked={amlCftConsent}
+                      onChange={(e) => setAmlCftConsent(e.target.checked)}
+                      style={styles.checkbox}
+                      required
+                    />
+                    <span style={styles.checkboxText}>
+                      I consent to AML/CFT risk-based compliance tools
+                    </span>
+                  </label>
+                </div>
+
+                <div style={styles.securityAssurance}>
+                  <div style={styles.securityIcon}>🔒</div>
+                  <div style={styles.securityText}>
+                    <strong>Security Assurance:</strong> This platform applies encryption, strict access control,
+                    and institutional data isolation. All client information remains confidential and is accessible
+                    only to authorised users within your firm.
+                  </div>
                 </div>
               </>
             )}
@@ -596,5 +757,52 @@ const styles = {
     color: '#1e40af',
     fontWeight: '600',
     lineHeight: '1.5',
+  },
+  checkboxLabel: {
+    display: 'flex',
+    alignItems: 'flex-start',
+    gap: '12px',
+    padding: '12px',
+    cursor: 'pointer',
+    backgroundColor: '#f8fafc',
+    border: '1px solid #e2e8f0',
+    borderRadius: '8px',
+    marginBottom: '8px',
+  },
+  checkbox: {
+    width: '18px',
+    height: '18px',
+    marginTop: '2px',
+    cursor: 'pointer',
+  },
+  checkboxText: {
+    fontSize: '14px',
+    color: '#334155',
+    lineHeight: '1.5',
+    flex: 1,
+  },
+  consentBox: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '8px',
+    marginTop: '8px',
+  },
+  securityAssurance: {
+    display: 'flex',
+    gap: '12px',
+    padding: '16px',
+    backgroundColor: '#f0fdf4',
+    border: '2px solid #86efac',
+    borderRadius: '8px',
+    marginTop: '16px',
+  },
+  securityIcon: {
+    fontSize: '24px',
+    flexShrink: 0,
+  },
+  securityText: {
+    fontSize: '13px',
+    color: '#15803d',
+    lineHeight: '1.6',
   },
 };
