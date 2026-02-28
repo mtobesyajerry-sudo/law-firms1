@@ -150,7 +150,7 @@ export default function SystemAdminDashboard() {
     <div style={styles.container}>
       <header style={styles.header}>
         <div>
-          <div style={{ fontSize: '14px', fontWeight: '600', color: '#ef4444', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '1px' }}>
+          <div style={{ fontSize: '14px', fontWeight: '600', color: '#d4af37', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '1px' }}>
             SYSTEM ADMINISTRATOR
           </div>
           <h1 style={{ margin: '0 0 12px 0', fontSize: '36px', fontWeight: '800', color: 'white' }}>
@@ -176,7 +176,7 @@ export default function SystemAdminDashboard() {
             onClick={signOut}
             style={{
               padding: '10px 16px',
-              background: 'linear-gradient(135deg, #dc2626, #b91c1c)',
+              background: 'linear-gradient(135deg, #d4af37, #b8941f)',
               border: '2px solid #d4af37',
               borderRadius: '8px',
               color: 'white',
@@ -184,18 +184,18 @@ export default function SystemAdminDashboard() {
               fontWeight: '600',
               cursor: 'pointer',
               transition: 'all 0.2s',
-              boxShadow: '0 2px 8px rgba(220, 38, 38, 0.3)'
+              boxShadow: '0 2px 8px rgba(212, 175, 55, 0.3)'
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.background = 'linear-gradient(135deg, #b91c1c, #991b1b)';
+              e.currentTarget.style.background = 'linear-gradient(135deg, #b8941f, #9c7a1a)';
               e.currentTarget.style.transform = 'translateY(-1px)';
-              e.currentTarget.style.boxShadow = '0 4px 12px rgba(220, 38, 38, 0.4)';
+              e.currentTarget.style.boxShadow = '0 4px 12px rgba(212, 175, 55, 0.4)';
               e.currentTarget.style.borderColor = '#f0d883';
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.background = 'linear-gradient(135deg, #dc2626, #b91c1c)';
+              e.currentTarget.style.background = 'linear-gradient(135deg, #d4af37, #b8941f)';
               e.currentTarget.style.transform = 'translateY(0)';
-              e.currentTarget.style.boxShadow = '0 2px 8px rgba(220, 38, 38, 0.3)';
+              e.currentTarget.style.boxShadow = '0 2px 8px rgba(212, 175, 55, 0.3)';
               e.currentTarget.style.borderColor = '#d4af37';
             }}
           >
@@ -547,7 +547,7 @@ export default function SystemAdminDashboard() {
                         onClick={() => handleRejectRegistration(request.id)}
                         style={{
                           padding: '8px 16px',
-                          background: '#ef4444',
+                          background: '#d4af37',
                           color: 'white',
                           border: 'none',
                           borderRadius: '6px',
@@ -625,7 +625,7 @@ const styles = {
     borderRadius: '0 0 16px 16px',
     padding: '32px 40px',
     marginBottom: '32px',
-    border: '2px solid #ef4444',
+    border: '2px solid #d4af37',
     borderTop: 'none',
     boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
     display: 'flex',
@@ -644,8 +644,8 @@ const styles = {
     background: 'white',
     padding: '8px',
     borderRadius: '12px',
-    border: '2px solid #ef4444',
-    boxShadow: '0 4px 16px rgba(239, 68, 68, 0.2)',
+    border: '2px solid #d4af37',
+    boxShadow: '0 4px 16px rgba(212, 175, 55, 0.2)',
   },
   tab: {
     flex: 1,
@@ -661,9 +661,9 @@ const styles = {
     position: 'relative',
   },
   activeTab: {
-    background: 'linear-gradient(135deg, #ef4444, #dc2626)',
+    background: 'linear-gradient(135deg, #d4af37, #b8941f)',
     color: 'white',
-    boxShadow: '0 4px 12px rgba(239, 68, 68, 0.4)',
+    boxShadow: '0 4px 12px rgba(212, 175, 55, 0.4)',
   },
   badge: {
     position: 'absolute',
@@ -688,8 +688,8 @@ const styles = {
     background: 'white',
     borderRadius: '16px',
     padding: '24px',
-    border: '2px solid #ef4444',
-    boxShadow: '0 4px 16px rgba(239, 68, 68, 0.15)',
+    border: '2px solid #d4af37',
+    boxShadow: '0 4px 16px rgba(212, 175, 55, 0.15)',
     textAlign: 'center',
     transition: 'all 0.3s ease',
   },
@@ -736,7 +736,7 @@ const styles = {
     background: 'white',
     borderRadius: '16px',
     boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
-    border: '2px solid #ef4444',
+    border: '2px solid #d4af37',
     padding: '24px',
     marginBottom: '24px',
   },
@@ -746,7 +746,7 @@ const styles = {
     color: '#0a1929',
     marginBottom: '20px',
     paddingBottom: '12px',
-    borderBottom: '2px solid #ef4444',
+    borderBottom: '2px solid #d4af37',
   },
   table: {
     width: '100%',
@@ -759,7 +759,7 @@ const styles = {
     fontWeight: '700',
     color: '#ffffff',
     fontSize: '14px',
-    borderBottom: '3px solid #ef4444',
+    borderBottom: '3px solid #d4af37',
     letterSpacing: '0.5px',
   },
   tr: {
@@ -773,7 +773,7 @@ const styles = {
   },
   actionButton: {
     background: 'white',
-    border: '2px solid #ef4444',
+    border: '2px solid #d4af37',
     borderRadius: '12px',
     padding: '24px',
     cursor: 'pointer',
