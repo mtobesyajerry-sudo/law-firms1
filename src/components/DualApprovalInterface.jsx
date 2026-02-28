@@ -39,7 +39,7 @@ export default function DualApprovalInterface({ user, organizationId }) {
 
       // User has management access if they have org access OR management role
       const hasAccess = !!accessCheck ||
-        (userProfile && ['admin', 'management', 'senior_partner'].includes(userProfile.role));
+        (userProfile && ['admin', 'management', 'senior_partner', 'partner'].includes(userProfile.role));
 
       console.log('DualApprovalInterface: Access check result', {
         hasAccess,
