@@ -202,10 +202,10 @@ export default function ManagementDashboard() {
       const { data: orgData, error: orgError } = await supabase
         .from('organizations')
         .insert([{
-          name: requestData.organization_name,
-          business_type: requestData.business_type,
-          size: requestData.size,
-          dnfbp_category: requestData.dnfbp_category || null,
+          name: requestData.law_firm_name,
+          business_type: 'Law Firm',
+          size: 'small',
+          dnfbp_category: 'legal_professionals',
           assigned_user_id: null
         }])
         .select()
@@ -224,8 +224,8 @@ export default function ManagementDashboard() {
           },
           body: JSON.stringify({
             admin_user_id: user.id,
-            email: requestData.email,
-            full_name: requestData.full_name,
+            email: requestData.firm_email,
+            full_name: requestData.contact_person_name,
             role: 'client',
             organization_id: orgData.id,
           }),
@@ -266,11 +266,12 @@ export default function ManagementDashboard() {
       const { error: updateError } = await supabase
         .from('law_firm_registrations')
         .update({
-          status: 'approved',
+          registration_status: 'approved',
           reviewed_by: user.id,
           reviewed_at: new Date().toISOString(),
           encrypted_password: null,
-          password_hash: null
+          user_id: newUserId,
+          organization_id: orgData.id
         })
         .eq('id', requestId);
 
@@ -295,8 +296,8 @@ export default function ManagementDashboard() {
       const { error } = await supabase
         .from('law_firm_registrations')
         .update({
-          status: 'rejected',
-          reason: reason,
+          registration_status: 'rejected',
+          rejection_reason: reason,
           reviewed_by: user.id,
           reviewed_at: new Date().toISOString()
         })
