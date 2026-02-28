@@ -22,15 +22,19 @@ The BRELA number is the **critical identifier** that allows multiple users from 
 1. User visits the registration page
 2. Enters the **same BRELA number** as the first user
 3. System detects existing approved registration with this BRELA number
-4. System **automatically pre-fills** firm information:
-   - Law firm name (read-only)
-   - Firm email (read-only)
-   - TLS registration number (read-only)
-5. User only needs to enter their personal details:
+4. System displays a clear message:
+   - "Existing Firm Found: [Firm Name]"
+   - "You will be added to this firm (X/3 users)"
+   - "Firm information is already on file. You only need to enter your personal details below."
+5. System **completely hides** the following sections:
+   - Law Firm Information (name, email)
+   - Contact Person (name, designation, mobile)
+6. User only sees and needs to enter:
    - Full name
    - Email address
-   - Position in firm
-   - Mobile number
+   - Password
+   - Sector confirmation checkbox
+   - Terms and consent checkboxes
 
 ### Key Database Logic
 
@@ -247,6 +251,94 @@ if (!organizationId && registration.is_primary_contact) {
 4. BRELA number is displayed prominently to help admins verify registrations
 5. System prevents duplicate organizations through BRELA number matching
 
+## User Experience Flow
+
+### Registration Form Behavior
+
+**When NO matching BRELA number is found:**
+```
+┌─────────────────────────────────────┐
+│ User Information                     │
+│ - Full Name                          │
+│ - Email                              │
+│ - Password                           │
+└─────────────────────────────────────┘
+│
+┌─────────────────────────────────────┐
+│ Registration Details                 │
+│ - BRELA Number [Enter here]          │
+└─────────────────────────────────────┘
+│
+┌─────────────────────────────────────┐
+│ Law Firm Information                 │
+│ - Law Firm Name                      │
+│ - Firm Email                         │
+└─────────────────────────────────────┘
+│
+┌─────────────────────────────────────┐
+│ Contact Person                       │
+│ - Full Name                          │
+│ - Designation                        │
+│ - Mobile Number                      │
+└─────────────────────────────────────┘
+│
+┌─────────────────────────────────────┐
+│ Sector Confirmation                  │
+│ Terms & Consent                      │
+└─────────────────────────────────────┘
+```
+
+**When matching BRELA number IS found:**
+```
+┌─────────────────────────────────────┐
+│ User Information                     │
+│ - Full Name                          │
+│ - Email                              │
+│ - Password                           │
+└─────────────────────────────────────┘
+│
+┌─────────────────────────────────────┐
+│ Registration Details                 │
+│ - BRELA Number [Matched!]            │
+│                                      │
+│ ✓ Existing Firm Found:               │
+│   Bower & Associates                 │
+│   You will be added (1/3 users)      │
+│                                      │
+│   ℹ️  Firm information is already    │
+│   on file. You only need to enter    │
+│   your personal details below.       │
+└─────────────────────────────────────┘
+│
+│ [Law Firm Information - HIDDEN]
+│ [Contact Person - HIDDEN]
+│
+┌─────────────────────────────────────┐
+│ Sector Confirmation                  │
+│ Terms & Consent                      │
+└─────────────────────────────────────┘
+```
+
+## Visual Design Enhancement
+
+The system now provides clear visual feedback when a BRELA match is found:
+
+1. **Success Message Box**:
+   - Light green background
+   - Shows firm name prominently
+   - Displays current user count (X/3)
+
+2. **Information Banner**:
+   - Gray background with gold left border
+   - Clearly states: "Firm information is already on file"
+   - Explains: "You only need to enter your personal details below"
+
+3. **Hidden Sections**:
+   - Law Firm Information section completely removed from view
+   - Contact Person section completely removed from view
+   - Reduces form fields by approximately 60%
+   - Prevents data entry errors and inconsistencies
+
 ## Fixed Issues (2026-02-28)
 
 1. **Column Name Mismatch**:
@@ -261,3 +353,9 @@ if (!organizationId && registration.is_primary_contact) {
 3. **Law Firm Type Constraint**:
    - Fixed from `'Private Practice'` to `'small_firm'`
    - Matches database constraint values
+
+4. **Enhanced User Experience**:
+   - Added clear information banner when existing firm is found
+   - Explicitly states that firm information is hidden
+   - Guides user to only fill personal details
+   - Reduces confusion and form completion time for users 2 & 3

@@ -499,11 +499,23 @@ export default function Auth() {
                   )}
                   {existingOrgData && !existingOrgData.full && (
                     <div style={styles.existingOrgInfo}>
-                      <strong>Existing Firm Found:</strong> {existingOrgData.name}
-                      <br />
-                      <span style={{ fontSize: '13px', color: '#059669' }}>
+                      <div style={{ marginBottom: '8px' }}>
+                        <strong>Existing Firm Found:</strong> {existingOrgData.name}
+                      </div>
+                      <div style={{ fontSize: '13px', color: '#059669', marginBottom: '8px' }}>
                         You will be added to this firm ({existingOrgData.user_count}/3 users)
-                      </span>
+                      </div>
+                      <div style={{
+                        fontSize: '12px',
+                        color: '#64748b',
+                        marginTop: '8px',
+                        padding: '8px',
+                        background: '#f8fafc',
+                        borderRadius: '6px',
+                        borderLeft: '3px solid #d4af37'
+                      }}>
+                        Firm information is already on file. You only need to enter your personal details below.
+                      </div>
                     </div>
                   )}
                   {existingOrgData && existingOrgData.full && (
