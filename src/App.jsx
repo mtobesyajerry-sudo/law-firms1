@@ -15,7 +15,6 @@ import KYCClientDetails from './components/KYCClientDetails';
 import STRAlertDashboard from './components/STRAlertDashboard';
 import ControlAssessmentForm from './components/ControlAssessmentForm';
 import IntegratedClientRiskView from './components/IntegratedClientRiskView';
-import SessionSwitcher from './components/SessionSwitcher';
 
 function ProtectedRoute({ children, adminOnly = false, managementOnly = false, staffOnly = false, complianceOnly = false }) {
   const { user, profile, loading, signOut, isEarlyClient } = useAuth();
@@ -401,7 +400,6 @@ export default function App() {
         <Router>
           <AuthProvider>
             <AppRoutes />
-            <SessionSwitcher />
           </AuthProvider>
         </Router>
       </ErrorBoundary>
