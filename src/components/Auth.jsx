@@ -39,6 +39,32 @@ export default function Auth() {
 
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
+        // First, check if user is admin (admins don't need law firm registration)
+        let profile = null;
+        let retries = 0;
+
+        while (!profile && retries < 5) {
+          const { data } = await supabase
+            .from('user_profiles')
+            .select('role')
+            .eq('id', user.id)
+            .maybeSingle();
+
+          if (data) {
+            profile = data;
+          } else {
+            await new Promise(resolve => setTimeout(resolve, 500));
+            retries++;
+          }
+        }
+
+        // If user is admin, skip registration check
+        if (profile?.role === 'admin') {
+          navigate('/admin/dashboard');
+          return;
+        }
+
+        // For non-admin users, check law firm registration
         const { data: lawFirmReg } = await supabase
           .from('law_firm_registrations')
           .select('registration_status')
@@ -65,24 +91,6 @@ export default function Auth() {
           setError('Your account has been suspended. Please contact support.');
           setLoading(false);
           return;
-        }
-
-        let profile = null;
-        let retries = 0;
-
-        while (!profile && retries < 5) {
-          const { data } = await supabase
-            .from('user_profiles')
-            .select('role')
-            .eq('id', user.id)
-            .maybeSingle();
-
-          if (data) {
-            profile = data;
-          } else {
-            await new Promise(resolve => setTimeout(resolve, 500));
-            retries++;
-          }
         }
 
         navigate('/admin/dashboard');
