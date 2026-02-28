@@ -46,8 +46,16 @@ const EDDDocumentTemplates = ({ clientId, clientName, onClose, onUpdate, isReadO
   const fetchEDDDocuments = async () => {
     const { data, error } = await supabase
       .from('client_documents')
-      .select('*')
-      .eq('client_id', clientId);
+      .select(`
+        *,
+        document_types (
+          id,
+          name,
+          code
+        )
+      `)
+      .eq('client_id', clientId)
+      .order('uploaded_at', { ascending: false });
 
     if (error) {
       console.error('Error fetching EDD documents:', error);
@@ -479,6 +487,40 @@ const EDDDocumentTemplates = ({ clientId, clientName, onClose, onUpdate, isReadO
           </div>
         )}
 
+        {eddDocuments.length > 0 && (
+          <div style={styles.uploadedSection}>
+            <h3 style={styles.uploadedTitle}>Uploaded EDD Documents</h3>
+            <div style={styles.uploadedList}>
+              {eddDocuments.filter(doc => doc.file_url).map((doc) => (
+                <div key={doc.id} style={styles.uploadedItem}>
+                  <div style={styles.uploadedInfo}>
+                    <span style={styles.uploadedName}>{doc.document_name}</span>
+                    <span style={styles.uploadedDate}>
+                      Uploaded: {new Date(doc.uploaded_at).toLocaleDateString()}
+                    </span>
+                  </div>
+                  <div style={styles.uploadedActions}>
+                    <a
+                      href={doc.file_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={styles.viewButton}
+                    >
+                      View
+                    </a>
+                    <span style={{
+                      ...styles.statusBadge,
+                      ...(doc.verification_status === 'verified' ? styles.statusBadgeCompleted : styles.statusBadgePending)
+                    }}>
+                      {doc.verification_status}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         <div style={styles.templateGrid}>
           {documentTypes.map((docType) => {
             const status = getDocumentStatus(docType.id);
@@ -819,6 +861,65 @@ const styles = {
     marginBottom: '16px',
     fontSize: '13px',
     fontWeight: '500',
+  },
+  uploadedSection: {
+    background: 'white',
+    border: '1px solid #e5e7eb',
+    borderRadius: '8px',
+    padding: '16px',
+    marginBottom: '24px',
+  },
+  uploadedTitle: {
+    fontSize: '16px',
+    fontWeight: '600',
+    color: '#1f2937',
+    marginBottom: '16px',
+  },
+  uploadedList: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '12px',
+  },
+  uploadedItem: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: '12px',
+    background: '#f9fafb',
+    border: '1px solid #e5e7eb',
+    borderRadius: '6px',
+  },
+  uploadedInfo: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '4px',
+    flex: 1,
+  },
+  uploadedName: {
+    fontSize: '14px',
+    fontWeight: '600',
+    color: '#1f2937',
+  },
+  uploadedDate: {
+    fontSize: '12px',
+    color: '#6b7280',
+  },
+  uploadedActions: {
+    display: 'flex',
+    gap: '12px',
+    alignItems: 'center',
+  },
+  viewButton: {
+    padding: '6px 16px',
+    background: '#3b82f6',
+    color: 'white',
+    border: 'none',
+    borderRadius: '6px',
+    fontSize: '13px',
+    cursor: 'pointer',
+    fontWeight: '500',
+    textDecoration: 'none',
+    transition: 'background 0.2s',
   },
 };
 
