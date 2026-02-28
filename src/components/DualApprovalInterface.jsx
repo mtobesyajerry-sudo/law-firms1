@@ -352,14 +352,7 @@ export default function DualApprovalInterface({ user, organizationId }) {
   }
 
   if (!hasManagementAccess) {
-    return (
-      <div style={styles.container}>
-        <div style={styles.noAccessMessage}>
-          You do not have management access to approve role upgrade requests.
-          Please contact your system administrator.
-        </div>
-      </div>
-    );
+    return null;
   }
 
   return (
