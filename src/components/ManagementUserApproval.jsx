@@ -67,7 +67,7 @@ export default function ManagementUserApproval({ user }) {
             brela_registration: registration.brela_registration_number,
             tls_registration: registration.tls_registration_number,
             business_type: 'law_firm',
-            law_firm_type: 'Private Practice',
+            law_firm_type: 'small_firm',
             is_active: true,
             max_users: 5
           })
