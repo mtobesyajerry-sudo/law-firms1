@@ -82,8 +82,8 @@ export default function KYCClientManagement() {
   const filteredClients = clients.filter(client => {
     if (activeTab === 'all') return true;
     if (activeTab === 'active') return client.client_status === 'active';
-    if (activeTab === 'high_risk') return client.risk_level === riskLevels.HIGH || client.risk_level === riskLevels.VERY_HIGH;
-    if (activeTab === 'pep') return client.is_pep === true;
+    if (activeTab === 'high_risk') return client.current_risk_rating === riskLevels.HIGH || client.current_risk_rating === riskLevels.VERY_HIGH;
+    if (activeTab === 'pep') return client.pep_status === true;
     if (activeTab === 'enhanced_dd') return client.current_dd_level === 'enhanced';
     if (activeTab === 'pending_approval') return client.senior_approval_status === 'pending';
     return true;
@@ -128,12 +128,12 @@ export default function KYCClientManagement() {
           />
           <StatCard
             title="High Risk Clients"
-            value={clients.filter(c => c.risk_level === riskLevels.HIGH || c.risk_level === riskLevels.VERY_HIGH).length}
+            value={clients.filter(c => c.current_risk_rating === riskLevels.HIGH || c.current_risk_rating === riskLevels.VERY_HIGH).length}
             color="#ef4444"
           />
           <StatCard
             title="PEP Clients"
-            value={clients.filter(c => c.is_pep).length}
+            value={clients.filter(c => c.pep_status).length}
             color="#d4af37"
           />
         </div>
@@ -160,12 +160,12 @@ export default function KYCClientManagement() {
             onClick={() => setActiveTab('pending_approval')}
           />
           <TabButton
-            label={`High Risk (${clients.filter(c => c.risk_level === riskLevels.HIGH || c.risk_level === riskLevels.VERY_HIGH).length})`}
+            label={`High Risk (${clients.filter(c => c.current_risk_rating === riskLevels.HIGH || c.current_risk_rating === riskLevels.VERY_HIGH).length})`}
             active={activeTab === 'high_risk'}
             onClick={() => setActiveTab('high_risk')}
           />
           <TabButton
-            label={`PEP (${clients.filter(c => c.is_pep).length})`}
+            label={`PEP (${clients.filter(c => c.pep_status).length})`}
             active={activeTab === 'pep'}
             onClick={() => setActiveTab('pep')}
           />
@@ -257,18 +257,18 @@ export default function KYCClientManagement() {
                       )}
                     </td>
                     <td style={styles.td}>
-                      {client.risk_level && (
+                      {client.current_risk_rating && (
                         <span style={{
                           ...styles.riskBadge,
-                          backgroundColor: getRiskColor(client.risk_level) + '20',
-                          color: getRiskColor(client.risk_level)
+                          backgroundColor: getRiskColor(client.current_risk_rating) + '20',
+                          color: getRiskColor(client.current_risk_rating)
                         }}>
-                          {client.risk_level}
+                          {client.current_risk_rating}
                         </span>
                       )}
                     </td>
                     <td style={styles.td}>
-                      {client.is_pep ? (
+                      {client.pep_status ? (
                         <span style={{...styles.riskBadge, backgroundColor: '#fef3c7', color: '#92400e'}}>
                           PEP
                         </span>
@@ -437,18 +437,25 @@ function NewClientModal({ onClose, onSuccess, organizationId, userId }) {
         organization_id: organizationId,
         client_type: formData.client_type,
         client_name: formData.client_name,
-        client_number: formData.client_id_number || `CLIENT-${Date.now()}`,
+        client_id_number: formData.client_id_number || null,
         date_of_birth: formData.date_of_birth || null,
         nationality: formData.nationality || null,
         country_of_residence: formData.country_of_residence || null,
         business_activity: formData.business_activity || null,
         source_of_funds: formData.source_of_funds || null,
         source_of_wealth: formData.source_of_wealth || null,
+        purpose_of_relationship: formData.purpose_of_relationship || null,
         aml_trigger_activities: formData.aml_trigger_activities || [],
-        risk_score: normalizedRiskScore.toFixed(2),
-        risk_level: riskLevel,
+        pep_status: formData.is_pep || false,
+        base_risk_score: normalizedRiskScore.toFixed(2),
+        current_risk_rating: riskLevel,
+        current_dd_level: dueDiligenceLevel,
         client_status: 'active',
-        next_review_due: nextReviewDate.toISOString().split('T')[0],
+        onboarding_status: 'active',
+        next_review_date: nextReviewDate.toISOString().split('T')[0],
+        monitoring_frequency: monitoringFreq.value,
+        edd_required: dueDiligenceLevel === dueDiligenceLevels.ENHANCED,
+        senior_approval_status: dueDiligenceLevel === dueDiligenceLevels.ENHANCED ? 'pending' : 'not_required',
         created_by: userId,
         relationship_manager_id: userId
       };
