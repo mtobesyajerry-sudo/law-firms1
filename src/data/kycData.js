@@ -7,10 +7,11 @@ export const clientTypes = [
 ];
 
 export const riskLevels = {
-  LOW: 'low',
-  MEDIUM: 'medium',
-  HIGH: 'high',
-  VERY_HIGH: 'very_high'
+  LOW: 'Low',
+  MEDIUM: 'Medium',
+  SUBSTANTIAL: 'Substantial',
+  HIGH: 'High',
+  VERY_HIGH: 'Very High'
 };
 
 export const dueDiligenceLevels = {
@@ -399,8 +400,9 @@ export function getDueDiligenceLevel(riskScore, institutionalMultiplier = 1.0) {
 
 export function getRiskLevel(riskScore) {
   if (riskScore <= 30) return riskLevels.LOW;
-  if (riskScore <= 60) return riskLevels.MEDIUM;
-  if (riskScore <= 80) return riskLevels.HIGH;
+  if (riskScore <= 50) return riskLevels.MEDIUM;
+  if (riskScore <= 70) return riskLevels.SUBSTANTIAL;
+  if (riskScore <= 85) return riskLevels.HIGH;
   return riskLevels.VERY_HIGH;
 }
 
@@ -408,6 +410,7 @@ export function getRiskColor(riskLevel) {
   switch (riskLevel) {
     case riskLevels.LOW: return '#10b981';
     case riskLevels.MEDIUM: return '#f59e0b';
+    case riskLevels.SUBSTANTIAL: return '#fb923c';
     case riskLevels.HIGH: return '#ef4444';
     case riskLevels.VERY_HIGH: return '#991b1b';
     default: return '#6b7280';
@@ -426,14 +429,15 @@ export const documentCategories = {
 };
 
 export const monitoringFrequencies = {
-  LOW: { value: 'annual', label: 'Annual', months: 12 },
-  MEDIUM: { value: 'quarterly', label: 'Quarterly', months: 3 },
-  HIGH: { value: 'monthly', label: 'Monthly', months: 1 },
-  VERY_HIGH: { value: 'weekly', label: 'Weekly', months: 0.25 }
+  'Low': { value: 'annual', label: 'Annual', months: 12 },
+  'Medium': { value: 'quarterly', label: 'Quarterly', months: 3 },
+  'Substantial': { value: 'quarterly', label: 'Quarterly', months: 3 },
+  'High': { value: 'monthly', label: 'Monthly', months: 1 },
+  'Very High': { value: 'monthly', label: 'Monthly', months: 1 }
 };
 
 export function getMonitoringFrequency(riskLevel) {
-  return monitoringFrequencies[riskLevel] || monitoringFrequencies.MEDIUM;
+  return monitoringFrequencies[riskLevel] || monitoringFrequencies['Medium'];
 }
 
 // Tanzania-specific helper functions
