@@ -159,14 +159,16 @@ export const clientRiskFactors = {
 
 export const serviceRiskFactors = {
   serviceType: {
-    label: 'Banking Product/Service Type',
+    label: 'Law Firm Product/Service Type',
     options: [
-      { value: 'savings', label: 'Savings accounts and deposits', score: 1 },
-      { value: 'domestic_transfers', label: 'Domestic wire transfers', score: 2 },
-      { value: 'loans', label: 'Loans and credit facilities', score: 3 },
-      { value: 'international_transfers', label: 'International wire transfers', score: 4 },
-      { value: 'trade_finance', label: 'Trade finance and correspondent banking', score: 5 },
-      { value: 'private_banking', label: 'Private banking and wealth management', score: 5 }
+      { value: 'general_legal_advice', label: 'General legal advice and consultation', score: 1 },
+      { value: 'family_law', label: 'Family law and personal matters', score: 1 },
+      { value: 'employment_law', label: 'Employment and labour law', score: 2 },
+      { value: 'corporate_commercial', label: 'Corporate and commercial transactions', score: 3 },
+      { value: 'real_estate', label: 'Real estate and property transactions', score: 4 },
+      { value: 'mergers_acquisitions', label: 'Mergers, acquisitions, and business sales', score: 5 },
+      { value: 'trust_estate_planning', label: 'Trust formation and estate planning', score: 5 },
+      { value: 'international_transactions', label: 'International transactions and offshore structures', score: 5 }
     ]
   },
   transactionValue: {
