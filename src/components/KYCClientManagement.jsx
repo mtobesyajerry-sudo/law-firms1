@@ -451,7 +451,7 @@ function NewClientModal({ onClose, onSuccess, organizationId, userId }) {
         current_risk_rating: riskLevel,
         current_dd_level: dueDiligenceLevel,
         client_status: 'active',
-        onboarding_status: 'active',
+        onboarding_status: 'completed',
         next_review_date: nextReviewDate.toISOString().split('T')[0],
         monitoring_frequency: monitoringFreq.value,
         edd_required: dueDiligenceLevel === dueDiligenceLevels.ENHANCED,
