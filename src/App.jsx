@@ -9,6 +9,7 @@ import ClientManagementDashboard from './components/ClientManagementDashboard';
 import StaffDashboard from './components/StaffDashboard';
 import ComplianceOfficerDashboard from './components/ComplianceOfficerDashboard';
 import SecurityDashboard from './components/SecurityDashboard';
+import SystemAdminDashboard from './components/SystemAdminDashboard';
 import AssessmentForm from './components/AssessmentForm';
 import AssessmentReport from './components/AssessmentReport';
 import KYCClientDetails from './components/KYCClientDetails';
@@ -204,7 +205,7 @@ function AppRoutes() {
         path="/admin/dashboard"
         element={
           <ProtectedRoute adminOnly={true}>
-            <ManagementDashboard />
+            <SystemAdminDashboard />
           </ProtectedRoute>
         }
       />
