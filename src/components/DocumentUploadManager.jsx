@@ -69,10 +69,10 @@ export default function DocumentUploadManager({
       if (reqError) throw reqError;
       setRequiredDocuments(requirements || []);
 
-      // Expand all categories by default for easier access
+      // Collapse all categories by default - user must click to expand
       const categories = [...new Set(requirements.map(r => r.document_type.category))];
       const expanded = {};
-      categories.forEach(cat => expanded[cat] = true);
+      categories.forEach(cat => expanded[cat] = false);
       setExpandedCategories(expanded);
 
       // Load uploaded documents
