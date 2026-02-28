@@ -600,7 +600,7 @@ export default function KYCClientDetails() {
             SOF/SOW Templates
           </button>
         )}
-        {!isReadOnly && client.current_dd_level === 'enhanced' && (
+        {!isReadOnly && (
           <button
             onClick={() => setActiveTab('edd-templates')}
             style={{...styles.tab, ...(activeTab === 'edd-templates' && styles.activeTab)}}
