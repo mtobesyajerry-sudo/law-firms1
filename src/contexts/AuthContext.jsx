@@ -82,6 +82,14 @@ export const AuthProvider = ({ children }) => {
         } else {
           console.log('Loaded organization:', orgData);
           setOrganization(orgData);
+
+          // Check if organization is suspended
+          if (orgData && orgData.subscription_status === 'suspended' && data.role !== 'system_admin') {
+            console.warn('Organization is suspended - logging out user');
+            await supabase.auth.signOut();
+            alert('Your organization access has been suspended due to non-payment. Please contact your administrator or support for assistance.');
+            return;
+          }
         }
       } else {
         setOrganization(null);

@@ -151,6 +151,91 @@ export default function SystemAdminDashboard() {
     }
   };
 
+  const handleSuspendOrganization = async (org) => {
+    const reason = prompt(`Enter reason for suspending ${org.name}:`);
+    if (!reason) return;
+
+    if (!confirm(`Are you sure you want to suspend ${org.name}? All users from this organization will lose access to the system.`)) {
+      return;
+    }
+
+    try {
+      const { error } = await supabase.rpc('suspend_organization', {
+        org_id: org.id,
+        reason: reason,
+        admin_id: profile.id
+      });
+
+      if (error) throw error;
+
+      alert(`${org.name} has been suspended successfully.`);
+      await loadDashboardData();
+    } catch (error) {
+      console.error('Error suspending organization:', error);
+      alert('Failed to suspend organization: ' + error.message);
+    }
+  };
+
+  const handleActivateOrganization = async (org) => {
+    const paymentAmount = prompt(`Enter payment amount received (TZS) for ${org.name}:`);
+    if (!paymentAmount) return;
+
+    const amount = parseFloat(paymentAmount);
+    if (isNaN(amount) || amount <= 0) {
+      alert('Please enter a valid payment amount');
+      return;
+    }
+
+    if (!confirm(`Activate ${org.name} with payment of TZS ${amount.toLocaleString()}?`)) {
+      return;
+    }
+
+    try {
+      const { error } = await supabase.rpc('activate_organization', {
+        org_id: org.id,
+        admin_id: profile.id,
+        payment_received: amount,
+        payment_date: new Date().toISOString()
+      });
+
+      if (error) throw error;
+
+      alert(`${org.name} has been activated successfully.`);
+      await loadDashboardData();
+    } catch (error) {
+      console.error('Error activating organization:', error);
+      alert('Failed to activate organization: ' + error.message);
+    }
+  };
+
+  const handleUpdateSubscription = async (org) => {
+    const newFee = prompt(`Enter new monthly subscription fee (TZS) for ${org.name}:`, org.subscription_fee || '0');
+    if (newFee === null) return;
+
+    const fee = parseFloat(newFee);
+    if (isNaN(fee) || fee < 0) {
+      alert('Please enter a valid amount');
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('organizations')
+        .update({
+          subscription_fee: fee
+        })
+        .eq('id', org.id);
+
+      if (error) throw error;
+
+      alert(`Subscription fee updated to TZS ${fee.toLocaleString()} per month.`);
+      await loadDashboardData();
+    } catch (error) {
+      console.error('Error updating subscription:', error);
+      alert('Failed to update subscription: ' + error.message);
+    }
+  };
+
   if (loading) {
     return (
       <div style={styles.container}>
@@ -442,8 +527,10 @@ export default function SystemAdminDashboard() {
                     <th style={styles.th}>BRELA Number</th>
                     <th style={styles.th}>Contact Email</th>
                     <th style={styles.th}>Management Users</th>
+                    <th style={styles.th}>Subscription</th>
+                    <th style={styles.th}>Payment</th>
                     <th style={styles.th}>Status</th>
-                    <th style={styles.th}>Created</th>
+                    <th style={styles.th}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -483,18 +570,116 @@ export default function SystemAdminDashboard() {
                         </span>
                       </td>
                       <td style={styles.td}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                          <span style={{
+                            padding: '4px 10px',
+                            borderRadius: '6px',
+                            fontSize: '11px',
+                            fontWeight: '700',
+                            background: org.subscription_status === 'active' ? '#dcfce7' : org.subscription_status === 'suspended' ? '#fee2e2' : '#fef3c7',
+                            color: org.subscription_status === 'active' ? '#166534' : org.subscription_status === 'suspended' ? '#991b1b' : '#92400e'
+                          }}>
+                            {org.subscription_status?.toUpperCase() || 'ACTIVE'}
+                          </span>
+                          {org.subscription_fee > 0 && (
+                            <span style={{ fontSize: '11px', color: '#64748b' }}>
+                              TZS {org.subscription_fee.toLocaleString()}/mo
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td style={styles.td}>
+                        <div style={{ fontSize: '12px' }}>
+                          {org.last_payment_date ? (
+                            <>
+                              <div style={{ color: '#0a1929', fontWeight: '600' }}>
+                                Last: {new Date(org.last_payment_date).toLocaleDateString()}
+                              </div>
+                              {org.next_payment_due && (
+                                <div style={{
+                                  color: new Date(org.next_payment_due) < new Date() ? '#dc2626' : '#64748b',
+                                  fontSize: '11px',
+                                  marginTop: '2px'
+                                }}>
+                                  Due: {new Date(org.next_payment_due).toLocaleDateString()}
+                                </div>
+                              )}
+                            </>
+                          ) : (
+                            <span style={{ color: '#64748b' }}>No payments</span>
+                          )}
+                        </div>
+                      </td>
+                      <td style={styles.td}>
                         <span style={{
                           padding: '4px 12px',
                           borderRadius: '12px',
                           fontSize: '12px',
                           fontWeight: '600',
-                          background: org.is_active ? '#d1fae5' : '#fee2e2',
-                          color: org.is_active ? '#065f46' : '#991b1b'
+                          background: org.subscription_status === 'active' && org.is_active ? '#d1fae5' : '#fee2e2',
+                          color: org.subscription_status === 'active' && org.is_active ? '#065f46' : '#991b1b'
                         }}>
-                          {org.is_active ? 'Active' : 'Inactive'}
+                          {org.subscription_status === 'active' && org.is_active ? 'Active' : 'Suspended'}
                         </span>
                       </td>
-                      <td style={styles.td}>{new Date(org.created_at).toLocaleDateString()}</td>
+                      <td style={styles.td}>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          {org.subscription_status === 'active' ? (
+                            <button
+                              onClick={() => handleSuspendOrganization(org)}
+                              style={{
+                                padding: '6px 12px',
+                                background: '#dc2626',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '6px',
+                                fontSize: '12px',
+                                fontWeight: '600',
+                                cursor: 'pointer'
+                              }}
+                              onMouseEnter={(e) => e.currentTarget.style.background = '#b91c1c'}
+                              onMouseLeave={(e) => e.currentTarget.style.background = '#dc2626'}
+                            >
+                              Suspend
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => handleActivateOrganization(org)}
+                              style={{
+                                padding: '6px 12px',
+                                background: '#10b981',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '6px',
+                                fontSize: '12px',
+                                fontWeight: '600',
+                                cursor: 'pointer'
+                              }}
+                              onMouseEnter={(e) => e.currentTarget.style.background = '#059669'}
+                              onMouseLeave={(e) => e.currentTarget.style.background = '#10b981'}
+                            >
+                              Activate
+                            </button>
+                          )}
+                          <button
+                            onClick={() => handleUpdateSubscription(org)}
+                            style={{
+                              padding: '6px 12px',
+                              background: '#3b82f6',
+                              color: 'white',
+                              border: 'none',
+                              borderRadius: '6px',
+                              fontSize: '12px',
+                              fontWeight: '600',
+                              cursor: 'pointer'
+                            }}
+                            onMouseEnter={(e) => e.currentTarget.style.background = '#2563eb'}
+                            onMouseLeave={(e) => e.currentTarget.style.background = '#3b82f6'}
+                          >
+                            Update
+                          </button>
+                        </div>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
