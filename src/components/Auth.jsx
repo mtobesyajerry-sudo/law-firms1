@@ -400,16 +400,17 @@ export default function Auth() {
             <div style={{
               marginTop: '24px',
               padding: '16px',
-              background: '#f8fafc',
+              background: '#f0fdf4',
               borderRadius: '10px',
-              border: '1px solid #e2e8f0'
+              border: '2px solid #86efac'
             }}>
               <div style={{
                 fontSize: '14px',
-                color: '#475569',
-                textAlign: 'center'
+                color: '#15803d',
+                textAlign: 'center',
+                fontWeight: '600'
               }}>
-                Contact your administrator to request an account
+                Don't have an account yet? Please Register to have access to the System.
               </div>
             </div>
           </form>
