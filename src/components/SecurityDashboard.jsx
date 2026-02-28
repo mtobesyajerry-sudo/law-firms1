@@ -63,7 +63,8 @@ export default function SecurityDashboard() {
       auditStats,
       docAccessStats,
       passwordResetStats,
-      retentionStats
+      retentionStats,
+      suspiciousAlertsStats
     ] = await Promise.all([
       supabase.from('login_history').select('success', { count: 'exact', head: true }),
       supabase.from('user_profiles').select('*', { count: 'exact', head: true }),
@@ -72,7 +73,8 @@ export default function SecurityDashboard() {
       supabase.from('audit_logs').select('*', { count: 'exact', head: true }),
       supabase.from('document_access_logs').select('*', { count: 'exact', head: true }),
       supabase.from('password_reset_tokens').select('*', { count: 'exact', head: true }),
-      supabase.from('data_retention_policies').select('*', { count: 'exact', head: true })
+      supabase.from('data_retention_policies').select('*', { count: 'exact', head: true }),
+      supabase.from('suspicious_activity_alerts').select('*', { count: 'exact', head: true }).eq('resolved', false)
     ]);
 
     const { count: failedCount } = await supabase
@@ -84,7 +86,7 @@ export default function SecurityDashboard() {
       totalLogins: loginStats.count || 0,
       failedLogins: failedCount || 0,
       activeSessions: sessionStats.count || 0,
-      suspiciousAlerts: 0,
+      suspiciousAlerts: suspiciousAlertsStats.count || 0,
       mfaEnabled: mfaStats.count || 0,
       totalUsers: userStats.count || 0,
       totalAuditLogs: auditStats.count || 0,
@@ -107,7 +109,19 @@ export default function SecurityDashboard() {
   };
 
   const loadSuspiciousAlerts = async () => {
-    setSuspiciousAlerts([]);
+    const { data, error } = await supabase
+      .from('suspicious_activity_alerts')
+      .select('*')
+      .eq('resolved', false)
+      .order('created_at', { ascending: false })
+      .limit(20);
+
+    if (!error && data) {
+      setSuspiciousAlerts(data);
+    } else if (error) {
+      console.error('Error loading suspicious alerts:', error);
+      setSuspiciousAlerts([]);
+    }
   };
 
   const loadActiveSessions = async () => {
@@ -148,8 +162,22 @@ export default function SecurityDashboard() {
   };
 
   const resolveAlert = async (alertId) => {
-    loadSuspiciousAlerts();
-    loadStats();
+    const { error } = await supabase
+      .from('suspicious_activity_alerts')
+      .update({
+        resolved: true,
+        resolved_by: profile?.id,
+        resolved_at: new Date().toISOString()
+      })
+      .eq('id', alertId);
+
+    if (!error) {
+      await loadSuspiciousAlerts();
+      await loadStats();
+    } else {
+      console.error('Error resolving alert:', error);
+      alert('Failed to resolve alert: ' + error.message);
+    }
   };
 
   const terminateSession = async (sessionId) => {
@@ -225,6 +253,13 @@ export default function SecurityDashboard() {
           </div>
           <div style={styles.statSubtext}>Failed login attempts</div>
         </div>
+        <div style={{...styles.statCard, borderColor: stats.suspiciousAlerts > 0 ? '#f59e0b' : '#e5e7eb'}}>
+          <div style={styles.statLabel}>Suspicious Alerts</div>
+          <div style={{...styles.statValue, color: stats.suspiciousAlerts > 0 ? '#f59e0b' : '#1f2937'}}>
+            {stats.suspiciousAlerts}
+          </div>
+          <div style={styles.statSubtext}>Unresolved security alerts</div>
+        </div>
         <div style={styles.statCard}>
           <div style={styles.statLabel}>Audit Logs</div>
           <div style={styles.statValue}>{stats.totalAuditLogs.toLocaleString()}</div>
@@ -253,6 +288,12 @@ export default function SecurityDashboard() {
           style={{...styles.tab, ...(activeTab === 'overview' ? styles.activeTab : {})}}
         >
           Overview
+        </button>
+        <button
+          onClick={() => setActiveTab('alerts')}
+          style={{...styles.tab, ...(activeTab === 'alerts' ? styles.activeTab : {})}}
+        >
+          Suspicious Alerts ({stats.suspiciousAlerts})
         </button>
         <button
           onClick={() => setActiveTab('sessions')}
@@ -315,6 +356,57 @@ export default function SecurityDashboard() {
               </tbody>
             </table>
           </div>
+        </div>
+      )}
+
+      {activeTab === 'alerts' && (
+        <div style={styles.section}>
+          <h2 style={styles.sectionTitle}>Suspicious Activity Alerts</h2>
+          {suspiciousAlerts.length === 0 ? (
+            <div style={styles.emptyState}>No unresolved suspicious alerts</div>
+          ) : (
+            <div style={styles.alertsList}>
+              {suspiciousAlerts.map((alert) => (
+                <div key={alert.id} style={{
+                  ...styles.alertCard,
+                  borderLeftColor: getSeverityColor(alert.severity)
+                }}>
+                  <div style={styles.alertHeader}>
+                    <div style={{ display: 'flex', alignItems: 'center' }}>
+                      <span style={{
+                        ...styles.badge,
+                        background: getSeverityColor(alert.severity),
+                        color: 'white'
+                      }}>
+                        {alert.severity.toUpperCase()}
+                      </span>
+                      <span style={styles.alertType}>{alert.alert_type}</span>
+                    </div>
+                    <button
+                      onClick={() => {
+                        if (confirm('Mark this alert as resolved?')) {
+                          resolveAlert(alert.id);
+                        }
+                      }}
+                      style={styles.resolveButton}
+                    >
+                      Resolve
+                    </button>
+                  </div>
+                  <div style={styles.alertDescription}>{alert.description}</div>
+                  {alert.ip_address && (
+                    <div style={styles.alertMeta}>IP Address: {alert.ip_address}</div>
+                  )}
+                  {alert.user_id && (
+                    <div style={styles.alertMeta}>User ID: {alert.user_id.substring(0, 8)}</div>
+                  )}
+                  <div style={styles.alertMeta}>
+                    Created: {formatDate(alert.created_at)}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
