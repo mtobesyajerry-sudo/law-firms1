@@ -2,8 +2,7 @@
 export const ATTACHMENT_DECLARATION = 'I confirm that the attached document is accurate, current, and applicable to the assessment period.';
 
 // Law Firm Categories - Tanzania Framework
-// This system is specifically designed for Tanzanian law firms only
-export const lawFirmCategories = [
+export const institutionCategories = [
   { value: 'law_firm_small', label: 'Small / Sole Practitioner Firm', tier: 1 },
   { value: 'law_firm_medium', label: 'Medium / Corporate Firm', tier: 2 },
   { value: 'law_firm_large', label: 'Large / International / Specialist Firm', tier: 3 },
@@ -12,9 +11,8 @@ export const lawFirmCategories = [
   { value: 'trust_company', label: 'Trust and Company Service Provider', tier: 3 }
 ];
 
-// Backward compatibility exports
-export const institutionCategories = lawFirmCategories;
-export const dnfbpCategories = lawFirmCategories;
+// Backward compatibility export
+export const dnfbpCategories = institutionCategories;
 
 export function getFrameworkForCategory(categoryValue) {
   return 'legal_professionals';

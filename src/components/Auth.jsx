@@ -1,33 +1,48 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../supabaseClient';
+import { institutionCategories } from '../data/assessmentData';
 
 export default function Auth() {
   const [mode, setMode] = useState('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [fullName, setFullName] = useState('');
+  const [organizationName, setOrganizationName] = useState('');
+  const [businessType, setBusinessType] = useState('');
+  const [size, setSize] = useState('medium');
+  const [dnfbpCategory, setDnfbpCategory] = useState('');
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
+  const [isFirstUser, setIsFirstUser] = useState(false);
+  const [checkingFirstUser, setCheckingFirstUser] = useState(false);
   const { signIn } = useAuth();
   const navigate = useNavigate();
 
-  // Tanzania Law Firm Registration Form State
-  const [formData, setFormData] = useState({
-    lawFirmName: '',
-    brelaRegistrationNumber: '',
-    firmEmail: '',
-    contactPersonName: '',
-    contactPersonDesignation: 'Partner',
-    mobileNumber: '',
-    registerPassword: '',
-    confirmPassword: '',
-    sectorConfirmed: false,
-    termsAccepted: false,
-    privacyPolicyAccepted: false,
-    dataProcessingConsent: false,
-    amlCftConsent: false
-  });
+  useEffect(() => {
+    if (mode === 'register') {
+      checkIfFirstUser();
+    }
+  }, [mode]);
+
+  const checkIfFirstUser = async () => {
+    setCheckingFirstUser(true);
+    try {
+      const { data, error } = await supabase.rpc('get_user_count');
+
+      if (error) throw error;
+
+      setIsFirstUser(data === 0);
+    } catch (err) {
+      console.error('Error checking first user:', err);
+      setIsFirstUser(false);
+    } finally {
+      setCheckingFirstUser(false);
+    }
+  };
 
   const handleLoginSubmit = async (e) => {
     e.preventDefault();
@@ -39,7 +54,6 @@ export default function Auth() {
 
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
-        // First, check if user is admin (admins don't need law firm registration)
         let profile = null;
         let retries = 0;
 
@@ -58,88 +72,26 @@ export default function Auth() {
           }
         }
 
-        // If user is admin, skip registration check
-        if (profile?.role === 'admin') {
-          navigate('/admin/dashboard');
-          return;
-        }
-
-        // For non-admin users, check law firm registration
-        const { data: lawFirmReg } = await supabase
-          .from('law_firm_registrations')
-          .select('registration_status')
-          .eq('user_id', user.id)
-          .maybeSingle();
-
-        // Block access if no registration found (unauthorized account)
-        if (!lawFirmReg) {
-          await supabase.auth.signOut();
-          setError('No registration found. Please complete the registration form to request access.');
-          setLoading(false);
-          return;
-        }
-
-        if (lawFirmReg.registration_status === 'pending') {
-          await supabase.auth.signOut();
-          setError('Your registration is pending administrator approval. You will be notified once your account is approved.');
-          setLoading(false);
-          return;
-        }
-
-        if (lawFirmReg.registration_status === 'suspended') {
-          await supabase.auth.signOut();
-          setError('Your account has been suspended. Please contact support.');
-          setLoading(false);
-          return;
-        }
-
-        if (lawFirmReg.registration_status === 'rejected') {
-          await supabase.auth.signOut();
-          setError('Your registration was rejected. Please contact support for more information.');
-          setLoading(false);
-          return;
-        }
-
-        // Only allow login if registration status is 'active'
-        if (lawFirmReg.registration_status !== 'active') {
-          await supabase.auth.signOut();
-          setError('Your account is not active. Please contact support.');
-          setLoading(false);
-          return;
-        }
-
-        // Route to appropriate dashboard based on role
-        if (profile?.role === 'management' || profile?.role === 'senior_partner' || profile?.role === 'partner') {
-          navigate('/dashboard/management');
-        } else if (profile?.role === 'staff' || profile?.role === 'lawyer') {
-          navigate('/dashboard/staff');
-        } else if (profile?.role === 'compliance_officer' || profile?.role === 'mlro') {
-          navigate('/dashboard/compliance');
-        } else if (profile?.role === 'client') {
-          navigate('/dashboard/client');
-        } else {
-          navigate('/dashboard/client');
-        }
+        navigate('/admin/dashboard');
       }
     } catch (err) {
       if (err.message === 'Invalid login credentials') {
-        // Check if there's a pending law firm registration
         const { data: pendingRequest } = await supabase
-          .from('law_firm_registrations')
-          .select('registration_status')
-          .eq('firm_email', email)
+          .from('registration_requests')
+          .select('status')
+          .eq('email', email)
           .maybeSingle();
 
         if (pendingRequest) {
-          if (pendingRequest.registration_status === 'pending') {
-            setError('Your registration is pending approval. Please wait for an administrator to approve your account. You will receive notification once approved.');
-          } else if (pendingRequest.registration_status === 'rejected') {
+          if (pendingRequest.status === 'pending') {
+            setError('Your registration is pending approval. Please wait for an administrator to approve your account.');
+          } else if (pendingRequest.status === 'rejected') {
             setError('Your registration was rejected. Please contact support for more information.');
           } else {
             setError('Invalid email or password. Please try again.');
           }
         } else {
-          setError('Invalid email or password. If you are a new user, please complete the registration form below.');
+          setError('Invalid email or password. Please check your credentials and try again.');
         }
       } else {
         setError(err.message);
@@ -148,146 +100,124 @@ export default function Auth() {
     }
   };
 
-  const handleChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: type === 'checkbox' ? checked : value
-    }));
-  };
-
-  const validateRegistrationForm = () => {
-    if (!formData.lawFirmName.trim()) {
-      setError('Law firm name is required');
-      return false;
-    }
-
-    if (!formData.brelaRegistrationNumber.trim()) {
-      setError('BRELA registration number is required');
-      return false;
-    }
-
-    if (!formData.firmEmail.trim() || !formData.firmEmail.includes('@')) {
-      setError('Valid firm email is required');
-      return false;
-    }
-
-    if (!formData.contactPersonName.trim()) {
-      setError('Contact person name is required');
-      return false;
-    }
-
-    if (!formData.mobileNumber.trim()) {
-      setError('Mobile number is required');
-      return false;
-    }
-
-    if (formData.registerPassword.length < 8) {
-      setError('Password must be at least 8 characters');
-      return false;
-    }
-
-    if (formData.registerPassword !== formData.confirmPassword) {
-      setError('Passwords do not match');
-      return false;
-    }
-
-    if (!formData.sectorConfirmed) {
-      setError('Please confirm you are a licensed law firm in Tanzania');
-      return false;
-    }
-
-    if (!formData.termsAccepted || !formData.privacyPolicyAccepted ||
-        !formData.dataProcessingConsent || !formData.amlCftConsent) {
-      setError('Please accept all required consents');
-      return false;
-    }
-
-    return true;
-  };
-
   const handleRegisterSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setSuccess('');
+    setLoading(true);
 
-    if (!validateRegistrationForm()) {
+    if (password !== confirmPassword) {
+      setError('Passwords do not match');
+      setLoading(false);
       return;
     }
 
-    setLoading(true);
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters');
+      setLoading(false);
+      return;
+    }
 
     try {
-      const { data: existingRequest } = await supabase
-        .from('law_firm_registrations')
-        .select('id, registration_status')
-        .eq('firm_email', formData.firmEmail)
-        .maybeSingle();
+      const { data: userCount, error: countError } = await supabase.rpc('get_user_count');
 
-      if (existingRequest) {
-        if (existingRequest.registration_status === 'pending') {
-          setError('A registration request with this email is already pending approval.');
-          setLoading(false);
-          return;
+      if (countError) throw countError;
+
+      if (userCount === 0) {
+        const { data: authData, error: signUpError } = await supabase.auth.signUp({
+          email: email,
+          password: password,
+          options: {
+            data: {
+              full_name: fullName
+            }
+          }
+        });
+
+        if (signUpError) throw signUpError;
+
+        if (authData.user) {
+          await new Promise(resolve => setTimeout(resolve, 1000));
+
+          // Check if profile exists, if not create it
+          const { data: existingProfile } = await supabase
+            .from('user_profiles')
+            .select('id')
+            .eq('id', authData.user.id)
+            .maybeSingle();
+
+          if (!existingProfile) {
+            // Create new profile for first user (admin)
+            const { error: insertError } = await supabase
+              .from('user_profiles')
+              .insert({
+                id: authData.user.id,
+                email: email,
+                role: 'admin',
+                full_name: fullName,
+                is_active: true,
+                organization_id: null
+              });
+
+            if (insertError) {
+              console.error('Profile insert error:', insertError);
+              throw insertError;
+            }
+          } else {
+            // Update existing profile
+            const { error: profileError } = await supabase
+              .from('user_profiles')
+              .update({
+                role: 'admin',
+                full_name: fullName
+              })
+              .eq('id', authData.user.id);
+
+            if (profileError) {
+              console.error('Profile update error:', profileError);
+            }
+          }
+
+          setSuccess('System administrator account created successfully! Redirecting to dashboard...');
+
+          setTimeout(async () => {
+            await signIn(email, password);
+            navigate('/admin/dashboard');
+          }, 2000);
         }
-        if (existingRequest.registration_status === 'active') {
-          setError('An account with this email already exists. Please login.');
-          setLoading(false);
-          return;
-        }
+      } else {
+        const { error: insertError } = await supabase
+          .from('registration_requests')
+          .insert([{
+            full_name: fullName,
+            email: email,
+            organization_name: organizationName,
+            business_type: businessType,
+            size: size,
+            dnfbp_category: dnfbpCategory || null,
+            status: 'pending'
+          }]);
+
+        if (insertError) throw insertError;
+
+        setSuccess('Registration request submitted successfully! An administrator will review your request. You will receive an email when approved and can then login.');
+
+        setEmail('');
+        setPassword('');
+        setConfirmPassword('');
+        setFullName('');
+        setOrganizationName('');
+        setBusinessType('');
+        setSize('medium');
+        setDnfbpCategory('');
+
+        setTimeout(() => {
+          setMode('login');
+          setSuccess('');
+        }, 3000);
       }
-
-      const CryptoJS = (await import('crypto-js')).default;
-      const encryptedPassword = CryptoJS.AES.encrypt(
-        formData.registerPassword,
-        import.meta.env.VITE_ENCRYPTION_KEY || 'fallback-key'
-      ).toString();
-
-      const { error: regError } = await supabase
-        .from('law_firm_registrations')
-        .insert([{
-          user_id: null,
-          organization_id: null,
-          law_firm_name: formData.lawFirmName,
-          tls_registration_number: null,
-          brela_registration_number: formData.brelaRegistrationNumber,
-          firm_email: formData.firmEmail,
-          contact_person_name: formData.contactPersonName,
-          contact_person_designation: formData.contactPersonDesignation,
-          mobile_number: formData.mobileNumber,
-          sector_confirmed: formData.sectorConfirmed,
-          terms_accepted: formData.termsAccepted,
-          privacy_policy_accepted: formData.privacyPolicyAccepted,
-          data_processing_consent: formData.dataProcessingConsent,
-          aml_cft_consent: formData.amlCftConsent,
-          registration_status: 'pending',
-          encrypted_password: encryptedPassword
-        }]);
-
-      if (regError) throw regError;
-
-      setError('');
-      alert('Registration submitted successfully! Your request will be reviewed by our administrators. You will receive an email notification once your account is approved.');
-
-      setFormData({
-        lawFirmName: '',
-        brelaRegistrationNumber: '',
-        firmEmail: '',
-        contactPersonName: '',
-        contactPersonDesignation: 'Partner',
-        mobileNumber: '',
-        registerPassword: '',
-        confirmPassword: '',
-        sectorConfirmed: false,
-        termsAccepted: false,
-        privacyPolicyAccepted: false,
-        dataProcessingConsent: false,
-        amlCftConsent: false
-      });
-
-      setMode('login');
     } catch (err) {
-      console.error('Registration error:', err);
-      setError(err.message || 'Registration failed. Please try again.');
+      setError(err.message);
     } finally {
       setLoading(false);
     }
@@ -297,15 +227,8 @@ export default function Auth() {
     <div style={styles.container}>
       <div style={mode === 'register' ? styles.cardLarge : styles.card}>
         <div style={styles.header}>
-          <h1 style={styles.title}>
-            {mode === 'login' ? 'Law Firm AML Compliance System' : 'Tanzania Law Firm Registration'}
-          </h1>
-          <p style={styles.subtitle}>
-            {mode === 'login'
-              ? 'Comprehensive AML/CFT Compliance Management for Legal Professionals'
-              : 'Professional AML/CFT Compliance Management for Legal Practitioners'
-            }
-          </p>
+          <h1 style={styles.title}>Law Firm AML Compliance System</h1>
+          <p style={styles.subtitle}>Comprehensive AML/CFT Compliance Management for Legal Professionals</p>
         </div>
 
         <div style={styles.tabContainer}>
@@ -314,6 +237,7 @@ export default function Auth() {
             onClick={() => {
               setMode('login');
               setError('');
+              setSuccess('');
             }}
             style={{
               ...styles.tab,
@@ -327,13 +251,14 @@ export default function Auth() {
             onClick={() => {
               setMode('register');
               setError('');
+              setSuccess('');
             }}
             style={{
               ...styles.tab,
               ...(mode === 'register' ? styles.tabActive : {})
             }}
           >
-            Registration
+            Register
           </button>
         </div>
 
@@ -367,225 +292,157 @@ export default function Auth() {
             <button type="submit" disabled={loading} style={styles.button}>
               {loading ? 'Loading...' : 'Sign In'}
             </button>
+
+            <div style={{
+              marginTop: '24px',
+              padding: '16px',
+              background: '#f8fafc',
+              borderRadius: '10px',
+              border: '1px solid #e2e8f0'
+            }}>
+              <div style={{
+                fontSize: '14px',
+                color: '#475569',
+                textAlign: 'center'
+              }}>
+                Contact your administrator to request an account
+              </div>
+            </div>
           </form>
         ) : (
           <form onSubmit={handleRegisterSubmit} style={styles.form}>
-            <div style={styles.section}>
-              <h2 style={styles.sectionTitle}>Law Firm Information</h2>
-
-              <div style={styles.formGroup}>
-                <label style={styles.label}>Law Firm Name *</label>
-                <input
-                  type="text"
-                  name="lawFirmName"
-                  value={formData.lawFirmName}
-                  onChange={handleChange}
-                  style={styles.input}
-                  placeholder="Full registered name"
-                  required
-                />
+            {isFirstUser && (
+              <div style={styles.infoBox}>
+                <svg style={styles.infoIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <circle cx="12" cy="12" r="10"/>
+                  <line x1="12" y1="16" x2="12" y2="12"/>
+                  <line x1="12" y1="8" x2="12.01" y2="8"/>
+                </svg>
+                <p style={styles.infoText}>
+                  You are registering as the first user and will be granted system administrator privileges.
+                </p>
               </div>
+            )}
 
-              <div style={styles.formGroup}>
-                <label style={styles.label}>BRELA Registration Number *</label>
-                <input
-                  type="text"
-                  name="brelaRegistrationNumber"
-                  value={formData.brelaRegistrationNumber}
-                  onChange={handleChange}
-                  style={styles.input}
-                  placeholder="Required"
-                  required
-                />
-              </div>
-
-              <div style={styles.formGroup}>
-                <label style={styles.label}>Firm Email Address *</label>
-                <input
-                  type="email"
-                  name="firmEmail"
-                  value={formData.firmEmail}
-                  onChange={handleChange}
-                  style={styles.input}
-                  placeholder="official@lawfirm.co.tz"
-                  required
-                />
-              </div>
+            <div style={styles.sectionTitle}>
+              {isFirstUser ? 'Administrator Information' : 'User Information'}
+            </div>
+            <div style={styles.formGroup}>
+              <label style={styles.label}>Full Name *</label>
+              <input
+                type="text"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                style={styles.input}
+                required
+              />
             </div>
 
-            <div style={styles.section}>
-              <h2 style={styles.sectionTitle}>Contact Person</h2>
+            <div style={styles.formGroup}>
+              <label style={styles.label}>Email *</label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                style={styles.input}
+                required
+              />
+            </div>
 
-              <div style={styles.formGroup}>
-                <label style={styles.label}>Full Name *</label>
-                <input
-                  type="text"
-                  name="contactPersonName"
-                  value={formData.contactPersonName}
-                  onChange={handleChange}
-                  style={styles.input}
-                  required
-                />
-              </div>
+            <div style={styles.formGroup}>
+              <label style={styles.label}>Password *</label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                style={styles.input}
+                required
+                minLength={6}
+              />
+            </div>
 
-              <div style={styles.formRow}>
+            <div style={styles.formGroup}>
+              <label style={styles.label}>Confirm Password *</label>
+              <input
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                style={styles.input}
+                required
+                minLength={6}
+              />
+            </div>
+
+            {!isFirstUser && (
+              <>
+                <div style={styles.sectionTitle}>Law Firm Information</div>
                 <div style={styles.formGroup}>
-                  <label style={styles.label}>Designation *</label>
+                  <label style={styles.label}>Firm Name *</label>
+                  <input
+                    type="text"
+                    value={organizationName}
+                    onChange={(e) => setOrganizationName(e.target.value)}
+                    style={styles.input}
+                    placeholder="e.g., Smith & Associates Law Firm"
+                    required
+                  />
+                </div>
+
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>Practice Areas *</label>
+                  <input
+                    type="text"
+                    value={businessType}
+                    onChange={(e) => setBusinessType(e.target.value)}
+                    style={styles.input}
+                    placeholder="e.g., Corporate Law, Real Estate, Litigation"
+                    required
+                  />
+                </div>
+
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>Firm Size *</label>
                   <select
-                    name="contactPersonDesignation"
-                    value={formData.contactPersonDesignation}
-                    onChange={handleChange}
+                    value={size}
+                    onChange={(e) => setSize(e.target.value)}
                     style={styles.input}
                     required
                   >
-                    <option value="Partner">Partner</option>
-                    <option value="Associate">Associate</option>
-                    <option value="Compliance Officer">Compliance Officer</option>
-                    <option value="Administrator">Administrator</option>
-                    <option value="Senior Partner">Senior Partner</option>
+                    <option value="small">Small (1-10 lawyers)</option>
+                    <option value="medium">Medium (11-50 lawyers)</option>
+                    <option value="large">Large (51+ lawyers)</option>
                   </select>
                 </div>
 
                 <div style={styles.formGroup}>
-                  <label style={styles.label}>Mobile Number *</label>
-                  <input
-                    type="tel"
-                    name="mobileNumber"
-                    value={formData.mobileNumber}
-                    onChange={handleChange}
+                  <label style={styles.label}>Firm Type</label>
+                  <select
+                    value={dnfbpCategory}
+                    onChange={(e) => setDnfbpCategory(e.target.value)}
                     style={styles.input}
-                    placeholder="+255..."
-                    required
-                  />
+                  >
+                    <option value="">Select Category (Optional)</option>
+                    {institutionCategories.map(cat => (
+                      <option key={cat.value} value={cat.value}>{cat.label}</option>
+                    ))}
+                  </select>
                 </div>
-              </div>
-            </div>
-
-            <div style={styles.section}>
-              <h2 style={styles.sectionTitle}>Account Security</h2>
-
-              <div style={styles.formGroup}>
-                <label style={styles.label}>Password *</label>
-                <input
-                  type="password"
-                  name="registerPassword"
-                  value={formData.registerPassword}
-                  onChange={handleChange}
-                  style={styles.input}
-                  minLength={8}
-                  required
-                />
-                <p style={styles.hint}>Minimum 8 characters</p>
-              </div>
-
-              <div style={styles.formGroup}>
-                <label style={styles.label}>Confirm Password *</label>
-                <input
-                  type="password"
-                  name="confirmPassword"
-                  value={formData.confirmPassword}
-                  onChange={handleChange}
-                  style={styles.input}
-                  minLength={8}
-                  required
-                />
-              </div>
-            </div>
-
-            <div style={styles.section}>
-              <h2 style={styles.sectionTitle}>Confirmations</h2>
-
-              <div style={styles.checkboxGroup}>
-                <label style={styles.checkboxLabel}>
-                  <input
-                    type="checkbox"
-                    name="sectorConfirmed"
-                    checked={formData.sectorConfirmed}
-                    onChange={handleChange}
-                    style={styles.checkbox}
-                    required
-                  />
-                  <span>
-                    We confirm that we are a law firm or advocate licensed in Tanzania *
-                  </span>
-                </label>
-              </div>
-            </div>
-
-            <div style={styles.section}>
-              <h2 style={styles.sectionTitle}>Consent & Compliance</h2>
-
-              <div style={styles.checkboxGroup}>
-                <label style={styles.checkboxLabel}>
-                  <input
-                    type="checkbox"
-                    name="termsAccepted"
-                    checked={formData.termsAccepted}
-                    onChange={handleChange}
-                    style={styles.checkbox}
-                    required
-                  />
-                  <span>I accept the Terms and Conditions *</span>
-                </label>
-
-                <label style={styles.checkboxLabel}>
-                  <input
-                    type="checkbox"
-                    name="privacyPolicyAccepted"
-                    checked={formData.privacyPolicyAccepted}
-                    onChange={handleChange}
-                    style={styles.checkbox}
-                    required
-                  />
-                  <span>I accept the Privacy Policy *</span>
-                </label>
-
-                <label style={styles.checkboxLabel}>
-                  <input
-                    type="checkbox"
-                    name="dataProcessingConsent"
-                    checked={formData.dataProcessingConsent}
-                    onChange={handleChange}
-                    style={styles.checkbox}
-                    required
-                  />
-                  <span>
-                    I consent to secure processing of personal data under the Personal Data Protection Act *
-                  </span>
-                </label>
-
-                <label style={styles.checkboxLabel}>
-                  <input
-                    type="checkbox"
-                    name="amlCftConsent"
-                    checked={formData.amlCftConsent}
-                    onChange={handleChange}
-                    style={styles.checkbox}
-                    required
-                  />
-                  <span>I consent to AML/CFT risk-based compliance tools *</span>
-                </label>
-              </div>
-            </div>
-
-            <div style={styles.securityAssurance}>
-              <div style={styles.securityIcon}>🔒</div>
-              <p style={styles.securityText}>
-                <strong>Security Assurance:</strong> This platform applies encryption, strict access control,
-                and institutional data isolation. All client information remains confidential and is accessible
-                only to authorised users within your firm.
-              </p>
-            </div>
+              </>
+            )}
 
             {error && <div style={styles.error}>{error}</div>}
+            {success && <div style={styles.success}>{success}</div>}
 
-            <button
-              type="submit"
-              disabled={loading}
-              style={styles.button}
-            >
-              {loading ? 'Creating Account...' : 'Complete Registration'}
+            <button type="submit" disabled={loading || checkingFirstUser} style={styles.button}>
+              {loading ? 'Submitting...' : isFirstUser ? 'Create Administrator Account' : 'Submit Registration Request'}
             </button>
+
+            {!isFirstUser && (
+              <p style={styles.disclaimer}>
+                Note: Your registration request must be approved by an administrator before you can login.
+                You will receive an email notification once your account is approved.
+              </p>
+            )}
           </form>
         )}
       </div>
@@ -615,7 +472,7 @@ const styles = {
     background: 'white',
     borderRadius: '16px',
     boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
-    maxWidth: '800px',
+    maxWidth: '600px',
     width: '100%',
     padding: '40px',
     border: '2px solid #d4af37',
@@ -653,7 +510,7 @@ const styles = {
     border: 'none',
     borderBottom: '3px solid transparent',
     cursor: 'pointer',
-    fontSize: '14px',
+    fontSize: '16px',
     fontWeight: '600',
     color: '#718096',
     transition: 'all 0.3s ease',
@@ -672,12 +529,6 @@ const styles = {
     display: 'flex',
     flexDirection: 'column',
     gap: '8px',
-    flex: 1,
-  },
-  formRow: {
-    display: 'flex',
-    gap: '16px',
-    flexWrap: 'wrap',
   },
   label: {
     fontSize: '14px',
@@ -712,62 +563,50 @@ const styles = {
     borderRadius: '8px',
     fontSize: '14px',
   },
-  section: {
-    background: '#f8fafc',
-    padding: '20px',
-    borderRadius: '12px',
-    border: '1px solid #e2e8f0',
+  success: {
+    padding: '12px',
+    background: '#d1fae5',
+    color: '#065f46',
+    borderRadius: '8px',
+    fontSize: '14px',
   },
   sectionTitle: {
-    fontSize: '20px',
+    fontSize: '18px',
     fontWeight: '700',
-    color: '#1e3a8a',
-    margin: '0 0 16px 0',
+    color: '#0a1929',
+    marginTop: '12px',
+    marginBottom: '8px',
+    borderBottom: '2px solid #d4af37',
     paddingBottom: '8px',
-    borderBottom: '2px solid #1e3a8a',
   },
-  hint: {
-    fontSize: '12px',
+  disclaimer: {
+    fontSize: '13px',
     color: '#718096',
-    margin: '4px 0 0 0',
+    textAlign: 'center',
+    marginTop: '8px',
+    fontStyle: 'italic',
   },
-  checkboxGroup: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '12px',
-  },
-  checkboxLabel: {
+  infoBox: {
     display: 'flex',
     alignItems: 'flex-start',
     gap: '12px',
-    fontSize: '14px',
-    color: '#0a1929',
-    cursor: 'pointer',
-  },
-  checkbox: {
-    width: '20px',
-    height: '20px',
-    cursor: 'pointer',
-    marginTop: '2px',
-    flexShrink: 0,
-  },
-  securityAssurance: {
+    padding: '16px',
     background: 'linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%)',
     border: '2px solid #3b82f6',
-    borderRadius: '12px',
-    padding: '20px',
-    display: 'flex',
-    gap: '16px',
-    alignItems: 'flex-start',
+    borderRadius: '8px',
+    marginBottom: '16px',
   },
-  securityIcon: {
-    fontSize: '32px',
+  infoIcon: {
+    width: '24px',
+    height: '24px',
     flexShrink: 0,
+    color: '#1e40af',
   },
-  securityText: {
+  infoText: {
     margin: 0,
     fontSize: '14px',
     color: '#1e40af',
-    lineHeight: '1.6',
+    fontWeight: '600',
+    lineHeight: '1.5',
   },
 };

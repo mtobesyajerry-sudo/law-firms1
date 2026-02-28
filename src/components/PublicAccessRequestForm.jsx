@@ -4,11 +4,8 @@ import { supabase } from '../supabaseClient';
 export default function PublicAccessRequestForm({ onBack }) {
   const [formData, setFormData] = useState({
     full_name: '',
-    email: '',
-    phone: '',
     position: '',
-    organization_name: '',
-    requested_access: 'management',
+    requested_access: 'staff',
     reason: ''
   });
   const [loading, setLoading] = useState(false);
@@ -28,29 +25,9 @@ export default function PublicAccessRequestForm({ onBack }) {
     setError('');
 
     try {
-      // Validate required fields
-      if (!formData.full_name || !formData.email || !formData.position || !formData.organization_name || !formData.reason) {
-        throw new Error('Please fill in all required fields');
-      }
-
-      // Validate email format
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(formData.email)) {
-        throw new Error('Please enter a valid email address');
-      }
-
       const { error: insertError } = await supabase
-        .from('admin_user_requests')
-        .insert([{
-          full_name: formData.full_name,
-          email: formData.email,
-          phone: formData.phone || null,
-          position: formData.position,
-          organization_name: formData.organization_name,
-          requested_access: formData.requested_access,
-          reason: formData.reason,
-          status: 'pending'
-        }]);
+        .from('public_access_requests')
+        .insert([formData]);
 
       if (insertError) throw insertError;
 
@@ -182,7 +159,7 @@ export default function PublicAccessRequestForm({ onBack }) {
             lineHeight: '1.6',
             margin: 0
           }}>
-            Request Management-level access to join or create your organization
+            Submit your information to request access to the Staff or Compliance Officer portal
           </p>
         </div>
 
@@ -241,69 +218,6 @@ export default function PublicAccessRequestForm({ onBack }) {
               fontWeight: '600',
               color: '#0a1929'
             }}>
-              Email Address *
-            </label>
-            <input
-              type="email"
-              name="email"
-              value={formData.email}
-              onChange={handleChange}
-              required
-              placeholder="john.doe@lawfirm.co.tz"
-              style={{
-                width: '100%',
-                padding: '12px 16px',
-                border: '2px solid #e5e7eb',
-                borderRadius: '10px',
-                fontSize: '15px',
-                transition: 'border-color 0.2s ease',
-                outline: 'none',
-                boxSizing: 'border-box'
-              }}
-              onFocus={(e) => e.target.style.borderColor = '#667eea'}
-              onBlur={(e) => e.target.style.borderColor = '#e5e7eb'}
-            />
-          </div>
-
-          <div style={{ marginBottom: '20px' }}>
-            <label style={{
-              display: 'block',
-              marginBottom: '8px',
-              fontSize: '14px',
-              fontWeight: '600',
-              color: '#0a1929'
-            }}>
-              Phone Number (Optional)
-            </label>
-            <input
-              type="tel"
-              name="phone"
-              value={formData.phone}
-              onChange={handleChange}
-              placeholder="+255 xxx xxx xxx"
-              style={{
-                width: '100%',
-                padding: '12px 16px',
-                border: '2px solid #e5e7eb',
-                borderRadius: '10px',
-                fontSize: '15px',
-                transition: 'border-color 0.2s ease',
-                outline: 'none',
-                boxSizing: 'border-box'
-              }}
-              onFocus={(e) => e.target.style.borderColor = '#667eea'}
-              onBlur={(e) => e.target.style.borderColor = '#e5e7eb'}
-            />
-          </div>
-
-          <div style={{ marginBottom: '20px' }}>
-            <label style={{
-              display: 'block',
-              marginBottom: '8px',
-              fontSize: '14px',
-              fontWeight: '600',
-              color: '#0a1929'
-            }}>
               Position/Title *
             </label>
             <input
@@ -312,39 +226,7 @@ export default function PublicAccessRequestForm({ onBack }) {
               value={formData.position}
               onChange={handleChange}
               required
-              placeholder="e.g., Managing Partner, Senior Partner"
-              style={{
-                width: '100%',
-                padding: '12px 16px',
-                border: '2px solid #e5e7eb',
-                borderRadius: '10px',
-                fontSize: '15px',
-                transition: 'border-color 0.2s ease',
-                outline: 'none',
-                boxSizing: 'border-box'
-              }}
-              onFocus={(e) => e.target.style.borderColor = '#667eea'}
-              onBlur={(e) => e.target.style.borderColor = '#e5e7eb'}
-            />
-          </div>
-
-          <div style={{ marginBottom: '20px' }}>
-            <label style={{
-              display: 'block',
-              marginBottom: '8px',
-              fontSize: '14px',
-              fontWeight: '600',
-              color: '#0a1929'
-            }}>
-              Law Firm / Organization Name *
-            </label>
-            <input
-              type="text"
-              name="organization_name"
-              value={formData.organization_name}
-              onChange={handleChange}
-              required
-              placeholder="e.g., Bower & Associates"
+              placeholder="e.g., Senior Lawyer, Compliance Manager"
               style={{
                 width: '100%',
                 padding: '12px 16px',
@@ -390,9 +272,8 @@ export default function PublicAccessRequestForm({ onBack }) {
               onFocus={(e) => e.target.style.borderColor = '#667eea'}
               onBlur={(e) => e.target.style.borderColor = '#e5e7eb'}
             >
-              <option value="management">Management</option>
-              <option value="senior_partner">Senior Partner</option>
-              <option value="partner">Partner</option>
+              <option value="staff">Staff Portal</option>
+              <option value="compliance_officer">Compliance Officer Portal</option>
             </select>
           </div>
 
@@ -411,8 +292,8 @@ export default function PublicAccessRequestForm({ onBack }) {
               value={formData.reason}
               onChange={handleChange}
               required
-              placeholder="Please explain why you need management access and your role in the organization..."
-              rows="4"
+              placeholder="Please explain why you need access to this system and how you will use it..."
+              rows="5"
               style={{
                 width: '100%',
                 padding: '12px 16px',

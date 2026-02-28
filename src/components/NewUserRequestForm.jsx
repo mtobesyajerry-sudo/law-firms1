@@ -52,15 +52,8 @@ export default function NewUserRequestForm({ onClose, onSuccess }) {
         return;
       }
 
-      // Validate organization exists
-      if (!organization || !organization.id) {
-        setError('Organization information is missing. Please contact your administrator.');
-        setLoading(false);
-        return;
-      }
-
       // Create the new user request (password will be auto-generated upon approval)
-      const { data, error: insertError} = await supabase
+      const { data, error: insertError } = await supabase
         .from('new_user_requests')
         .insert([
           {
@@ -70,8 +63,6 @@ export default function NewUserRequestForm({ onClose, onSuccess }) {
             phone: formData.phone || null,
             requested_access: formData.requested_access,
             reason: formData.reason,
-            organization_id: organization.id,
-            organization_name: organization.name,
             status: 'pending',
             created_by: profile.id
           }

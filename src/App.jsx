@@ -3,8 +3,6 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { supabase } from './supabaseClient';
 import Auth from './components/Auth';
-import TanzaniaLawFirmRegistration from './components/TanzaniaLawFirmRegistration';
-import LawFirmOnboardingWizard from './components/LawFirmOnboardingWizard';
 import ClientDashboard from './components/ClientDashboard';
 import ManagementDashboard from './components/ManagementDashboard';
 import ClientManagementDashboard from './components/ClientManagementDashboard';
@@ -175,7 +173,7 @@ function RoleBasedRedirect() {
 
   // Route users to appropriate dashboard based on role
   if (profile?.role === 'admin') {
-    return <Navigate to="/admin/dashboard" replace />;
+    return <Navigate to="/dashboard/management" replace />;
   } else if (profile?.role === 'management' || profile?.role === 'senior_partner' || profile?.role === 'partner') {
     return <Navigate to="/dashboard/management" replace />;
   } else if (profile?.role === 'staff' || profile?.role === 'lawyer') {
@@ -193,24 +191,15 @@ function AppRoutes() {
 
   return (
     <Routes>
-          <Route path="/auth" element={user ? <Navigate to="/" /> : <Auth />} />
-          <Route path="/register/tanzania-law-firm" element={<TanzaniaLawFirmRegistration />} />
-          <Route
-            path="/onboarding"
-            element={
-              <ProtectedRoute>
-                <LawFirmOnboardingWizard />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/"
-            element={
-              <ProtectedRoute>
-                <RoleBasedRedirect />
-              </ProtectedRoute>
-            }
-          />
+      <Route path="/auth" element={user ? <Navigate to="/" /> : <Auth />} />
+      <Route
+        path="/"
+        element={
+          <ProtectedRoute>
+            <RoleBasedRedirect />
+          </ProtectedRoute>
+        }
+      />
       <Route
         path="/admin/dashboard"
         element={
@@ -231,7 +220,7 @@ function AppRoutes() {
         path="/dashboard/management"
         element={
           <ProtectedRoute managementOnly={true}>
-            <ClientManagementDashboard />
+            <ManagementDashboard />
           </ProtectedRoute>
         }
       />

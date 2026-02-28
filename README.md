@@ -1,10 +1,10 @@
-# AML/CFT Compliance System for Tanzanian Law Firms
+# AML/CFT/CPF Risk Assessment System for Banks and Financial Institutions
 
-A comprehensive AML/CFT compliance management system designed specifically for law firms in Tanzania to conduct self-assessments, manage client due diligence (KYC/CDD), perform sanctions screening, and maintain regulatory compliance with the Anti-Money Laundering Act, 2006 and Financial Intelligence Unit (FIU) requirements.
+A comprehensive risk assessment system designed specifically for banks and financial institutions in Tanzania to conduct self-assessments of their Anti-Money Laundering (AML), Counter-Financing of Terrorism (CFT), and Counter-Proliferation Financing (CPF) compliance frameworks.
 
 ## Overview
 
-This system guides law firms through structured, risk-based compliance processes aligned with Tanzanian AML regulations, Law Society guidelines, and FATF Recommendations. It features comprehensive KYC/CDD workflows, automated risk scoring, sanctions screening, matter management with AML triggers, and detailed compliance reporting. The system includes robust role-based access control with multiple user types for different organizational functions.
+This system guides financial institutions through a structured, risk-based assessment process aligned with Bank of Tanzania guidelines and FATF Recommendations. It features a three-tier approach based on institutional risk, automatic risk scoring, and comprehensive reporting. The system includes role-based access control with admin and client user types.
 
 ## 🔐 Security Implementation
 
@@ -47,55 +47,54 @@ Client users have restricted access to their assigned organization and can:
 
 ## Features
 
-### 1. Law Firm Registration & Onboarding
-- Secure registration system for Tanzanian law firms
-- BRELA and Tanganyika Law Society (TLS) registration verification
-- Law firm profile setup with practice areas and client types
-- Automated risk categorization based on firm size and services
-- Multi-user support with role-based permissions
+### 1. User and Organization Management (Admin Only)
+- Create client user accounts with credentials
+- Create organizations and assign them to client users
+- Manage user status (active/inactive)
+- View comprehensive system statistics
+- Monitor all organizations and assessments
 
-### 2. Comprehensive KYC/CDD Client Management
-- Complete client onboarding workflows
-- Tiered due diligence (Simplified, Standard, Enhanced)
-- Automated document requirements based on client risk
-- Source of Funds (SOF) and Source of Wealth (SOW) verification
-- Beneficial ownership identification and verification
-- PEP screening and enhanced monitoring
-- Ongoing CDD with periodic review schedules
+### 2. Financial Institution Categorization & Tier Assignment
 
-### 3. Law Firm Risk Assessment (Institutional)
+At the start of each assessment, the system collects:
+- Institution type selection (10 categories: Commercial Bank, Microfinance Bank, Community Bank, Credit Union/SACCOS, Investment Bank, Insurance Company, Bureau de Change, Money Transfer Service, Payment Service Provider, Other FI)
+- Business description and financial products/services offered
+- Contact person details (AML Compliance Officer/MLRO)
+- Employee count and transaction volume
+- Geographical presence and branch information
 
-The system conducts institutional-level AML risk assessments covering:
-- Law firm profile and practice areas
-- Client risk assessment procedures
-- Enhanced Due Diligence (EDD) triggers and procedures
-- Record keeping and data protection
-- Internal controls and governance
-- Training and awareness programs
-- Risk-based approach implementation
+The system automatically assigns a risk tier (1, 2, or 3) based on:
+- Institution type (Commercial Banks, Investment Banks, Bureaus de Change, Money Transfer Services are automatically Tier 3)
+- Employee count (201+ = Tier 3, 11-200 = Tier 2, 1-10 = Tier 1)
+- Transaction volume (>1B TZS = Tier 3, 100M-1B TZS = Tier 2, <100M TZS = Tier 1)
+- Operational complexity (branches, products, cross-border activity)
 
-### 4. Matter Management with AML Triggers
+### 3. Three-Module Assessment Process
 
-The system provides legal matter management with built-in AML risk monitoring:
-- Track all client matters and engagements
-- Automatic AML trigger detection for high-risk activities
-- Enhanced scrutiny for property transactions, company formations, trust services
-- Transaction monitoring and alert generation
-- Integration with client risk profiles
+The system uses a risk-based, three-module assessment approach:
 
-### 5. Sanctions Screening & Watchlist Management
-- Automated client screening against multiple watchlists
-- UN Sanctions, OFAC, EU Sanctions integration ready
-- Manual screening workflows with documentation
-- Match review and false positive management
-- Ongoing monitoring and alert generation
+**Module 1: Inherent Risk Assessment**
+- Product & Service Inherent Risk
+- Customer Profile Inherent Risk
+- Transaction & Delivery Channel Inherent Risk
+- Geographic Inherent Risk
+- Volume & Scale Inherent Risk
 
-### 6. Suspicious Transaction Reporting (STR)
-- Built-in STR report templates
-- Workflow management from detection to FIU submission
-- Secure document handling and audit trails
-- Timeline tracking and regulatory deadline management
-- Integration with client and matter records
+Response options: Yes / Partially / No
+
+**Module 2: AML/CFT Compliance Controls**
+- Governance & Oversight
+- Customer Due Diligence (CDD)
+- Transaction Monitoring
+- Suspicious Transaction Reporting (STR)
+- Sanctions Screening
+- Training & Awareness
+- Record Keeping
+- Risk Assessment
+- Internal Audit & Compliance Testing
+- Correspondent Banking & Third Parties (Tier 3 only)
+
+Response options: Fully Implemented / Partially Implemented / Not in Place
 
 **Module 3: Operational Effectiveness**
 - Control Effectiveness - Governance
