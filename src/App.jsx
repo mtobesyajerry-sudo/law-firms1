@@ -172,16 +172,26 @@ function RoleBasedRedirect() {
     );
   }
 
+  console.log('=== ROLE BASED REDIRECT ===');
+  console.log('Profile:', profile);
+  console.log('Role:', profile?.role);
+  console.log('Email:', profile?.email);
+
   // Route users to appropriate dashboard based on role
   if (profile?.role === 'admin') {
+    console.log('>>> REDIRECTING TO /admin/dashboard <<<');
     return <Navigate to="/admin/dashboard" replace />;
   } else if (profile?.role === 'management' || profile?.role === 'senior_partner' || profile?.role === 'partner') {
+    console.log('>>> REDIRECTING TO /dashboard/management <<<');
     return <Navigate to="/dashboard/management" replace />;
   } else if (profile?.role === 'staff' || profile?.role === 'lawyer') {
+    console.log('>>> REDIRECTING TO /dashboard/staff <<<');
     return <Navigate to="/dashboard/staff" replace />;
   } else if (profile?.role === 'compliance_officer' || profile?.role === 'mlro') {
+    console.log('>>> REDIRECTING TO /dashboard/compliance <<<');
     return <Navigate to="/dashboard/compliance" replace />;
   } else {
+    console.log('>>> REDIRECTING TO /client/dashboard (default) <<<');
     // Default to client dashboard
     return <Navigate to="/client/dashboard" replace />;
   }
