@@ -444,8 +444,13 @@ export default function KYCClientDetails() {
 
       setTransactions(txns || []);
 
-      // Transaction alerts feature not yet implemented
-      setTransactionAlerts([]);
+      const { data: alerts } = await supabase
+        .from('transaction_alerts')
+        .select('*')
+        .eq('client_id', clientId)
+        .order('alert_date', { ascending: false });
+
+      setTransactionAlerts(alerts || []);
     } catch (error) {
       console.error('Error loading client:', error);
       alert('Failed to load client details');
