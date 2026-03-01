@@ -2,20 +2,26 @@
 
 ## Why This Guide Exists
 
-This guide was created after the SOF/SOW verification columns disappeared 5-6 times due to a "restore" migration that recreated the `kyc_clients` table without critical columns. This guide helps prevent similar issues in the future.
+This guide was created after recurring migration issues that caused system failures:
+1. **SOF/SOW verification columns disappeared 5-6 times** - "restore" migration recreated `kyc_clients` table without critical columns
+2. **Storage bucket "not found" errors occurred 8+ times** - Inconsistent bucket creation migrations
+
+This guide helps prevent similar issues in the future.
 
 ## The Problem Pattern
 
 **What Happened:**
-1. A migration added columns to an existing table
-2. Later, a "restore" migration recreated the table WITHOUT those columns
-3. The columns kept disappearing, requiring repeated fixes
+1. A migration added columns/resources (tables, buckets, columns)
+2. Later, a "restore" or conflicting migration recreated the resource WITHOUT those additions
+3. The additions kept disappearing, requiring repeated fixes
 4. This wasted significant time and tokens
 
-**Root Cause:**
+**Root Causes:**
 - Using `CREATE TABLE IF NOT EXISTS` in "restore" migrations
-- Not keeping the base table definition up-to-date with all added columns
-- Multiple patch migrations trying to add the same columns
+- Using `INSERT...ON CONFLICT` for storage buckets (unreliable)
+- Not keeping the base definitions up-to-date with all added features
+- Multiple patch migrations trying to add the same resources
+- No verification after resource creation
 
 ## Prevention Checklist
 
@@ -95,10 +101,29 @@ Run these checks periodically:
    -- Located in project root
    ```
 
-3. **Check for Migration Conflicts**
+3. **Verify Storage Buckets Exist**
+   ```sql
+   SELECT id, public, file_size_limit / 1024 / 1024 || ' MB' as max_size
+   FROM storage.buckets
+   WHERE id IN ('secure-documents', 'client-documents');
+   -- Expected: 2 rows
+   ```
+
+4. **Verify Storage Policies Exist**
+   ```sql
+   SELECT COUNT(*) FROM pg_policies
+   WHERE schemaname = 'storage' AND tablename = 'objects'
+   AND policyname LIKE '%documents%';
+   -- Expected: At least 8 policies
+   ```
+
+5. **Check for Migration Conflicts**
    ```bash
    # Find duplicate table creations
    grep -h "CREATE TABLE.*kyc_clients" supabase/migrations/*.sql
+
+   # Find duplicate bucket creations
+   grep -h "INSERT INTO storage.buckets" supabase/migrations/*.sql
    ```
 
 ### ✅ When Columns Disappear
@@ -120,6 +145,38 @@ If you notice columns are missing:
 4. **Fix the root cause migration** - Update the base table definition
 
 5. **Verify the fix persists** - Wait for schema cache refresh and check again
+
+### ✅ When Storage Buckets Disappear
+
+If you get "Bucket not found" errors:
+
+1. **Verify buckets actually exist**
+   ```sql
+   SELECT id FROM storage.buckets WHERE id IN ('secure-documents', 'client-documents');
+   ```
+
+2. **Check for conflicting bucket migrations**
+   ```bash
+   grep -l "INSERT INTO storage.buckets\|CREATE.*BUCKET" supabase/migrations/*.sql
+   ```
+
+3. **Never use INSERT...ON CONFLICT for buckets** - Use DO blocks with IF NOT EXISTS
+
+4. **Always verify after creation**
+   ```sql
+   DO $$
+   BEGIN
+     IF NOT EXISTS (SELECT 1 FROM storage.buckets WHERE id = 'my-bucket') THEN
+       RAISE EXCEPTION 'Bucket creation failed';
+     END IF;
+   END $$;
+   ```
+
+5. **Check storage policies exist**
+   ```sql
+   SELECT policyname FROM pg_policies
+   WHERE schemaname = 'storage' AND tablename = 'objects';
+   ```
 
 ## Common Anti-Patterns to Avoid
 
@@ -151,9 +208,21 @@ ALTER TABLE kyc_clients ADD COLUMN mystery_field text;
 -- No comments, no documentation, will be lost in next restore
 ```
 
+### ❌ Anti-Pattern 4: Unreliable Storage Bucket Creation
+```sql
+-- BAD: Using INSERT...ON CONFLICT for storage buckets (unreliable)
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('secure-documents', 'secure-documents', false)
+ON CONFLICT (id) DO UPDATE SET public = false;
+
+-- PROBLEM: ON CONFLICT may not trigger reliably with storage buckets
+-- PROBLEM: No verification that the bucket actually exists after
+-- PROBLEM: Schema cache issues can cause the bucket to disappear
+```
+
 ## Correct Pattern: Consolidated Base Definition
 
-### ✅ Good Pattern
+### ✅ Good Pattern: Tables
 ```sql
 -- In the earliest migration that creates the table:
 CREATE TABLE IF NOT EXISTS kyc_clients (
@@ -172,6 +241,29 @@ CREATE TABLE IF NOT EXISTS kyc_clients (
 
   -- All other columns...
 );
+```
+
+### ✅ Good Pattern: Storage Buckets
+```sql
+-- Use DO blocks with proper existence checking
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM storage.buckets WHERE id = 'secure-documents') THEN
+    INSERT INTO storage.buckets (id, name, public, file_size_limit)
+    VALUES ('secure-documents', 'secure-documents', false, 52428800);
+    RAISE NOTICE 'Created bucket';
+  ELSE
+    UPDATE storage.buckets
+    SET public = false, file_size_limit = 52428800
+    WHERE id = 'secure-documents';
+    RAISE NOTICE 'Updated bucket';
+  END IF;
+
+  -- Verify it worked
+  IF NOT EXISTS (SELECT 1 FROM storage.buckets WHERE id = 'secure-documents') THEN
+    RAISE EXCEPTION 'Bucket creation failed';
+  END IF;
+END $$;
 ```
 
 ## Emergency Recovery
