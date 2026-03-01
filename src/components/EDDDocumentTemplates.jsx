@@ -662,7 +662,7 @@ const EDDDocumentTemplates = ({ clientId, clientName, client, onClose, onUpdate,
                                   cursor: 'pointer'
                                 }}
                               >
-                                ✓ Verify
+                                ✓ Complete
                               </button>
                             )}
                             {profile?.role === 'staff' && (
