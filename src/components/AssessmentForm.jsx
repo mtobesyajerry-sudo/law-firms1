@@ -205,15 +205,18 @@ export default function AssessmentForm() {
         introData.entity_category
       );
 
-      const { entity_category, ...dbData } = introData;
-
       const { error } = await supabase
         .from('assessments')
         .update({
-          ...dbData,
+          contact_person: introData.contact_person,
+          contact_position: introData.contact_position,
+          contact_email: introData.contact_email,
+          contact_phone: introData.contact_phone,
+          business_description: introData.business_description,
+          number_of_employees: introData.number_of_employees,
+          annual_turnover: introData.annual_turnover,
+          geographical_presence: introData.geographical_presence,
           framework_type: framework,
-          dnfbp_category: entity_category,
-          dnfbp_tier: calculatedTier,
           introduction_completed: true,
           status: 'in_progress'
         })
@@ -234,7 +237,6 @@ export default function AssessmentForm() {
         framework_type: framework,
         entity_tier: calculatedTier,
         entity_category: introData.entity_category,
-        dnfbp_tier: calculatedTier,
         introduction_completed: true
       });
       setShowIntroduction(false);
