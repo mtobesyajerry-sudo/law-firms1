@@ -319,22 +319,22 @@ export default function ClientDocumentManagement({ client, onUpdate }) {
                                 </div>
                                 <div style={styles.docActions}>
                                   {uploadedDoc.storage_path && (
-                                    <button
-                                      onClick={() => handleViewDocument(uploadedDoc.storage_path)}
-                                      style={styles.actionButton}
-                                      title="View Document"
-                                    >
-                                      👁️ View
-                                    </button>
-                                  )}
-                                  {uploadedDoc.storage_path && (
-                                    <button
-                                      onClick={() => handleDownloadDocument(uploadedDoc.storage_path, uploadedDoc.document_name)}
-                                      style={styles.actionButton}
-                                      title="Download Document"
-                                    >
-                                      ⬇️ Download
-                                    </button>
+                                    <>
+                                      <button
+                                        onClick={() => handleViewDocument(uploadedDoc.storage_path)}
+                                        style={styles.actionButton}
+                                        title="View Document"
+                                      >
+                                        👁️ View
+                                      </button>
+                                      <button
+                                        onClick={() => handleDownloadDocument(uploadedDoc.storage_path, uploadedDoc.document_name)}
+                                        style={styles.actionButton}
+                                        title="Download Document"
+                                      >
+                                        ⬇️ Download
+                                      </button>
+                                    </>
                                   )}
                                   {profile?.role === 'staff' && uploadedDoc.verification_status !== 'verified' && (
                                     <button
@@ -609,20 +609,25 @@ const styles = {
   },
   actionButton: {
     padding: '6px 12px',
-    background: '#3b82f6',
-    color: 'white',
-    border: 'none',
-    borderRadius: '6px',
+    background: 'white',
+    color: '#6b7280',
+    border: '1px solid #d1d5db',
+    borderRadius: '4px',
     fontSize: '12px',
     fontWeight: '500',
     cursor: 'pointer',
-    transition: 'background 0.2s',
+    transition: 'all 0.2s ease',
+    whiteSpace: 'nowrap',
   },
   verifyButton: {
     background: '#10b981',
+    color: 'white',
+    borderColor: '#10b981',
   },
   deleteButton: {
-    background: '#ef4444',
+    background: '#dc2626',
+    color: 'white',
+    borderColor: '#dc2626',
   },
   emptyState: {
     padding: '40px',

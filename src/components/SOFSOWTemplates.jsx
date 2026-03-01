@@ -481,22 +481,22 @@ const SOFSOWTemplates = ({ client, onClose, onUpdate, isReadOnly = false }) => {
                         </div>
                         <div style={styles.docActions}>
                           {doc.storage_path && (
-                            <button
-                              onClick={() => handleViewDocument(doc.storage_path)}
-                              style={styles.actionButton}
-                              title="View Document"
-                            >
-                              👁️ View
-                            </button>
-                          )}
-                          {doc.storage_path && (
-                            <button
-                              onClick={() => handleDownloadDocument(doc.storage_path, doc.document_name)}
-                              style={styles.actionButton}
-                              title="Download Document"
-                            >
-                              ⬇️ Download
-                            </button>
+                            <>
+                              <button
+                                onClick={() => handleViewDocument(doc.storage_path)}
+                                style={styles.actionButton}
+                                title="View Document"
+                              >
+                                👁️ View
+                              </button>
+                              <button
+                                onClick={() => handleDownloadDocument(doc.storage_path, doc.document_name)}
+                                style={styles.actionButton}
+                                title="Download Document"
+                              >
+                                ⬇️ Download
+                              </button>
+                            </>
                           )}
                           {profile?.role === 'staff' && doc.verification_status !== 'verified' && (
                             <button
@@ -1575,24 +1575,24 @@ const styles = {
   actionButton: {
     fontSize: '12px',
     padding: '6px 12px',
-    background: '#f3f4f6',
-    color: '#374151',
+    background: 'white',
+    color: '#6b7280',
     border: '1px solid #d1d5db',
     borderRadius: '4px',
     cursor: 'pointer',
     fontWeight: '500',
-    transition: 'all 0.2s',
+    transition: 'all 0.2s ease',
     whiteSpace: 'nowrap',
   },
   verifyButton: {
-    background: '#d1fae5',
-    color: '#065f46',
-    borderColor: '#6ee7b7',
+    background: '#10b981',
+    color: 'white',
+    borderColor: '#10b981',
   },
   deleteButton: {
-    background: '#fee2e2',
-    color: '#991b1b',
-    borderColor: '#fca5a5',
+    background: '#dc2626',
+    color: 'white',
+    borderColor: '#dc2626',
   },
 };
 
