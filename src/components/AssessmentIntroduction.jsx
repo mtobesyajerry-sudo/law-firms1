@@ -162,12 +162,12 @@ export default function AssessmentIntroduction({ assessment, organization, onCom
 
             <div style={styles.formGroup}>
               <label style={styles.label}>
-                Overview of Financial Services <span style={styles.required}>*</span>
+                Overview of Legal Services <span style={styles.required}>*</span>
               </label>
               <textarea
                 value={formData.business_description}
                 onChange={(e) => handleChange('business_description', e.target.value)}
-                placeholder="Briefly describe your main financial products and services, customer segments, and areas of operation. This will appear in the report's Introduction section."
+                placeholder="Briefly describe your main legal services, practice areas, customer segments, and areas of operation. This will appear in the report's Introduction section."
                 className="input-field"
                 style={{
                   ...styles.textarea,
