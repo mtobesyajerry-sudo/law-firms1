@@ -496,15 +496,6 @@ const EDDDocumentTemplates = ({ clientId, clientName, client, onClose, onUpdate,
                           ✓ Verify
                         </button>
                       )}
-                      {canVerifyDocuments && uploadedDoc.verification_status !== 'rejected' && (
-                        <button
-                          onClick={() => handleVerifyDocument(uploadedDoc.id, 'rejected')}
-                          style={{...styles.actionButton, ...styles.rejectButton}}
-                          title="Reject Document"
-                        >
-                          ✗ Reject
-                        </button>
-                      )}
                       {profile?.role === 'staff' && (
                         <button
                           onClick={() => handleDeleteDocument(uploadedDoc.id, uploadedDoc.storage_path)}
