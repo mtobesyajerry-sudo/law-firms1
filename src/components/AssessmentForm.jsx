@@ -33,6 +33,7 @@ export default function AssessmentForm() {
   const [currentSectionIndex, setCurrentSectionIndex] = useState(0);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [lastSaved, setLastSaved] = useState(null);
   const [sectionScores, setSectionScores] = useState([]);
   const [showIntroduction, setShowIntroduction] = useState(false);
   const [showDisclaimer, setShowDisclaimer] = useState(false);
@@ -58,6 +59,27 @@ export default function AssessmentForm() {
     }
   };
 
+  const getLastSavedText = () => {
+    if (!lastSaved) return null;
+
+    const now = new Date();
+    const diffMs = now - lastSaved;
+    const diffSecs = Math.floor(diffMs / 1000);
+    const diffMins = Math.floor(diffSecs / 60);
+
+    if (diffSecs < 10) {
+      return 'Saved just now';
+    } else if (diffSecs < 60) {
+      return `Saved ${diffSecs} seconds ago`;
+    } else if (diffMins === 1) {
+      return 'Saved 1 minute ago';
+    } else if (diffMins < 60) {
+      return `Saved ${diffMins} minutes ago`;
+    } else {
+      return `Last saved at ${lastSaved.toLocaleTimeString()}`;
+    }
+  };
+
   useEffect(() => {
     loadAssessment();
   }, [id]);
@@ -69,6 +91,16 @@ export default function AssessmentForm() {
       });
     };
   }, []);
+
+  useEffect(() => {
+    if (!lastSaved) return;
+
+    const interval = setInterval(() => {
+      setLastSaved(prev => prev ? new Date(prev) : null);
+    }, 10000);
+
+    return () => clearInterval(interval);
+  }, [lastSaved]);
 
   const loadAssessment = async () => {
     try {
@@ -351,6 +383,7 @@ export default function AssessmentForm() {
 
       if (saveQueueRef.current.size === 0) {
         setSaving(false);
+        setLastSaved(new Date());
       }
     } catch (error) {
       console.error('Error saving response:', error);
@@ -1103,7 +1136,15 @@ export default function AssessmentForm() {
               ← Previous Section
             </button>
 
-            {saving && <span style={styles.savingIndicator}>Saving...</span>}
+            {saving ? (
+              <span style={styles.savingIndicator}>
+                <span style={styles.savingSpinner}>●</span> Saving...
+              </span>
+            ) : lastSaved ? (
+              <span style={styles.savedIndicator}>
+                ✓ {getLastSavedText()}
+              </span>
+            ) : null}
 
             {!isReadOnly && (
               <button
@@ -1472,8 +1513,24 @@ const styles = {
     letterSpacing: '0.5px',
   },
   savingIndicator: {
-    color: '#718096',
+    color: '#f59e0b',
     fontSize: '14px',
+    fontWeight: '500',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+  },
+  savingSpinner: {
+    animation: 'pulse 1.5s ease-in-out infinite',
+    display: 'inline-block',
+  },
+  savedIndicator: {
+    color: '#10b981',
+    fontSize: '14px',
+    fontWeight: '500',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
   },
   loading: {
     minHeight: '100vh',
