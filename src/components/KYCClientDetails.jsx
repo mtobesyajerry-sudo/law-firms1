@@ -427,29 +427,38 @@ export default function KYCClientDetails() {
 
       setEddDocuments(eddDocs || []);
 
-      const { data: screening } = await supabase
+      const { data: screening, error: screeningError } = await supabase
         .from('screening_results')
         .select('*')
         .eq('client_id', clientId)
         .order('screening_date', { ascending: false });
 
+      if (screeningError) {
+        console.error('Error loading screening results:', screeningError);
+      }
       setScreeningResults(screening || []);
 
-      const { data: txns } = await supabase
+      const { data: txns, error: txnsError } = await supabase
         .from('transactions')
         .select('*')
         .eq('client_id', clientId)
         .order('transaction_date', { ascending: false })
         .limit(10);
 
+      if (txnsError) {
+        console.error('Error loading transactions:', txnsError);
+      }
       setTransactions(txns || []);
 
-      const { data: alerts } = await supabase
+      const { data: alerts, error: alertsError } = await supabase
         .from('transaction_alerts')
         .select('*')
         .eq('client_id', clientId)
         .order('alert_date', { ascending: false });
 
+      if (alertsError) {
+        console.error('Error loading transaction alerts:', alertsError);
+      }
       setTransactionAlerts(alerts || []);
     } catch (error) {
       console.error('Error loading client:', error);
