@@ -22,7 +22,6 @@ import {
   getFrameworkLabel
 } from '../utils/frameworkUtils';
 import AssessmentIntroduction from './AssessmentIntroduction';
-import AssessmentDocumentUpload from './AssessmentDocumentUpload';
 
 export default function AssessmentForm() {
   const { id } = useParams();
@@ -1051,15 +1050,6 @@ export default function AssessmentForm() {
                   : 'Next Module →'}
               </button>
             )}
-          </div>
-
-          {/* Document Upload Section */}
-          <div style={{ marginTop: '32px' }}>
-            <AssessmentDocumentUpload
-              assessmentId={id}
-              organizationId={assessment?.organization_id}
-              isReadOnly={isReadOnly}
-            />
           </div>
         </div>
       </div>
