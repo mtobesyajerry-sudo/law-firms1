@@ -1,13 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
+import { useAuth } from '../contexts/AuthContext';
 import {
   getRequiredDocuments,
   getDocumentCategoryColor
 } from '../utils/documentUtils';
 
 export default function ClientDocumentManagement({ client, onUpdate }) {
+  const { user, profile } = useAuth();
   const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState(false);
   const [requiredDocs, setRequiredDocs] = useState([]);
+  const [uploadedDocs, setUploadedDocs] = useState([]);
   const [expandedCategories, setExpandedCategories] = useState({});
 
   useEffect(() => {
@@ -21,9 +25,27 @@ export default function ClientDocumentManagement({ client, onUpdate }) {
     try {
       const required = await getRequiredDocuments(supabase, client.current_dd_level || 'standard', client.client_type);
       setRequiredDocs(required);
+
+      const { data: uploaded, error } = await supabase
+        .from('client_documents')
+        .select(`
+          *,
+          document_types (
+            id,
+            name,
+            code,
+            category
+          )
+        `)
+        .eq('client_id', client.id)
+        .order('uploaded_at', { ascending: false });
+
+      if (error) throw error;
+
+      setUploadedDocs(uploaded || []);
     } catch (error) {
       console.error('Error loading documents:', error);
-      alert('Failed to load document requirements');
+      alert('Failed to load documents');
     } finally {
       setLoading(false);
     }
@@ -36,6 +58,175 @@ export default function ClientDocumentManagement({ client, onUpdate }) {
     }));
   };
 
+  const handleFileUpload = async (event, documentTypeId, documentTypeName, category) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setUploading(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${client.id}_${documentTypeName.replace(/\s+/g, '_')}_${Date.now()}.${fileExt}`;
+      const filePath = `${client.organization_id}/${fileName}`;
+
+      console.log('Uploading file:', { fileName, filePath, fileSize: file.size });
+
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('client-documents')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false
+        });
+
+      if (uploadError) {
+        console.error('Storage upload error:', uploadError);
+        throw uploadError;
+      }
+
+      console.log('Upload successful:', uploadData);
+
+      const documentRecord = {
+        client_id: client.id,
+        organization_id: client.organization_id,
+        document_type_id: documentTypeId,
+        document_type: documentTypeName,
+        document_category: category,
+        document_name: file.name,
+        file_name: fileName,
+        file_size: file.size,
+        file_type: file.type,
+        mime_type: file.type,
+        storage_path: filePath,
+        verification_status: 'pending',
+        is_mandatory: true,
+        is_current: true,
+        uploaded_by: user?.id
+      };
+
+      console.log('Inserting document record:', documentRecord);
+
+      const { error: dbError } = await supabase
+        .from('client_documents')
+        .insert(documentRecord);
+
+      if (dbError) {
+        console.error('Database insert error:', dbError);
+        throw dbError;
+      }
+
+      alert(`${documentTypeName} uploaded successfully`);
+      await loadDocuments();
+      if (onUpdate) {
+        await onUpdate();
+      }
+      event.target.value = '';
+    } catch (error) {
+      console.error('Error uploading document:', error);
+      alert(`Failed to upload document: ${error.message || 'Please try again.'}`);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleViewDocument = async (storagePath) => {
+    try {
+      const { data, error } = await supabase.storage
+        .from('client-documents')
+        .createSignedUrl(storagePath, 3600);
+
+      if (error) throw error;
+
+      window.open(data.signedUrl, '_blank');
+    } catch (error) {
+      console.error('Error viewing document:', error);
+      alert('Failed to view document: ' + error.message);
+    }
+  };
+
+  const handleDownloadDocument = async (storagePath, fileName) => {
+    try {
+      const { data, error } = await supabase.storage
+        .from('client-documents')
+        .createSignedUrl(storagePath, 3600);
+
+      if (error) throw error;
+
+      const response = await fetch(data.signedUrl);
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error) {
+      console.error('Error downloading document:', error);
+      alert('Failed to download document: ' + error.message);
+    }
+  };
+
+  const handleVerifyDocument = async (documentId) => {
+    if (!confirm('Verify this document as compliant?')) return;
+
+    try {
+      const { error } = await supabase
+        .from('client_documents')
+        .update({
+          verification_status: 'verified',
+          verified_by: user?.id,
+          verification_date: new Date().toISOString().split('T')[0]
+        })
+        .eq('id', documentId);
+
+      if (error) throw error;
+
+      alert('Document verified successfully');
+      await loadDocuments();
+      if (onUpdate) {
+        await onUpdate();
+      }
+    } catch (error) {
+      console.error('Error verifying document:', error);
+      alert('Failed to verify document');
+    }
+  };
+
+  const handleDeleteDocument = async (documentId, storagePath) => {
+    if (!confirm('Are you sure you want to delete this document?')) return;
+
+    try {
+      if (storagePath) {
+        const { error: storageError } = await supabase.storage
+          .from('client-documents')
+          .remove([storagePath]);
+
+        if (storageError) {
+          console.error('Error deleting from storage:', storageError);
+        }
+      }
+
+      const { error: dbError } = await supabase
+        .from('client_documents')
+        .delete()
+        .eq('id', documentId);
+
+      if (dbError) throw dbError;
+
+      alert('Document deleted successfully');
+      await loadDocuments();
+      if (onUpdate) {
+        await onUpdate();
+      }
+    } catch (error) {
+      console.error('Error deleting document:', error);
+      alert('Failed to delete document');
+    }
+  };
+
+  const getUploadedDocForType = (documentTypeId) => {
+    return uploadedDocs.find(doc => doc.document_type_id === documentTypeId);
+  };
 
   if (loading) {
     return <div style={styles.loading}>Loading document requirements...</div>;
@@ -43,23 +234,6 @@ export default function ClientDocumentManagement({ client, onUpdate }) {
 
   return (
     <div style={styles.container}>
-      {/* Security Notice */}
-      <div style={styles.securityNotice}>
-        <div style={styles.noticeHeader}>
-          <span style={styles.noticeIcon}>🔒</span>
-          <h3 style={styles.noticeTitle}>Secure Document Handling</h3>
-        </div>
-        <p style={styles.noticeText}>
-          We are currently upgrading our secure document management features to provide enhanced protection for sensitive client information. This includes improved encryption, secure storage, and advanced access controls.
-        </p>
-        <p style={styles.noticeText}>
-          In the meantime, please use your firm's approved secure channels to collect and verify the documents listed below. Document uploads within the platform will be available shortly once the upgraded security environment is completed.
-        </p>
-        <p style={styles.noticeText}>
-          Thank you for your patience and commitment to maintaining the highest compliance and security standards.
-        </p>
-      </div>
-
       {/* Required Documents Checklist */}
       <div style={styles.documentsSection}>
         <h3 style={styles.sectionTitle}>
@@ -106,13 +280,12 @@ export default function ClientDocumentManagement({ client, onUpdate }) {
                       {categoryDocs.map(req => {
                         const docType = req.document_types;
                         const description = req.description || docType.description || '';
-                        const hasTemplateIndicator = description.includes('📄');
+                        const uploadedDoc = getUploadedDocForType(docType.id);
 
                         return (
                           <div key={req.id} style={styles.documentItem}>
                             <div style={styles.docItemHeader}>
                               <span style={styles.docItemTitle}>
-                                {hasTemplateIndicator && '📄 '}
                                 {docType.name}
                               </span>
                               <span style={req.is_mandatory ? styles.requiredBadgeSmall : styles.optionalBadgeSmall}>
@@ -124,6 +297,83 @@ export default function ClientDocumentManagement({ client, onUpdate }) {
                                 {description}
                               </p>
                             )}
+
+                            {uploadedDoc ? (
+                              <div style={styles.uploadedDocSection}>
+                                <div style={styles.docInfo}>
+                                  <div style={styles.docName}>{uploadedDoc.document_name}</div>
+                                  <div style={styles.docMeta}>
+                                    Uploaded {new Date(uploadedDoc.uploaded_at).toLocaleDateString()}
+                                    {' • '}
+                                    <span style={{
+                                      ...styles.verificationBadge,
+                                      ...(uploadedDoc.verification_status === 'verified'
+                                        ? styles.verificationVerified
+                                        : uploadedDoc.verification_status === 'rejected'
+                                        ? styles.verificationRejected
+                                        : styles.verificationPending)
+                                    }}>
+                                      {uploadedDoc.verification_status || 'pending'}
+                                    </span>
+                                  </div>
+                                </div>
+                                <div style={styles.docActions}>
+                                  {uploadedDoc.storage_path && (
+                                    <button
+                                      onClick={() => handleViewDocument(uploadedDoc.storage_path)}
+                                      style={styles.actionButton}
+                                      title="View Document"
+                                    >
+                                      👁️ View
+                                    </button>
+                                  )}
+                                  {uploadedDoc.storage_path && (
+                                    <button
+                                      onClick={() => handleDownloadDocument(uploadedDoc.storage_path, uploadedDoc.document_name)}
+                                      style={styles.actionButton}
+                                      title="Download Document"
+                                    >
+                                      ⬇️ Download
+                                    </button>
+                                  )}
+                                  {profile?.role === 'staff' && uploadedDoc.verification_status !== 'verified' && (
+                                    <button
+                                      onClick={() => handleVerifyDocument(uploadedDoc.id)}
+                                      style={{...styles.actionButton, ...styles.verifyButton}}
+                                      title="Verify Document"
+                                    >
+                                      ✓ Verify
+                                    </button>
+                                  )}
+                                  {profile?.role === 'staff' && (
+                                    <button
+                                      onClick={() => handleDeleteDocument(uploadedDoc.id, uploadedDoc.storage_path)}
+                                      style={{...styles.actionButton, ...styles.deleteButton}}
+                                      title="Delete Document"
+                                    >
+                                      🗑️ Delete
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                            ) : (
+                              <div style={styles.uploadSection}>
+                                <label style={styles.uploadLabel}>
+                                  <input
+                                    type="file"
+                                    accept=".pdf,.jpg,.jpeg,.png"
+                                    onChange={(e) => handleFileUpload(e, docType.id, docType.name, category)}
+                                    style={styles.fileInput}
+                                    disabled={uploading}
+                                  />
+                                  <span style={styles.uploadButtonText}>
+                                    {uploading ? 'Uploading...' : '📤 Upload Document'}
+                                  </span>
+                                </label>
+                                <span style={styles.fileHint}>PDF, JPG, PNG (max 10MB)</span>
+                              </div>
+                            )}
+
                             {docType.validation_rules && (
                               <div style={styles.validationInfoSmall}>
                                 <strong>Validation:</strong> {docType.validation_rules}
@@ -144,19 +394,6 @@ export default function ClientDocumentManagement({ client, onUpdate }) {
           </div>
         )}
       </div>
-
-      {/* Alternative Methods Notice */}
-      <div style={styles.infoCard}>
-        <h4 style={styles.infoTitle}>Document Collection Guidelines</h4>
-        <ul style={styles.guidelinesList}>
-          <li>Collect original documents or certified copies in person when possible</li>
-          <li>Verify document authenticity through official channels</li>
-          <li>Maintain physical document copies in secure, locked storage</li>
-          <li>Record document verification details in your offline compliance register</li>
-          <li>Ensure documents are current and not expired</li>
-          <li>For high-risk clients, conduct additional verification steps as required</li>
-        </ul>
-      </div>
     </div>
   );
 }
@@ -169,34 +406,6 @@ const styles = {
     padding: '40px',
     textAlign: 'center',
     color: '#6b7280',
-  },
-  securityNotice: {
-    background: '#fef3c7',
-    border: '2px solid #f59e0b',
-    borderRadius: '12px',
-    padding: '24px',
-    marginBottom: '24px',
-  },
-  noticeHeader: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '12px',
-    marginBottom: '16px',
-  },
-  noticeIcon: {
-    fontSize: '28px',
-  },
-  noticeTitle: {
-    margin: 0,
-    fontSize: '18px',
-    fontWeight: '700',
-    color: '#92400e',
-  },
-  noticeText: {
-    margin: '0 0 12px 0',
-    fontSize: '14px',
-    color: '#92400e',
-    lineHeight: '1.6',
   },
   documentsSection: {
     background: 'white',
@@ -269,12 +478,12 @@ const styles = {
     padding: '20px',
     display: 'flex',
     flexDirection: 'column',
-    gap: '12px',
+    gap: '16px',
     background: '#fafafa',
     borderTop: '1px solid #e5e7eb',
   },
   documentItem: {
-    padding: '12px',
+    padding: '16px',
     background: 'white',
     borderRadius: '8px',
     border: '1px solid #e5e7eb',
@@ -312,62 +521,113 @@ const styles = {
     flexShrink: 0,
   },
   docItemDescription: {
-    margin: '0 0 8px 0',
+    margin: '0 0 12px 0',
     fontSize: '12px',
     color: '#6b7280',
     lineHeight: '1.5',
   },
   validationInfoSmall: {
-    marginTop: '8px',
-    padding: '6px 10px',
+    marginTop: '12px',
+    padding: '8px 12px',
     background: '#e0f2fe',
     borderRadius: '6px',
     fontSize: '11px',
     color: '#0c4a6e',
     lineHeight: '1.4',
   },
-  templateNotice: {
-    marginTop: '8px',
-    padding: '8px 12px',
-    background: '#d1fae5',
-    border: '1px solid #6ee7b7',
-    borderRadius: '6px',
+  uploadSection: {
+    marginTop: '12px',
     display: 'flex',
     alignItems: 'center',
-    gap: '8px',
+    gap: '12px',
   },
-  templateIcon: {
-    fontSize: '16px',
+  uploadLabel: {
+    display: 'inline-block',
+    cursor: 'pointer',
   },
-  templateText: {
-    fontSize: '12px',
+  fileInput: {
+    display: 'none',
+  },
+  uploadButtonText: {
+    display: 'inline-block',
+    padding: '8px 16px',
+    background: '#3b82f6',
+    color: 'white',
+    borderRadius: '6px',
+    fontSize: '13px',
+    fontWeight: '500',
+    cursor: 'pointer',
+    transition: 'background 0.2s',
+  },
+  fileHint: {
+    fontSize: '11px',
+    color: '#6b7280',
+  },
+  uploadedDocSection: {
+    marginTop: '12px',
+    padding: '12px',
+    background: '#f9fafb',
+    borderRadius: '6px',
+    border: '1px solid #e5e7eb',
+  },
+  docInfo: {
+    marginBottom: '8px',
+  },
+  docName: {
+    fontSize: '13px',
+    fontWeight: '600',
+    color: '#1f2937',
+    marginBottom: '4px',
+  },
+  docMeta: {
+    fontSize: '11px',
+    color: '#6b7280',
+  },
+  verificationBadge: {
+    padding: '2px 6px',
+    borderRadius: '4px',
+    fontSize: '10px',
+    fontWeight: '600',
+    textTransform: 'uppercase',
+  },
+  verificationVerified: {
+    background: '#d1fae5',
     color: '#065f46',
-    lineHeight: '1.4',
+  },
+  verificationRejected: {
+    background: '#fee2e2',
+    color: '#991b1b',
+  },
+  verificationPending: {
+    background: '#fef3c7',
+    color: '#92400e',
+  },
+  docActions: {
+    display: 'flex',
+    gap: '8px',
+    flexWrap: 'wrap',
+  },
+  actionButton: {
+    padding: '6px 12px',
+    background: '#3b82f6',
+    color: 'white',
+    border: 'none',
+    borderRadius: '6px',
+    fontSize: '12px',
+    fontWeight: '500',
+    cursor: 'pointer',
+    transition: 'background 0.2s',
+  },
+  verifyButton: {
+    background: '#10b981',
+  },
+  deleteButton: {
+    background: '#ef4444',
   },
   emptyState: {
     padding: '40px',
     textAlign: 'center',
     color: '#9ca3af',
     fontSize: '14px',
-  },
-  infoCard: {
-    background: '#f0f9ff',
-    border: '1px solid #0ea5e9',
-    borderRadius: '12px',
-    padding: '20px',
-    marginTop: '24px',
-  },
-  infoTitle: {
-    margin: '0 0 16px 0',
-    fontSize: '16px',
-    fontWeight: '600',
-    color: '#0c4a6e',
-  },
-  guidelinesList: {
-    margin: 0,
-    paddingLeft: '24px',
-    color: '#0c4a6e',
-    fontSize: '14px',
-    lineHeight: '1.8',
   },
 };

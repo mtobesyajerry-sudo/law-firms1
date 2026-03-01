@@ -13,7 +13,6 @@ const EDDDocumentTemplates = ({ clientId, clientName, onClose, onUpdate, isReadO
   const [selectedFile, setSelectedFile] = useState(null);
   const [uploadError, setUploadError] = useState('');
   const [uploadSuccess, setUploadSuccess] = useState('');
-  const [documentUrls, setDocumentUrls] = useState({});
   const isFetchingRef = useRef(false);
 
   // Check if user can verify documents (Staff, Compliance Officer, or Admin)
@@ -79,22 +78,6 @@ const EDDDocumentTemplates = ({ clientId, clientName, onClose, onUpdate, isReadO
       if (data) {
         console.log('EDD documents loaded:', data);
         setEddDocuments(data);
-
-        const urls = {};
-        for (const doc of data) {
-          if (doc.storage_path) {
-            const { data: signedUrlData, error: urlError } = await supabase.storage
-              .from('client-documents')
-              .createSignedUrl(doc.storage_path, 3600);
-
-            if (urlError) {
-              console.error('Error generating signed URL for document:', doc.id, urlError);
-            } else if (signedUrlData?.signedUrl) {
-              urls[doc.id] = signedUrlData.signedUrl;
-            }
-          }
-        }
-        setDocumentUrls(urls);
       }
     } catch (err) {
       console.error('Error in fetchEDDDocuments:', err);
@@ -107,31 +90,74 @@ const EDDDocumentTemplates = ({ clientId, clientName, onClose, onUpdate, isReadO
     window.print();
   };
 
-  const generateSignedUrl = async (doc) => {
-    if (!doc.storage_path) return null;
+  const handleViewDocument = async (storagePath) => {
+    try {
+      const { data, error } = await supabase.storage
+        .from('client-documents')
+        .createSignedUrl(storagePath, 3600);
 
-    const { data: signedUrlData, error: urlError } = await supabase.storage
-      .from('client-documents')
-      .createSignedUrl(doc.storage_path, 3600);
+      if (error) throw error;
 
-    if (urlError) {
-      console.error('Error generating signed URL:', urlError);
-      return null;
+      window.open(data.signedUrl, '_blank');
+    } catch (error) {
+      console.error('Error viewing document:', error);
+      alert('Failed to view document: ' + error.message);
     }
-
-    return signedUrlData?.signedUrl;
   };
 
-  const refreshDocumentUrl = async (docId) => {
-    const doc = eddDocuments.find(d => d.id === docId);
-    if (!doc) return;
+  const handleDownloadDocument = async (storagePath, fileName) => {
+    try {
+      const { data, error } = await supabase.storage
+        .from('client-documents')
+        .createSignedUrl(storagePath, 3600);
 
-    const url = await generateSignedUrl(doc);
-    if (url) {
-      setDocumentUrls(prev => ({
-        ...prev,
-        [docId]: url
-      }));
+      if (error) throw error;
+
+      const response = await fetch(data.signedUrl);
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error) {
+      console.error('Error downloading document:', error);
+      alert('Failed to download document: ' + error.message);
+    }
+  };
+
+  const handleDeleteDocument = async (documentId, storagePath) => {
+    if (!confirm('Are you sure you want to delete this document?')) return;
+
+    try {
+      if (storagePath) {
+        const { error: storageError } = await supabase.storage
+          .from('client-documents')
+          .remove([storagePath]);
+
+        if (storageError) {
+          console.error('Error deleting from storage:', storageError);
+        }
+      }
+
+      const { error: dbError } = await supabase
+        .from('client_documents')
+        .delete()
+        .eq('id', documentId);
+
+      if (dbError) throw dbError;
+
+      alert('Document deleted successfully');
+      await fetchEDDDocuments();
+      if (onUpdate) {
+        onUpdate();
+      }
+    } catch (error) {
+      console.error('Error deleting document:', error);
+      alert('Failed to delete document: ' + error.message);
     }
   };
 
@@ -304,63 +330,67 @@ const EDDDocumentTemplates = ({ clientId, clientName, onClose, onUpdate, isReadO
       }
 
       const docType = documentTypes.find(dt => dt.id === uploadingDocumentType);
-      const fileName = `${clientId}/${docType.code}_${Date.now()}.${selectedFile.name.split('.').pop()}`;
+      const fileExt = selectedFile.name.split('.').pop();
+      const fileName = `${clientId}_${docType.code}_${Date.now()}.${fileExt}`;
+      const filePath = `${profile.organization_id}/${fileName}`;
+
+      console.log('Uploading file:', { fileName, filePath, fileSize: selectedFile.size });
 
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('client-documents')
-        .upload(fileName, selectedFile);
+        .upload(filePath, selectedFile, {
+          cacheControl: '3600',
+          upsert: false
+        });
 
-      if (uploadError) throw uploadError;
+      if (uploadError) {
+        console.error('Storage upload error:', uploadError);
+        throw uploadError;
+      }
 
-      const { data: signedUrlData, error: signedUrlError } = await supabase.storage
-        .from('client-documents')
-        .createSignedUrl(fileName, 31536000);
-
-      if (signedUrlError) throw signedUrlError;
-
-      const fileUrl = signedUrlData.signedUrl;
+      console.log('Upload successful:', uploadData);
 
       const existingDoc = eddDocuments.find(doc => doc.document_type_id === uploadingDocumentType);
+
+      const documentRecord = {
+        file_name: selectedFile.name,
+        storage_path: filePath,
+        mime_type: selectedFile.type,
+        file_size: selectedFile.size,
+        verification_status: 'pending',
+        uploaded_at: new Date().toISOString(),
+        uploaded_by: user.id
+      };
 
       if (existingDoc) {
         const { error: updateError } = await supabase
           .from('client_documents')
-          .update({
-            file_name: selectedFile.name,
-            file_path: uploadData.path,
-            file_url: fileUrl,
-            storage_path: fileName,
-            mime_type: selectedFile.type,
-            file_size: selectedFile.size,
-            verification_status: 'pending',
-            uploaded_at: new Date().toISOString(),
-            uploaded_by: user.id
-          })
+          .update(documentRecord)
           .eq('id', existingDoc.id);
 
-        if (updateError) throw updateError;
+        if (updateError) {
+          console.error('Database update error:', updateError);
+          throw updateError;
+        }
       } else {
         const { error: insertError } = await supabase
           .from('client_documents')
           .insert({
+            ...documentRecord,
             client_id: clientId,
             organization_id: profile.organization_id,
             document_type_id: uploadingDocumentType,
             document_type: docType?.code || 'edd_template',
             document_category: 'legal',
             document_name: docType?.name || 'EDD Template',
-            file_name: selectedFile.name,
-            file_path: uploadData.path,
-            file_url: fileUrl,
-            storage_path: fileName,
-            mime_type: selectedFile.type,
-            file_size: selectedFile.size,
-            verification_status: 'pending',
-            uploaded_at: new Date().toISOString(),
-            uploaded_by: user.id
+            is_mandatory: true,
+            is_current: true
           });
 
-        if (insertError) throw insertError;
+        if (insertError) {
+          console.error('Database insert error:', insertError);
+          throw insertError;
+        }
       }
 
       setUploadSuccess(`${docType?.name} uploaded successfully!`);
@@ -620,21 +650,22 @@ const EDDDocumentTemplates = ({ clientId, clientName, onClose, onUpdate, isReadO
                     )}
                   </div>
                   <div style={styles.uploadedActions}>
-                    {documentUrls[doc.id] ? (
-                      <a
-                        href={documentUrls[doc.id]}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        style={styles.viewButton}
-                      >
-                        View
-                      </a>
-                    ) : (
+                    {doc.storage_path && (
                       <button
-                        onClick={() => refreshDocumentUrl(doc.id)}
-                        style={{...styles.viewButton, border: '1px solid #ccc', background: '#f5f5f5'}}
+                        onClick={() => handleViewDocument(doc.storage_path)}
+                        style={styles.viewButton}
+                        title="View Document"
                       >
-                        Load Document
+                        👁️ View
+                      </button>
+                    )}
+                    {doc.storage_path && (
+                      <button
+                        onClick={() => handleDownloadDocument(doc.storage_path, doc.file_name)}
+                        style={styles.viewButton}
+                        title="Download Document"
+                      >
+                        ⬇️ Download
                       </button>
                     )}
 
@@ -666,6 +697,17 @@ const EDDDocumentTemplates = ({ clientId, clientName, onClose, onUpdate, isReadO
                         title="Reject this document"
                       >
                         ✗ Reject
+                      </button>
+                    )}
+
+                    {/* Delete button for staff */}
+                    {profile?.role === 'staff' && (
+                      <button
+                        onClick={() => handleDeleteDocument(doc.id, doc.storage_path)}
+                        style={styles.deleteButton}
+                        title="Delete Document"
+                      >
+                        🗑️ Delete
                       </button>
                     )}
 
@@ -889,6 +931,20 @@ const styles = {
   rejectButton: {
     padding: '6px 12px',
     background: '#dc2626',
+    color: 'white',
+    border: 'none',
+    borderRadius: '6px',
+    cursor: 'pointer',
+    fontSize: '13px',
+    fontWeight: '500',
+    transition: 'all 0.2s ease',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '4px',
+  },
+  deleteButton: {
+    padding: '6px 12px',
+    background: '#ef4444',
     color: 'white',
     border: 'none',
     borderRadius: '6px',
