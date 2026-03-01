@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../supabaseClient';
 
 const EDDDocumentTemplates = ({ clientId, clientName, onClose, onUpdate, isReadOnly = false }) => {
@@ -12,6 +12,7 @@ const EDDDocumentTemplates = ({ clientId, clientName, onClose, onUpdate, isReadO
   const [uploadError, setUploadError] = useState('');
   const [uploadSuccess, setUploadSuccess] = useState('');
   const [documentUrls, setDocumentUrls] = useState({});
+  const isFetchingRef = useRef(false);
 
   useEffect(() => {
     fetchDocumentTypes();
@@ -45,40 +46,55 @@ const EDDDocumentTemplates = ({ clientId, clientName, onClose, onUpdate, isReadO
   };
 
   const fetchEDDDocuments = async () => {
-    const { data, error } = await supabase
-      .from('client_documents')
-      .select(`
-        *,
-        document_types (
-          id,
-          name,
-          code
-        )
-      `)
-      .eq('client_id', clientId)
-      .order('uploaded_at', { ascending: false });
+    if (isFetchingRef.current) {
+      console.log('Fetch already in progress, skipping duplicate call');
+      return;
+    }
 
-    if (error) {
-      console.error('Error fetching EDD documents:', error);
-    } else if (data) {
-      console.log('EDD documents loaded:', data);
-      setEddDocuments(data);
+    isFetchingRef.current = true;
+    try {
+      const { data, error } = await supabase
+        .from('client_documents')
+        .select(`
+          *,
+          document_types (
+            id,
+            name,
+            code
+          )
+        `)
+        .eq('client_id', clientId)
+        .order('uploaded_at', { ascending: false });
 
-      const urls = {};
-      for (const doc of data) {
-        if (doc.storage_path) {
-          const { data: signedUrlData, error: urlError } = await supabase.storage
-            .from('client-documents')
-            .createSignedUrl(doc.storage_path, 3600);
+      if (error) {
+        console.error('Error fetching EDD documents:', error);
+        return;
+      }
 
-          if (urlError) {
-            console.error('Error generating signed URL for document:', doc.id, urlError);
-          } else if (signedUrlData?.signedUrl) {
-            urls[doc.id] = signedUrlData.signedUrl;
+      if (data) {
+        console.log('EDD documents loaded:', data);
+        setEddDocuments(data);
+
+        const urls = {};
+        for (const doc of data) {
+          if (doc.storage_path) {
+            const { data: signedUrlData, error: urlError } = await supabase.storage
+              .from('client-documents')
+              .createSignedUrl(doc.storage_path, 3600);
+
+            if (urlError) {
+              console.error('Error generating signed URL for document:', doc.id, urlError);
+            } else if (signedUrlData?.signedUrl) {
+              urls[doc.id] = signedUrlData.signedUrl;
+            }
           }
         }
+        setDocumentUrls(urls);
       }
-      setDocumentUrls(urls);
+    } catch (err) {
+      console.error('Error in fetchEDDDocuments:', err);
+    } finally {
+      isFetchingRef.current = false;
     }
   };
 
@@ -304,7 +320,9 @@ const EDDDocumentTemplates = ({ clientId, clientName, onClose, onUpdate, isReadO
       setUploadingDocumentType(null);
 
       await fetchEDDDocuments();
-      if (onUpdate) await onUpdate();
+      if (onUpdate) {
+        onUpdate();
+      }
 
       setTimeout(() => setUploadSuccess(''), 5000);
     } catch (error) {
