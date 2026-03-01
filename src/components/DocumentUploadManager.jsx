@@ -11,17 +11,14 @@ export default function DocumentUploadManager({
   const [client, setClient] = useState(null);
   const [requiredDocuments, setRequiredDocuments] = useState([]);
   const [uploadedDocuments, setUploadedDocuments] = useState([]);
-  const [selectedDocumentType, setSelectedDocumentType] = useState('');
-  const [selectedFile, setSelectedFile] = useState(null);
   const [uploading, setUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadingDocId, setUploadingDocId] = useState(null);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
   const [filterStatus, setFilterStatus] = useState('all');
   const [documentToView, setDocumentToView] = useState(null);
   const [expandedCategories, setExpandedCategories] = useState({});
-  const uploadSectionRef = useRef(null);
 
   useEffect(() => {
     loadClientAndDocuments();
@@ -141,53 +138,33 @@ export default function DocumentUploadManager({
     );
   };
 
-  const handleFileSelect = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      setSelectedFile(file);
-      setError('');
-      setSuccess('');
-    }
-  };
+  const handleFileUpload = async (event, documentTypeId, docTypeName, docTypeCategory) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
 
-  const handleUpload = async () => {
-    if (!selectedFile || !selectedDocumentType) {
-      setError('Please select a document type and file');
-      return;
-    }
+    setUploadingDocId(documentTypeId);
+    setUploading(true);
+    setError('');
+    setSuccess('');
 
     try {
-      setUploading(true);
-      setError('');
-      setSuccess('');
-      setUploadProgress(10);
-
       const MAX_FILE_SIZE = 50 * 1024 * 1024;
-      if (selectedFile.size > MAX_FILE_SIZE) {
+      if (file.size > MAX_FILE_SIZE) {
         throw new Error('File size exceeds 50MB limit');
       }
-      setUploadProgress(30);
 
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         throw new Error('User not authenticated');
       }
 
-      const { data: docType } = await supabase
-        .from('document_types')
-        .select('*')
-        .eq('id', selectedDocumentType)
-        .single();
-
-      const fileExt = selectedFile.name.split('.').pop();
-      const fileName = `${clientId}_${docType?.name.replace(/\s+/g, '_')}_${Date.now()}.${fileExt}`;
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${clientId}_${docTypeName.replace(/\s+/g, '_')}_${Date.now()}.${fileExt}`;
       const filePath = `${organizationId}/${fileName}`;
-
-      setUploadProgress(50);
 
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('client-documents')
-        .upload(filePath, selectedFile, {
+        .upload(filePath, file, {
           cacheControl: '3600',
           upsert: false
         });
@@ -196,19 +173,17 @@ export default function DocumentUploadManager({
         throw uploadError;
       }
 
-      setUploadProgress(70);
-
       const documentRecord = {
         client_id: clientId,
         organization_id: organizationId,
-        document_type_id: selectedDocumentType,
-        document_type: docType?.name || 'Document',
-        document_category: docType?.category || 'other',
-        document_name: selectedFile.name,
+        document_type_id: documentTypeId,
+        document_type: docTypeName,
+        document_category: docTypeCategory,
+        document_name: file.name,
         file_name: fileName,
-        file_size: selectedFile.size,
-        file_type: selectedFile.type,
-        mime_type: selectedFile.type,
+        file_size: file.size,
+        file_type: file.type,
+        mime_type: file.type,
         storage_path: filePath,
         verification_status: 'pending',
         is_mandatory: true,
@@ -224,31 +199,26 @@ export default function DocumentUploadManager({
         throw dbError;
       }
 
-      setUploadProgress(100);
-      setSuccess('Document uploaded successfully!');
-      setSelectedFile(null);
-      setSelectedDocumentType('');
-
-      const fileInput = document.getElementById('file-input');
-      if (fileInput) fileInput.value = '';
-
+      setSuccess(`${docTypeName} uploaded successfully!`);
       await loadClientDocuments();
 
       if (onUploadComplete) {
         onUploadComplete({ success: true });
       }
 
+      event.target.value = '';
+
       setTimeout(() => {
         setSuccess('');
-        setUploadProgress(0);
       }, 3000);
 
     } catch (err) {
       console.error('Upload error:', err);
       setError(err.message || 'Failed to upload document');
-      setUploadProgress(0);
+      setTimeout(() => setError(''), 5000);
     } finally {
       setUploading(false);
+      setUploadingDocId(null);
     }
   };
 
@@ -389,18 +359,11 @@ export default function DocumentUploadManager({
     return categoryNames[category] || category.toUpperCase().replace(/_/g, ' ');
   };
 
-  const handleSelectDocumentType = (documentTypeId) => {
-    setSelectedDocumentType(documentTypeId);
-    setSelectedFile(null);
-    setError('');
-    setSuccess('');
-
-    // Scroll to upload section after a brief delay to ensure it's rendered
-    setTimeout(() => {
-      if (uploadSectionRef.current) {
-        uploadSectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-      }
-    }, 100);
+  const triggerFileInput = (documentTypeId) => {
+    const fileInput = document.getElementById(`file-input-${documentTypeId}`);
+    if (fileInput) {
+      fileInput.click();
+    }
   };
 
   // Group requirements by category
@@ -705,35 +668,45 @@ export default function DocumentUploadManager({
 
                           {/* Upload button - Hidden for read-only users */}
                           {!isReadOnly && (
-                            <button
-                              onClick={() => handleSelectDocumentType(req.document_type.id)}
-                              style={{
-                                padding: '10px 16px',
-                                background: selectedDocumentType === req.document_type.id ? '#10b981' : '#3b82f6',
-                                color: 'white',
-                                border: 'none',
-                                borderRadius: '6px',
-                                fontSize: '13px',
-                                fontWeight: '600',
-                                cursor: 'pointer',
-                                transition: 'all 0.2s',
-                                width: '100%',
-                                marginTop: 'auto',
-                                boxShadow: selectedDocumentType === req.document_type.id
-                                  ? '0 0 0 3px rgba(16, 185, 129, 0.2)'
-                                  : 'none'
-                              }}
-                              onMouseEnter={(e) => {
-                                if (selectedDocumentType !== req.document_type.id) {
-                                  e.target.style.background = '#2563eb';
-                                }
-                              }}
-                              onMouseLeave={(e) => {
-                                e.target.style.background = selectedDocumentType === req.document_type.id ? '#10b981' : '#3b82f6';
-                              }}
-                            >
-                              {selectedDocumentType === req.document_type.id ? '✓ Selected - Scroll Down to Upload' : '+ Upload Document'}
-                            </button>
+                            <>
+                              <input
+                                id={`file-input-${req.document_type.id}`}
+                                type="file"
+                                onChange={(e) => handleFileUpload(e, req.document_type.id, req.document_type.name, req.document_type.category)}
+                                style={{ display: 'none' }}
+                                disabled={uploading && uploadingDocId === req.document_type.id}
+                                accept=".pdf,.jpg,.jpeg,.png,.gif,.doc,.docx,.xls,.xlsx,.txt,.zip"
+                              />
+                              <button
+                                onClick={() => triggerFileInput(req.document_type.id)}
+                                disabled={uploading && uploadingDocId === req.document_type.id}
+                                style={{
+                                  padding: '10px 16px',
+                                  background: (uploading && uploadingDocId === req.document_type.id) ? '#d1d5db' : '#3b82f6',
+                                  color: 'white',
+                                  border: 'none',
+                                  borderRadius: '6px',
+                                  fontSize: '13px',
+                                  fontWeight: '600',
+                                  cursor: (uploading && uploadingDocId === req.document_type.id) ? 'not-allowed' : 'pointer',
+                                  transition: 'all 0.2s',
+                                  width: '100%',
+                                  marginTop: 'auto'
+                                }}
+                                onMouseEnter={(e) => {
+                                  if (!(uploading && uploadingDocId === req.document_type.id)) {
+                                    e.target.style.background = '#2563eb';
+                                  }
+                                }}
+                                onMouseLeave={(e) => {
+                                  if (!(uploading && uploadingDocId === req.document_type.id)) {
+                                    e.target.style.background = '#3b82f6';
+                                  }
+                                }}
+                              >
+                                {(uploading && uploadingDocId === req.document_type.id) ? 'Uploading...' : '+ Upload Document'}
+                              </button>
+                            </>
                           )}
 
                           {/* Show uploaded documents for this type */}
@@ -870,143 +843,42 @@ export default function DocumentUploadManager({
         </div>
       </div>
 
-      {/* Upload Section - Only shown when a document type is selected and user is not read-only */}
-      {selectedDocumentType && !isReadOnly && (
-        <div
-          ref={uploadSectionRef}
-          style={{
-            background: 'white',
-            borderRadius: '8px',
-            border: '2px solid #3b82f6',
-            padding: '20px',
-            boxShadow: '0 4px 6px -1px rgba(59, 130, 246, 0.1), 0 2px 4px -1px rgba(59, 130, 246, 0.06)'
-          }}
-        >
-          <h3 style={{ fontSize: '18px', fontWeight: '600', color: '#1f2937', marginBottom: '16px' }}>
-            📤 Upload Document
-          </h3>
-
-          <div style={{ marginBottom: '16px', padding: '12px', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '6px' }}>
-            <div style={{ fontSize: '13px', fontWeight: '500', color: '#1e40af' }}>
-              Selected: {requiredDocuments.find(r => r.document_type.id === selectedDocumentType)?.document_type.name}
-            </div>
-          </div>
-
-          <div style={{ marginBottom: '16px' }}>
-            <label style={{ display: 'block', fontSize: '14px', fontWeight: '500', color: '#374151', marginBottom: '8px' }}>
-              Select File *
-            </label>
-            <input
-              id="file-input"
-              type="file"
-              onChange={handleFileSelect}
-              style={{
-                width: '100%',
-                padding: '10px',
-                border: '1px solid #d1d5db',
-                borderRadius: '8px',
-                fontSize: '14px'
-              }}
-              disabled={uploading}
-              accept=".pdf,.jpg,.jpeg,.png,.gif,.doc,.docx,.xls,.xlsx,.txt,.zip"
-            />
-            {selectedFile && (
-              <p style={{ marginTop: '8px', fontSize: '13px', color: '#6b7280' }}>
-                {getFileIcon(selectedFile.type)} {selectedFile.name} ({formatFileSize(selectedFile.size)})
-              </p>
-            )}
-            <p style={{ marginTop: '4px', fontSize: '12px', color: '#9ca3af' }}>
-              Accepted: PDF, Images, Word, Excel, Text, ZIP. Max: 50MB
-            </p>
-          </div>
-
+      {/* Success/Error Messages */}
+      {(success || error) && (
+        <div style={{
+          position: 'fixed',
+          top: '20px',
+          right: '20px',
+          zIndex: 9999,
+          maxWidth: '400px'
+        }}>
           {error && (
             <div style={{
               background: '#fee2e2',
               border: '1px solid #fecaca',
               color: '#991b1b',
-              padding: '12px',
+              padding: '12px 16px',
               borderRadius: '8px',
               fontSize: '14px',
-              marginBottom: '16px'
+              boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
+              marginBottom: '8px'
             }}>
               {error}
             </div>
           )}
-
           {success && (
             <div style={{
               background: '#d1fae5',
               border: '1px solid #a7f3d0',
               color: '#065f46',
-              padding: '12px',
+              padding: '12px 16px',
               borderRadius: '8px',
               fontSize: '14px',
-              marginBottom: '16px'
+              boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)'
             }}>
               {success}
             </div>
           )}
-
-          {uploadProgress > 0 && uploadProgress < 100 && (
-            <div style={{
-              width: '100%',
-              background: '#e5e7eb',
-              borderRadius: '9999px',
-              height: '8px',
-              marginBottom: '16px',
-              overflow: 'hidden'
-            }}>
-              <div style={{
-                background: '#3b82f6',
-                height: '100%',
-                width: `${uploadProgress}%`,
-                transition: 'width 0.3s ease'
-              }} />
-            </div>
-          )}
-
-          <div style={{ display: 'flex', gap: '12px' }}>
-            <button
-              onClick={handleUpload}
-              disabled={!selectedFile || uploading}
-              style={{
-                flex: 1,
-                background: !selectedFile || uploading ? '#d1d5db' : '#3b82f6',
-                color: 'white',
-                padding: '10px 20px',
-                borderRadius: '6px',
-                border: 'none',
-                fontSize: '14px',
-                fontWeight: '500',
-                cursor: !selectedFile || uploading ? 'not-allowed' : 'pointer',
-                transition: 'background 0.2s'
-              }}
-            >
-              {uploading ? 'Uploading...' : 'Upload Document'}
-            </button>
-            <button
-              onClick={() => {
-                setSelectedDocumentType('');
-                setSelectedFile(null);
-                setError('');
-                setSuccess('');
-              }}
-              style={{
-                padding: '10px 20px',
-                background: 'white',
-                color: '#6b7280',
-                border: '1px solid #d1d5db',
-                borderRadius: '6px',
-                fontSize: '14px',
-                fontWeight: '500',
-                cursor: 'pointer',
-                transition: 'all 0.2s'
-              }}
-            >
-              Cancel
-            </button>
-          </div>
         </div>
       )}
 
