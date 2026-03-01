@@ -507,6 +507,22 @@ function NewMatterModal({ onClose, onSuccess, organizationId, userId, clients, s
     try {
       setSubmitting(true);
 
+      // Map matter_type to AML trigger activities
+      const matterTypeToAMLTrigger = {
+        'real_property_transaction': ['real_property_transaction'],
+        'commercial_enterprise_transaction': ['commercial_enterprise_transaction'],
+        'client_funds_management': ['client_funds_management'],
+        'bank_account_management': ['bank_account_management'],
+        'corporation_capital_organization': ['corporation_capital_organization'],
+        'entity_creation_management': ['entity_creation_management'],
+        'business_entity_transaction': ['business_entity_transaction'],
+        'financial_transaction_representation': ['financial_transaction_representation'],
+        'real_estate_transaction_representation': ['real_estate_transaction_representation'],
+        'litigation': [] // Litigation doesn't trigger AML obligations by itself
+      };
+
+      const amlTriggers = matterTypeToAMLTrigger[formData.matter_type] || [];
+
       const matterData = {
         ...formData,
         organization_id: organizationId,
@@ -514,7 +530,9 @@ function NewMatterModal({ onClose, onSuccess, organizationId, userId, clients, s
         matter_number: `MTR-${Date.now()}`,
         opened_date: new Date().toISOString().split('T')[0],
         // Convert empty strings to null for numeric fields
-        estimated_value: formData.estimated_value === '' ? null : parseFloat(formData.estimated_value) || null
+        estimated_value: formData.estimated_value === '' ? null : parseFloat(formData.estimated_value) || null,
+        // Automatically set AML trigger activities based on matter type
+        aml_trigger_activities: amlTriggers
       };
 
       const clientId = formData.client_id;
