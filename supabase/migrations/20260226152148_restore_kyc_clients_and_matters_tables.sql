@@ -57,7 +57,14 @@ CREATE TABLE IF NOT EXISTS kyc_clients (
   purpose_of_relationship text,
   expected_transaction_volume numeric,
   expected_transaction_frequency text,
-  
+
+  -- SOF/SOW Verification
+  sof_verification_date date,
+  sof_verified_by uuid REFERENCES auth.users(id) ON DELETE SET NULL,
+  sow_verification_date date,
+  sow_verified_by uuid REFERENCES auth.users(id) ON DELETE SET NULL,
+  source_of_wealth_verified boolean DEFAULT false,
+
   -- Risk Assessment
   pep_status boolean DEFAULT false,
   pep_details text,
