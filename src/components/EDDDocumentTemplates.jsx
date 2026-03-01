@@ -170,6 +170,7 @@ const EDDDocumentTemplates = ({ clientId, clientName, onClose, onUpdate, isReadO
             document_type: docType?.code || 'edd_template',
             document_category: 'other',
             document_name: docType?.name || 'EDD Template',
+            file_name: `${docType?.code || 'edd_template'}_completed.pdf`,
             verification_status: 'verified',
             verification_date: new Date().toISOString().split('T')[0],
             verified_by: user.id,
