@@ -86,7 +86,7 @@ export class DocumentService {
 
       const { data: documentType } = await supabase
         .from('document_types')
-        .select('code, name')
+        .select('code, name, category')
         .eq('id', documentTypeId)
         .single();
 
@@ -109,60 +109,45 @@ export class DocumentService {
         throw uploadError;
       }
 
-      const { data: secureDoc, error: secureDocError } = await supabase
-        .from('secure_documents')
-        .insert({
-          owner_id: user.id,
-          organization_id: organizationId,
-          assessment_id: assessmentId,
-          client_id: clientId,
-          document_name: file.name,
-          document_type: documentType?.name || 'General Document',
-          file_size: file.size,
-          mime_type: file.type,
-          storage_path: storagePath,
-          is_encrypted: false,
-          checksum: checksum,
-          watermarked: !!watermarkText,
-          watermark_text: watermarkText,
-          classification: classification,
-          requires_mfa: requiresMFA,
-          download_count: 0
-        })
-        .select()
-        .single();
+      const { data: { publicUrl } } = supabase.storage
+        .from(STORAGE_BUCKET)
+        .getPublicUrl(storagePath);
 
-      if (secureDocError) {
-        await supabase.storage.from(STORAGE_BUCKET).remove([storagePath]);
-        throw secureDocError;
-      }
-
-      const { error: clientDocError } = await supabase
+      const { data: clientDoc, error: clientDocError } = await supabase
         .from('client_documents')
         .insert({
           client_id: clientId,
           organization_id: organizationId,
           document_type_id: documentTypeId,
           document_type: documentType?.name || 'General Document',
+          document_category: documentType?.category || 'other',
           document_name: file.name,
-          secure_document_id: secureDoc.id,
           file_name: file.name,
           file_size: file.size,
+          file_type: file.type,
           mime_type: file.type,
           storage_path: storagePath,
+          file_url: publicUrl,
           uploaded_by: user.id,
           verification_status: 'pending',
-          metadata: metadata
-        });
+          metadata: {
+            ...metadata,
+            checksum,
+            classification,
+            watermarked: !!watermarkText,
+            watermark_text: watermarkText
+          }
+        })
+        .select()
+        .single();
 
       if (clientDocError) {
         await supabase.storage.from(STORAGE_BUCKET).remove([storagePath]);
-        await supabase.from('secure_documents').delete().eq('id', secureDoc.id);
         throw clientDocError;
       }
 
       await this.logDocumentAccess({
-        documentId: secureDoc.id,
+        documentId: clientDoc.id,
         documentName: file.name,
         documentType: documentType?.name,
         accessType: 'upload',
@@ -172,7 +157,7 @@ export class DocumentService {
 
       return {
         success: true,
-        documentId: secureDoc.id,
+        documentId: clientDoc.id,
         storagePath: storagePath
       };
     } catch (error) {
@@ -189,95 +174,7 @@ export class DocumentService {
     classification = 'confidential',
     metadata = {}
   }) {
-    try {
-      const validation = await this.validateFile(file);
-      if (!validation.valid) {
-        throw new Error(validation.errors.join(', '));
-      }
-
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        throw new Error('User not authenticated');
-      }
-
-      const checksum = await this.calculateChecksum(file);
-
-      const storagePath = `${organizationId}/assessments/${assessmentId}/${documentCategory}/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
-
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from(STORAGE_BUCKET)
-        .upload(storagePath, file, {
-          cacheControl: '3600',
-          upsert: false,
-          contentType: file.type
-        });
-
-      if (uploadError) {
-        throw uploadError;
-      }
-
-      const { data: secureDoc, error: secureDocError } = await supabase
-        .from('secure_documents')
-        .insert({
-          owner_id: user.id,
-          organization_id: organizationId,
-          assessment_id: assessmentId,
-          document_name: file.name,
-          document_type: documentCategory,
-          file_size: file.size,
-          mime_type: file.type,
-          storage_path: storagePath,
-          is_encrypted: false,
-          checksum: checksum,
-          watermarked: false,
-          classification: classification,
-          requires_mfa: false,
-          download_count: 0
-        })
-        .select()
-        .single();
-
-      if (secureDocError) {
-        await supabase.storage.from(STORAGE_BUCKET).remove([storagePath]);
-        throw secureDocError;
-      }
-
-      const { error: attachmentError } = await supabase
-        .from('assessment_attachments')
-        .insert({
-          assessment_id: assessmentId,
-          secure_document_id: secureDoc.id,
-          file_name: file.name,
-          file_size: file.size,
-          file_type: file.type,
-          storage_path: storagePath,
-          uploaded_by: user.id,
-          metadata: metadata
-        });
-
-      if (attachmentError) {
-        await supabase.storage.from(STORAGE_BUCKET).remove([storagePath]);
-        await supabase.from('secure_documents').delete().eq('id', secureDoc.id);
-        throw attachmentError;
-      }
-
-      await this.logDocumentAccess({
-        documentId: secureDoc.id,
-        documentName: file.name,
-        documentType: documentCategory,
-        accessType: 'upload',
-        assessmentId: assessmentId
-      });
-
-      return {
-        success: true,
-        documentId: secureDoc.id,
-        storagePath: storagePath
-      };
-    } catch (error) {
-      console.error('Assessment document upload error:', error);
-      throw error;
-    }
+    return { success: false, error: 'Assessment attachments deprecated - use client_documents instead' };
   }
 
   static async downloadDocument(documentId) {
@@ -288,12 +185,16 @@ export class DocumentService {
       }
 
       const { data: document, error: docError } = await supabase
-        .from('secure_documents')
+        .from('client_documents')
         .select('*')
         .eq('id', documentId)
         .single();
 
       if (docError) throw docError;
+
+      if (!document.storage_path) {
+        throw new Error('Document has no storage path');
+      }
 
       const { data: signedUrl, error: urlError } = await supabase.storage
         .from(STORAGE_BUCKET)
@@ -301,22 +202,12 @@ export class DocumentService {
 
       if (urlError) throw urlError;
 
-      await supabase
-        .from('secure_documents')
-        .update({
-          download_count: (document.download_count || 0) + 1,
-          last_accessed_at: new Date().toISOString(),
-          last_accessed_by: user.id
-        })
-        .eq('id', documentId);
-
       await this.logDocumentAccess({
         documentId: documentId,
         documentName: document.document_name,
         documentType: document.document_type,
         accessType: 'download',
-        clientId: document.client_id,
-        assessmentId: document.assessment_id
+        clientId: document.client_id
       });
 
       return signedUrl.signedUrl;
@@ -334,12 +225,16 @@ export class DocumentService {
       }
 
       const { data: document, error: docError } = await supabase
-        .from('secure_documents')
+        .from('client_documents')
         .select('*')
         .eq('id', documentId)
         .single();
 
       if (docError) throw docError;
+
+      if (!document.storage_path) {
+        throw new Error('Document has no storage path');
+      }
 
       const { data: signedUrl, error: urlError } = await supabase.storage
         .from(STORAGE_BUCKET)
@@ -347,21 +242,12 @@ export class DocumentService {
 
       if (urlError) throw urlError;
 
-      await supabase
-        .from('secure_documents')
-        .update({
-          last_accessed_at: new Date().toISOString(),
-          last_accessed_by: user.id
-        })
-        .eq('id', documentId);
-
       await this.logDocumentAccess({
         documentId: documentId,
         documentName: document.document_name,
         documentType: document.document_type,
         accessType: 'view',
-        clientId: document.client_id,
-        assessmentId: document.assessment_id
+        clientId: document.client_id
       });
 
       return {
@@ -382,27 +268,28 @@ export class DocumentService {
       }
 
       const { data: document } = await supabase
-        .from('secure_documents')
-        .select('storage_path, client_id, assessment_id')
+        .from('client_documents')
+        .select('storage_path, client_id, document_name')
         .eq('id', documentId)
         .single();
 
-      await supabase
-        .from('secure_documents')
-        .update({
-          is_deleted: true,
-          deleted_at: new Date().toISOString(),
-          deleted_by: user.id
-        })
+      const { error: deleteError } = await supabase
+        .from('client_documents')
+        .delete()
         .eq('id', documentId);
+
+      if (deleteError) throw deleteError;
+
+      if (document?.storage_path) {
+        await supabase.storage.from(STORAGE_BUCKET).remove([document.storage_path]);
+      }
 
       await this.logDocumentAccess({
         documentId: documentId,
         documentName: document?.document_name || 'Unknown',
         documentType: 'deletion',
         accessType: 'delete',
-        clientId: document?.client_id,
-        assessmentId: document?.assessment_id
+        clientId: document?.client_id
       });
 
       return { success: true };
@@ -418,8 +305,7 @@ export class DocumentService {
         .from('client_documents')
         .select(`
           *,
-          document_type:document_types(*),
-          secure_document:secure_documents(*)
+          document_type:document_types(*)
         `)
         .eq('client_id', clientId)
         .order('created_at', { ascending: false });
@@ -458,47 +344,7 @@ export class DocumentService {
   }
 
   static async getAssessmentDocuments(assessmentId) {
-    try {
-      const { data, error } = await supabase
-        .from('assessment_attachments')
-        .select(`
-          *,
-          secure_document:secure_documents(*)
-        `)
-        .eq('assessment_id', assessmentId)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-
-      if (data && data.length > 0) {
-        const uploaderIds = [...new Set(data.map(d => d.uploaded_by).filter(Boolean))];
-
-        if (uploaderIds.length > 0) {
-          const { data: uploaders } = await supabase
-            .from('user_profiles')
-            .select('id, full_name')
-            .in('id', uploaderIds);
-
-          const uploaderMap = {};
-          if (uploaders) {
-            uploaders.forEach(u => {
-              uploaderMap[u.id] = u;
-            });
-          }
-
-          data.forEach(doc => {
-            if (doc.uploaded_by && uploaderMap[doc.uploaded_by]) {
-              doc.uploader = uploaderMap[doc.uploaded_by];
-            }
-          });
-        }
-      }
-
-      return data || [];
-    } catch (error) {
-      console.error('Error fetching assessment documents:', error);
-      throw error;
-    }
+    return [];
   }
 
   static async verifyDocument(documentId, status, notes = '') {
@@ -511,17 +357,14 @@ export class DocumentService {
       const updateData = {
         verification_status: status,
         verified_by: user.id,
-        verification_notes: notes
+        verification_notes: notes,
+        verification_date: new Date().toISOString()
       };
-
-      if (status === 'verified' || status === 'rejected') {
-        updateData.verified_at = new Date().toISOString();
-      }
 
       const { error } = await supabase
         .from('client_documents')
         .update(updateData)
-        .eq('secure_document_id', documentId);
+        .eq('id', documentId);
 
       if (error) {
         console.error('Update error details:', error);
