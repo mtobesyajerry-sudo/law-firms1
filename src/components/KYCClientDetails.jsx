@@ -107,7 +107,7 @@ function EnhancedDDStatusSection({ client, eddDocuments = [] }) {
 
   const getEDDDocumentStatus = (documentName) => {
     const doc = eddDocuments.find(d => d.document_type?.name === documentName);
-    return doc?.status === 'completed';
+    return doc?.verification_status === 'verified';
   };
 
   const sofStatus = getStatusColor(client.source_of_funds_verified);
@@ -116,7 +116,7 @@ function EnhancedDDStatusSection({ client, eddDocuments = [] }) {
     client.senior_approval_status === 'approved'
   );
   const pepStatus = getStatusColor(getEDDDocumentStatus('PEP Declaration'));
-  const screeningStatus = getStatusColor(getEDDDocumentStatus('Public Records Search Results'));
+  const screeningStatus = getStatusColor(getEDDDocumentStatus('Public Records Search'));
 
   const pendingCount = [
     !client.source_of_funds_verified,
@@ -261,7 +261,7 @@ function EnhancedDDStatusSection({ client, eddDocuments = [] }) {
             <div style={unifiedStyles.statusContent}>
               <div style={unifiedStyles.statusLabel}>Public Records Screening</div>
               <div style={unifiedStyles.statusSubtext}>
-                {getEDDDocumentStatus('Public Records Search Results') ? 'Completed' : 'Pending'}
+                {getEDDDocumentStatus('Public Records Search') ? 'Completed' : 'Pending'}
               </div>
             </div>
           </div>
