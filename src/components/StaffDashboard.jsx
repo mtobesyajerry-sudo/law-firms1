@@ -139,6 +139,25 @@ export default function StaffDashboard() {
     );
   }
 
+  if (activeView === 'overdue-reviews') {
+    return (
+      <div style={dashboardStyles.pageContainer}>
+        <button
+          onClick={() => {
+            setActiveView('overview');
+            loadDashboardData();
+          }}
+          style={dashboardStyles.buttonSecondary}
+        >
+          ← Back
+        </button>
+        <div style={{ marginTop: '20px' }}>
+          <OverdueReviewsList organizationId={profile.organization_id} userId={user.id} />
+        </div>
+      </div>
+    );
+  }
+
   if (activeView === 'clients') {
     return (
       <div style={dashboardStyles.pageContainer}>
@@ -299,6 +318,7 @@ export default function StaffDashboard() {
           value={stats.overdueReviews}
           icon="📅"
           color="#f59e0b"
+          onClick={() => setActiveView('overdue-reviews')}
         />
         </div>
       </div>
@@ -565,6 +585,232 @@ export default function StaffDashboard() {
             alert('Your role access request has been submitted successfully!');
           }}
         />
+      )}
+    </div>
+  );
+}
+
+function OverdueReviewsList({ organizationId, userId }) {
+  const [clients, setClients] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    loadOverdueClients();
+  }, [organizationId, userId]);
+
+  const loadOverdueClients = async () => {
+    try {
+      setLoading(true);
+      const today = new Date().toISOString().split('T')[0];
+
+      const { data, error } = await supabase
+        .from('kyc_clients')
+        .select('*')
+        .eq('organization_id', organizationId)
+        .eq('relationship_manager_id', userId)
+        .lt('next_review_date', today)
+        .order('next_review_date', { ascending: true });
+
+      if (error) throw error;
+      setClients(data || []);
+    } catch (error) {
+      console.error('Error loading overdue clients:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return <LoadingSpinner text="Loading overdue reviews..." />;
+  }
+
+  const getDaysOverdue = (reviewDate) => {
+    const today = new Date();
+    const review = new Date(reviewDate);
+    const diffTime = today - review;
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays;
+  };
+
+  const getRiskColor = (rating) => {
+    const colors = {
+      'Very High': '#dc2626',
+      'High': '#f59e0b',
+      'Substantial': '#f97316',
+      'Medium': '#10b981',
+      'Low': '#3b82f6',
+      'Very Low': '#6b7280'
+    };
+    return colors[rating] || '#6b7280';
+  };
+
+  return (
+    <div>
+      <div style={{
+        background: 'white',
+        borderRadius: '12px',
+        padding: '24px',
+        border: '2px solid #d4af37',
+        boxShadow: '0 4px 16px rgba(0,0,0,0.1)',
+        marginBottom: '24px'
+      }}>
+        <h2 style={{
+          margin: '0 0 16px 0',
+          fontSize: '24px',
+          fontWeight: '700',
+          color: '#0a1929',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '12px'
+        }}>
+          <span style={{ fontSize: '32px' }}>📅</span>
+          Overdue Reviews
+        </h2>
+        <p style={{ color: '#64748b', fontSize: '14px', margin: 0 }}>
+          {clients.length === 0
+            ? 'All client reviews are up to date!'
+            : `${clients.length} client(s) require immediate review`}
+        </p>
+      </div>
+
+      {clients.length === 0 ? (
+        <div style={{
+          background: 'white',
+          borderRadius: '12px',
+          padding: '48px',
+          border: '2px solid #d4af37',
+          boxShadow: '0 4px 16px rgba(0,0,0,0.1)',
+          textAlign: 'center'
+        }}>
+          <div style={{ fontSize: '64px', marginBottom: '16px' }}>✅</div>
+          <h3 style={{ fontSize: '18px', fontWeight: '600', color: '#0a1929', margin: '0 0 8px 0' }}>
+            All Reviews Current
+          </h3>
+          <p style={{ color: '#64748b', fontSize: '14px', margin: 0 }}>
+            No clients have overdue reviews at this time
+          </p>
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          {clients.map((client) => {
+            const daysOverdue = getDaysOverdue(client.next_review_date);
+            const urgencyLevel = daysOverdue > 30 ? 'critical' : daysOverdue > 14 ? 'high' : 'medium';
+            const urgencyColor = urgencyLevel === 'critical' ? '#dc2626' : urgencyLevel === 'high' ? '#f59e0b' : '#f97316';
+
+            return (
+              <div
+                key={client.id}
+                style={{
+                  background: 'white',
+                  borderRadius: '12px',
+                  padding: '20px',
+                  border: `2px solid ${urgencyColor}`,
+                  boxShadow: '0 4px 16px rgba(0,0,0,0.1)',
+                  cursor: 'pointer',
+                  transition: 'all 0.3s ease'
+                }}
+                onClick={() => navigate(`/kyc-client-details/${client.id}`)}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                  e.currentTarget.style.boxShadow = `0 8px 24px ${urgencyColor}40`;
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,0,0,0.1)';
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
+                  <div style={{ flex: 1 }}>
+                    <h3 style={{
+                      margin: '0 0 8px 0',
+                      fontSize: '18px',
+                      fontWeight: '700',
+                      color: '#0a1929',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px'
+                    }}>
+                      {client.client_name}
+                      <span style={{
+                        display: 'inline-block',
+                        padding: '4px 12px',
+                        borderRadius: '6px',
+                        fontSize: '12px',
+                        fontWeight: '600',
+                        background: getRiskColor(client.current_risk_rating),
+                        color: 'white'
+                      }}>
+                        {client.current_risk_rating}
+                      </span>
+                    </h3>
+                    <div style={{ display: 'flex', gap: '16px', fontSize: '13px', color: '#64748b' }}>
+                      <span>📋 {client.client_type === 'individual' ? 'Individual' : 'Corporate'}</span>
+                      <span>🔍 DD Level: {client.current_dd_level}</span>
+                      {client.pep_status && <span>⚠️ PEP</span>}
+                    </div>
+                  </div>
+                  <div style={{
+                    background: urgencyColor,
+                    color: 'white',
+                    padding: '12px 16px',
+                    borderRadius: '8px',
+                    textAlign: 'center',
+                    minWidth: '120px'
+                  }}>
+                    <div style={{ fontSize: '24px', fontWeight: '700' }}>{daysOverdue}</div>
+                    <div style={{ fontSize: '11px', fontWeight: '600', marginTop: '4px' }}>
+                      DAYS OVERDUE
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: '1fr 1fr 1fr',
+                  gap: '12px',
+                  padding: '12px',
+                  background: '#f8fafc',
+                  borderRadius: '8px',
+                  fontSize: '13px'
+                }}>
+                  <div>
+                    <div style={{ color: '#64748b', fontSize: '11px', fontWeight: '600', marginBottom: '4px' }}>
+                      Last Review
+                    </div>
+                    <div style={{ color: '#0a1929', fontWeight: '600' }}>
+                      {client.last_review_date ? new Date(client.last_review_date).toLocaleDateString() : 'N/A'}
+                    </div>
+                  </div>
+                  <div>
+                    <div style={{ color: '#64748b', fontSize: '11px', fontWeight: '600', marginBottom: '4px' }}>
+                      Due Date
+                    </div>
+                    <div style={{ color: urgencyColor, fontWeight: '700' }}>
+                      {new Date(client.next_review_date).toLocaleDateString()}
+                    </div>
+                  </div>
+                  <div>
+                    <div style={{ color: '#64748b', fontSize: '11px', fontWeight: '600', marginBottom: '4px' }}>
+                      Status
+                    </div>
+                    <div style={{
+                      display: 'inline-block',
+                      padding: '4px 8px',
+                      borderRadius: '4px',
+                      background: urgencyColor,
+                      color: 'white',
+                      fontSize: '11px',
+                      fontWeight: '700'
+                    }}>
+                      {urgencyLevel === 'critical' ? '🚨 CRITICAL' : urgencyLevel === 'high' ? '⚠️ HIGH' : '📌 MEDIUM'}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
       )}
     </div>
   );
