@@ -174,7 +174,83 @@ export class DocumentService {
     classification = 'confidential',
     metadata = {}
   }) {
-    return { success: false, error: 'Assessment attachments deprecated - use client_documents instead' };
+    try {
+      const validation = await this.validateFile(file);
+      if (!validation.valid) {
+        throw new Error(validation.errors.join(', '));
+      }
+
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        throw new Error('User not authenticated');
+      }
+
+      const checksum = await this.calculateChecksum(file);
+
+      const timestamp = Date.now();
+      const sanitizedFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+      const storagePath = `${organizationId}/assessments/${assessmentId}/${documentCategory}/${timestamp}_${sanitizedFileName}`;
+
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from(STORAGE_BUCKET)
+        .upload(storagePath, file, {
+          cacheControl: '3600',
+          upsert: false,
+          contentType: file.type
+        });
+
+      if (uploadError) {
+        throw uploadError;
+      }
+
+      const { data: { publicUrl } } = supabase.storage
+        .from(STORAGE_BUCKET)
+        .getPublicUrl(storagePath);
+
+      const { data: attachment, error: attachmentError } = await supabase
+        .from('assessment_attachments')
+        .insert({
+          assessment_id: assessmentId,
+          question_code: documentCategory,
+          file_name: file.name,
+          file_path: storagePath,
+          file_size: file.size,
+          file_type: file.type,
+          uploaded_by: user.id,
+          secure_document_id: null,
+          metadata: {
+            ...metadata,
+            checksum,
+            classification,
+            category: documentCategory,
+            public_url: publicUrl
+          }
+        })
+        .select()
+        .single();
+
+      if (attachmentError) {
+        await supabase.storage.from(STORAGE_BUCKET).remove([storagePath]);
+        throw attachmentError;
+      }
+
+      await this.logDocumentAccess({
+        documentId: attachment.id,
+        documentName: file.name,
+        documentType: documentCategory,
+        accessType: 'upload',
+        assessmentId: assessmentId
+      });
+
+      return {
+        success: true,
+        documentId: attachment.id,
+        storagePath: storagePath
+      };
+    } catch (error) {
+      console.error('Assessment document upload error:', error);
+      throw error;
+    }
   }
 
   static async downloadDocument(documentId) {
@@ -184,30 +260,52 @@ export class DocumentService {
         throw new Error('User not authenticated');
       }
 
-      const { data: document, error: docError } = await supabase
+      let document = null;
+      let storagePath = null;
+
+      const { data: clientDoc } = await supabase
         .from('client_documents')
         .select('*')
         .eq('id', documentId)
         .single();
 
-      if (docError) throw docError;
+      if (clientDoc) {
+        document = clientDoc;
+        storagePath = clientDoc.storage_path;
+      } else {
+        const { data: assessmentDoc } = await supabase
+          .from('assessment_attachments')
+          .select('*')
+          .eq('id', documentId)
+          .single();
 
-      if (!document.storage_path) {
+        if (assessmentDoc) {
+          document = assessmentDoc;
+          storagePath = assessmentDoc.file_path;
+        }
+      }
+
+      if (!document) {
+        throw new Error('Document not found');
+      }
+
+      if (!storagePath) {
         throw new Error('Document has no storage path');
       }
 
       const { data: signedUrl, error: urlError } = await supabase.storage
         .from(STORAGE_BUCKET)
-        .createSignedUrl(document.storage_path, 60);
+        .createSignedUrl(storagePath, 60);
 
       if (urlError) throw urlError;
 
       await this.logDocumentAccess({
         documentId: documentId,
-        documentName: document.document_name,
-        documentType: document.document_type,
+        documentName: document.document_name || document.file_name,
+        documentType: document.document_type || document.question_code,
         accessType: 'download',
-        clientId: document.client_id
+        clientId: document.client_id,
+        assessmentId: document.assessment_id
       });
 
       return signedUrl.signedUrl;
@@ -224,30 +322,56 @@ export class DocumentService {
         throw new Error('User not authenticated');
       }
 
-      const { data: document, error: docError } = await supabase
+      let document = null;
+      let storagePath = null;
+
+      const { data: clientDoc } = await supabase
         .from('client_documents')
         .select('*')
         .eq('id', documentId)
         .single();
 
-      if (docError) throw docError;
+      if (clientDoc) {
+        document = clientDoc;
+        storagePath = clientDoc.storage_path;
+      } else {
+        const { data: assessmentDoc } = await supabase
+          .from('assessment_attachments')
+          .select('*')
+          .eq('id', documentId)
+          .single();
 
-      if (!document.storage_path) {
+        if (assessmentDoc) {
+          document = {
+            ...assessmentDoc,
+            document_name: assessmentDoc.file_name,
+            mime_type: assessmentDoc.file_type
+          };
+          storagePath = assessmentDoc.file_path;
+        }
+      }
+
+      if (!document) {
+        throw new Error('Document not found');
+      }
+
+      if (!storagePath) {
         throw new Error('Document has no storage path');
       }
 
       const { data: signedUrl, error: urlError } = await supabase.storage
         .from(STORAGE_BUCKET)
-        .createSignedUrl(document.storage_path, 60);
+        .createSignedUrl(storagePath, 60);
 
       if (urlError) throw urlError;
 
       await this.logDocumentAccess({
         documentId: documentId,
-        documentName: document.document_name,
-        documentType: document.document_type,
+        documentName: document.document_name || document.file_name,
+        documentType: document.document_type || document.question_code,
         accessType: 'view',
-        clientId: document.client_id
+        clientId: document.client_id,
+        assessmentId: document.assessment_id
       });
 
       return {
@@ -267,29 +391,59 @@ export class DocumentService {
         throw new Error('User not authenticated');
       }
 
-      const { data: document } = await supabase
+      let document = null;
+      let storagePath = null;
+      let isAssessmentDoc = false;
+
+      const { data: clientDoc } = await supabase
         .from('client_documents')
         .select('storage_path, client_id, document_name')
         .eq('id', documentId)
         .single();
 
+      if (clientDoc) {
+        document = clientDoc;
+        storagePath = clientDoc.storage_path;
+      } else {
+        const { data: assessmentDoc } = await supabase
+          .from('assessment_attachments')
+          .select('file_path, assessment_id, file_name')
+          .eq('id', documentId)
+          .single();
+
+        if (assessmentDoc) {
+          document = {
+            document_name: assessmentDoc.file_name,
+            assessment_id: assessmentDoc.assessment_id
+          };
+          storagePath = assessmentDoc.file_path;
+          isAssessmentDoc = true;
+        }
+      }
+
+      if (!document) {
+        throw new Error('Document not found');
+      }
+
+      const tableName = isAssessmentDoc ? 'assessment_attachments' : 'client_documents';
       const { error: deleteError } = await supabase
-        .from('client_documents')
+        .from(tableName)
         .delete()
         .eq('id', documentId);
 
       if (deleteError) throw deleteError;
 
-      if (document?.storage_path) {
-        await supabase.storage.from(STORAGE_BUCKET).remove([document.storage_path]);
+      if (storagePath) {
+        await supabase.storage.from(STORAGE_BUCKET).remove([storagePath]);
       }
 
       await this.logDocumentAccess({
         documentId: documentId,
-        documentName: document?.document_name || 'Unknown',
+        documentName: document.document_name || 'Unknown',
         documentType: 'deletion',
         accessType: 'delete',
-        clientId: document?.client_id
+        clientId: document.client_id,
+        assessmentId: document.assessment_id
       });
 
       return { success: true };
@@ -344,7 +498,58 @@ export class DocumentService {
   }
 
   static async getAssessmentDocuments(assessmentId) {
-    return [];
+    try {
+      const { data, error } = await supabase
+        .from('assessment_attachments')
+        .select('*')
+        .eq('assessment_id', assessmentId)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error in getAssessmentDocuments query:', error);
+        throw error;
+      }
+
+      if (!data || data.length === 0) {
+        return [];
+      }
+
+      const uploaderIds = [...new Set(data.map(d => d.uploaded_by).filter(Boolean))];
+      let uploaderMap = {};
+
+      if (uploaderIds.length > 0) {
+        const { data: uploaders } = await supabase
+          .from('user_profiles')
+          .select('id, full_name')
+          .in('id', uploaderIds);
+
+        if (uploaders) {
+          uploaders.forEach(u => {
+            uploaderMap[u.id] = u;
+          });
+        }
+      }
+
+      const formattedData = data.map(doc => ({
+        id: doc.id,
+        file_name: doc.file_name,
+        file_size: doc.file_size,
+        file_type: doc.file_type,
+        created_at: doc.created_at,
+        uploaded_at: doc.uploaded_at,
+        uploader: uploaderMap[doc.uploaded_by] || null,
+        secure_document_id: doc.id,
+        secure_document: {
+          document_type: doc.question_code,
+          storage_path: doc.file_path || doc.storage_path
+        }
+      }));
+
+      return formattedData;
+    } catch (error) {
+      console.error('Error fetching assessment documents:', error);
+      return [];
+    }
   }
 
   static async verifyDocument(documentId, status, notes = '') {
