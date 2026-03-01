@@ -67,11 +67,13 @@ const EDDDocumentTemplates = ({ clientId, clientName, onClose, onUpdate, isReadO
       const urls = {};
       for (const doc of data) {
         if (doc.storage_path) {
-          const { data: signedUrlData } = await supabase.storage
+          const { data: signedUrlData, error: urlError } = await supabase.storage
             .from('client-documents')
             .createSignedUrl(doc.storage_path, 3600);
 
-          if (signedUrlData?.signedUrl) {
+          if (urlError) {
+            console.error('Error generating signed URL for document:', doc.id, urlError);
+          } else if (signedUrlData?.signedUrl) {
             urls[doc.id] = signedUrlData.signedUrl;
           }
         }
@@ -82,6 +84,34 @@ const EDDDocumentTemplates = ({ clientId, clientName, onClose, onUpdate, isReadO
 
   const handlePrint = () => {
     window.print();
+  };
+
+  const generateSignedUrl = async (doc) => {
+    if (!doc.storage_path) return null;
+
+    const { data: signedUrlData, error: urlError } = await supabase.storage
+      .from('client-documents')
+      .createSignedUrl(doc.storage_path, 3600);
+
+    if (urlError) {
+      console.error('Error generating signed URL:', urlError);
+      return null;
+    }
+
+    return signedUrlData?.signedUrl;
+  };
+
+  const refreshDocumentUrl = async (docId) => {
+    const doc = eddDocuments.find(d => d.id === docId);
+    if (!doc) return;
+
+    const url = await generateSignedUrl(doc);
+    if (url) {
+      setDocumentUrls(prev => ({
+        ...prev,
+        [docId]: url
+      }));
+    }
   };
 
   const markAsCompleted = async (documentTypeId) => {
@@ -529,9 +559,12 @@ const EDDDocumentTemplates = ({ clientId, clientName, onClose, onUpdate, isReadO
                         View
                       </a>
                     ) : (
-                      <span style={{...styles.viewButton, opacity: 0.5, cursor: 'not-allowed'}}>
-                        Loading...
-                      </span>
+                      <button
+                        onClick={() => refreshDocumentUrl(doc.id)}
+                        style={{...styles.viewButton, border: '1px solid #ccc', background: '#f5f5f5'}}
+                      >
+                        Load Document
+                      </button>
                     )}
                     <span style={{
                       ...styles.statusBadge,
