@@ -86,7 +86,6 @@ const SOFSOWTemplates = ({ client, onClose, onUpdate, isReadOnly = false }) => {
         document_category: 'financial',
         document_name: file.name,
         file_name: fileName,
-        file_path: filePath,
         file_url: urlData.publicUrl,
         file_size: file.size,
         file_type: file.type,
@@ -167,7 +166,7 @@ const SOFSOWTemplates = ({ client, onClose, onUpdate, isReadOnly = false }) => {
         .update({
           verification_status: 'verified',
           verified_by: user?.id,
-          verified_at: new Date().toISOString()
+          verification_date: new Date().toISOString().split('T')[0]
         })
         .eq('id', documentId);
 
@@ -181,15 +180,15 @@ const SOFSOWTemplates = ({ client, onClose, onUpdate, isReadOnly = false }) => {
     }
   };
 
-  const handleDeleteDocument = async (documentId, filePath) => {
+  const handleDeleteDocument = async (documentId, storagePath) => {
     if (!confirm('Are you sure you want to delete this document?')) return;
 
     try {
       // Delete from storage
-      if (filePath) {
+      if (storagePath) {
         const { error: storageError } = await supabase.storage
           .from('client-documents')
-          .remove([filePath]);
+          .remove([storagePath]);
 
         if (storageError) {
           console.error('Storage deletion error:', storageError);
@@ -496,7 +495,7 @@ const SOFSOWTemplates = ({ client, onClose, onUpdate, isReadOnly = false }) => {
                           )}
                           {profile?.role === 'staff' && (
                             <button
-                              onClick={() => handleDeleteDocument(doc.id, doc.file_path)}
+                              onClick={() => handleDeleteDocument(doc.id, doc.storage_path)}
                               style={{...styles.actionButton, ...styles.deleteButton}}
                               title="Delete Document"
                             >
