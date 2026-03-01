@@ -493,22 +493,42 @@ export default function AssessmentForm() {
     setUploadingFiles(prev => ({ ...prev, [questionCode]: true }));
 
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('User not authenticated');
+
       const uploadedFiles = [];
 
       for (const file of Array.from(files)) {
         const fileExt = file.name.split('.').pop();
-        const fileName = `${id}/${questionCode}/${Date.now()}.${fileExt}`;
+        const timestamp = Date.now();
+        const storagePath = `assessments/${id}/${questionCode}/${timestamp}_${file.name}`;
+
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from('client-documents')
+          .upload(storagePath, file, {
+            cacheControl: '3600',
+            upsert: false
+          });
+
+        if (uploadError) {
+          console.error('Storage upload error:', uploadError);
+          throw uploadError;
+        }
 
         const fileData = {
           assessment_id: id,
           question_code: questionCode,
           file_name: file.name,
-          file_path: fileName,
+          file_path: storagePath,
+          storage_path: storagePath,
           file_size: file.size,
           file_type: file.type,
-          uploaded_by: assessment.created_by,
-          declaration_confirmed: true,
-          declaration_text: ATTACHMENT_DECLARATION
+          uploaded_by: user.id,
+          metadata: {
+            declaration_confirmed: true,
+            declaration_text: ATTACHMENT_DECLARATION,
+            original_filename: file.name
+          }
         };
 
         const { data, error } = await supabase
@@ -517,7 +537,11 @@ export default function AssessmentForm() {
           .select()
           .single();
 
-        if (error) throw error;
+        if (error) {
+          await supabase.storage.from('client-documents').remove([storagePath]);
+          throw error;
+        }
+
         uploadedFiles.push(data);
       }
 
@@ -535,10 +559,46 @@ export default function AssessmentForm() {
     }
   };
 
+  const handleFileView = async (attachment) => {
+    try {
+      const storagePath = attachment.storage_path || attachment.file_path;
+
+      if (!storagePath) {
+        alert('File path not found');
+        return;
+      }
+
+      const { data, error } = await supabase.storage
+        .from('client-documents')
+        .createSignedUrl(storagePath, 3600);
+
+      if (error) throw error;
+
+      if (data && data.signedUrl) {
+        window.open(data.signedUrl, '_blank');
+      }
+    } catch (error) {
+      console.error('Error viewing file:', error);
+      alert('Error viewing file. Please try again.');
+    }
+  };
+
   const handleFileDelete = async (questionCode, attachmentId) => {
     if (!confirm('Are you sure you want to delete this file?')) return;
 
     try {
+      const attachment = (attachments[questionCode] || []).find(att => att.id === attachmentId);
+
+      if (attachment && attachment.storage_path) {
+        const { error: storageError } = await supabase.storage
+          .from('client-documents')
+          .remove([attachment.storage_path]);
+
+        if (storageError) {
+          console.error('Storage deletion error:', storageError);
+        }
+      }
+
       const { error } = await supabase
         .from('assessment_attachments')
         .delete()
@@ -996,17 +1056,28 @@ export default function AssessmentForm() {
                                 <div>
                                   <p style={styles.attachmentName}>{att.file_name}</p>
                                   <p style={styles.attachmentMeta}>
-                                    {(att.file_size / 1024).toFixed(1)} KB • {new Date(att.uploaded_at).toLocaleDateString()}
+                                    {(att.file_size / 1024).toFixed(1)} KB • {new Date(att.uploaded_at || att.created_at).toLocaleDateString()}
                                   </p>
                                 </div>
                               </div>
-                              <button
-                                onClick={() => handleFileDelete(question.code, att.id)}
-                                style={styles.deleteButton}
-                                title="Delete file"
-                              >
-                                ×
-                              </button>
+                              <div style={{ display: 'flex', gap: '8px' }}>
+                                <button
+                                  onClick={() => handleFileView(att)}
+                                  style={styles.viewButton}
+                                  title="View file"
+                                >
+                                  👁
+                                </button>
+                                {!isReadOnly && (
+                                  <button
+                                    onClick={() => handleFileDelete(question.code, att.id)}
+                                    style={styles.deleteButton}
+                                    title="Delete file"
+                                  >
+                                    ×
+                                  </button>
+                                )}
+                              </div>
                             </div>
                           ))}
                         </div>
@@ -1707,6 +1778,20 @@ const styles = {
     cursor: 'pointer',
     fontSize: '20px',
     fontWeight: '700',
+    transition: 'all 0.2s',
+  },
+  viewButton: {
+    width: '28px',
+    height: '28px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    background: '#e0f2fe',
+    color: '#0284c7',
+    border: 'none',
+    borderRadius: '6px',
+    cursor: 'pointer',
+    fontSize: '16px',
     transition: 'all 0.2s',
   },
 };
