@@ -42,30 +42,37 @@ Unified all document operations to follow the **SOF/SOW Templates pattern**:
 ---
 
 ### 2. EDD Document Templates (`EDDDocumentTemplates.jsx`)
-**Status**: ✅ Updated
+**Status**: ✅ Updated & Simplified
 
-**Changes**:
+**Major Changes**:
+- **Removed redundant upload interface** - The "Choose File" grid with 8 document types is gone
+- **Simplified to view-only** - Component now only displays uploaded EDD documents
 - Removed pre-loading of signed URLs (removed `documentUrls` state)
 - Removed `refreshDocumentUrl()` and `generateSignedUrl()` functions
-- Updated `handleUpload()` to match SOF/SOW pattern
-  - Uses `organization_id/filename` path structure
-  - No longer stores `file_url`
-  - Only stores `storage_path`
+- **Removed unused upload functions** - `handleUpload()`, `handleFileSelect()`
+- **Removed unused template functions** - `markAsCompleted()`, `getDocumentStatus()`
+- **Removed template selection grid** - No more template cards or print functionality
 - Added `handleViewDocument(storagePath)` - on-demand signed URLs
 - Added `handleDownloadDocument(storagePath, fileName)` - on-demand downloads
 - Added `handleDeleteDocument(documentId, storagePath)` - complete deletion
 - Updated UI buttons to use new handlers with `storage_path`
 - Added delete button for staff users
-- Added `deleteButton` style
+- **Added empty state** - Shows message when no EDD documents exist
+- **Bundle size reduced** by 86KB (1569KB → 1483KB)
+
+**Current Purpose**:
+The component is now a **read-only viewer** for EDD documents that were uploaded through the Documents tab. It filters to show only EDD-specific document types (PEP declarations, EDD questionnaires, etc.).
 
 **Functions**:
 ```javascript
-- handleUpload() - standardized upload matching SOF/SOW pattern
+- fetchEDDDocuments() - loads only EDD document types with filter
 - handleViewDocument(storagePath) - creates signed URL and opens
 - handleDownloadDocument(storagePath, fileName) - creates signed URL and downloads
 - handleVerifyDocument(documentId, newStatus) - verify/reject documents
 - handleDeleteDocument(documentId, storagePath) - delete document completely
 ```
+
+**Note**: All EDD document uploads now happen through the main **Documents tab** in Client Details, not through this component.
 
 ---
 

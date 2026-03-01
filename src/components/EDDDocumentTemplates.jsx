@@ -4,50 +4,16 @@ import { useAuth } from '../contexts/AuthContext';
 
 const EDDDocumentTemplates = ({ clientId, clientName, onClose, onUpdate, isReadOnly = false }) => {
   const { profile } = useAuth();
-  const [selectedTemplate, setSelectedTemplate] = useState(null);
-  const [documentTypes, setDocumentTypes] = useState([]);
   const [eddDocuments, setEddDocuments] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [showUploadSection, setShowUploadSection] = useState(true);
-  const [uploadingDocumentType, setUploadingDocumentType] = useState(null);
-  const [selectedFile, setSelectedFile] = useState(null);
-  const [uploadError, setUploadError] = useState('');
-  const [uploadSuccess, setUploadSuccess] = useState('');
   const isFetchingRef = useRef(false);
 
   // Check if user can verify documents (Staff, Compliance Officer, or Admin)
   const canVerifyDocuments = profile?.role === 'staff' || profile?.role === 'compliance_officer' || profile?.role === 'admin';
 
   useEffect(() => {
-    fetchDocumentTypes();
     fetchEDDDocuments();
   }, [clientId]);
-
-  const fetchDocumentTypes = async () => {
-    const { data, error } = await supabase
-      .from('document_types')
-      .select('*')
-      .not('template_content', 'is', null)
-      .in('code', [
-        'pep_declaration',
-        'edd_questionnaire',
-        'public_records_search',
-        'senior_approval',
-        'monitoring_checklist',
-        'pep_assessment',
-        'economic_rationale',
-        'country_risk_assessment'
-      ])
-      .order('display_order');
-
-    if (error) {
-      console.error('Error fetching document types:', error);
-    } else if (data) {
-      console.log('Document types loaded:', data);
-      setDocumentTypes(data);
-    }
-    setLoading(false);
-  };
 
   const fetchEDDDocuments = async () => {
     if (isFetchingRef.current) {
@@ -56,6 +22,7 @@ const EDDDocumentTemplates = ({ clientId, clientName, onClose, onUpdate, isReadO
     }
 
     isFetchingRef.current = true;
+    setLoading(true);
     try {
       const { data, error } = await supabase
         .from('client_documents')
@@ -68,6 +35,16 @@ const EDDDocumentTemplates = ({ clientId, clientName, onClose, onUpdate, isReadO
           )
         `)
         .eq('client_id', clientId)
+        .in('document_types.code', [
+          'pep_declaration',
+          'edd_questionnaire',
+          'public_records_search',
+          'senior_approval',
+          'monitoring_checklist',
+          'pep_assessment',
+          'economic_rationale',
+          'country_risk_assessment'
+        ])
         .order('uploaded_at', { ascending: false });
 
       if (error) {
@@ -83,11 +60,8 @@ const EDDDocumentTemplates = ({ clientId, clientName, onClose, onUpdate, isReadO
       console.error('Error in fetchEDDDocuments:', err);
     } finally {
       isFetchingRef.current = false;
+      setLoading(false);
     }
-  };
-
-  const handlePrint = () => {
-    window.print();
   };
 
   const handleViewDocument = async (storagePath) => {
@@ -161,92 +135,6 @@ const EDDDocumentTemplates = ({ clientId, clientName, onClose, onUpdate, isReadO
     }
   };
 
-  const markAsCompleted = async (documentTypeId) => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-
-      const docType = documentTypes.find(dt => dt.id === documentTypeId);
-
-      const { data: profile } = await supabase
-        .from('user_profiles')
-        .select('organization_id')
-        .eq('id', user.id)
-        .single();
-
-      if (!profile?.organization_id) {
-        throw new Error('Organization ID not found');
-      }
-
-      const existingDoc = eddDocuments.find(doc => doc.document_type_id === documentTypeId);
-
-      if (existingDoc) {
-        const { error: updateError } = await supabase
-          .from('client_documents')
-          .update({
-            verification_status: 'verified',
-            verification_date: new Date().toISOString().split('T')[0],
-            verified_by: user.id,
-            verification_notes: 'Completed via EDD Templates'
-          })
-          .eq('id', existingDoc.id);
-
-        if (updateError) throw updateError;
-      } else {
-        const { error: insertError } = await supabase
-          .from('client_documents')
-          .insert({
-            client_id: clientId,
-            organization_id: profile.organization_id,
-            document_type_id: documentTypeId,
-            document_type: docType?.code || 'edd_template',
-            document_category: 'other',
-            document_name: docType?.name || 'EDD Template',
-            file_name: `${docType?.code || 'edd_template'}_completed.pdf`,
-            verification_status: 'verified',
-            verification_date: new Date().toISOString().split('T')[0],
-            verified_by: user.id,
-            verification_notes: 'Completed via EDD Templates',
-            uploaded_by: user.id
-          });
-
-        if (insertError) throw insertError;
-      }
-
-      console.log('Document type found:', docType);
-
-      if (docType && docType.code === 'senior_approval') {
-        console.log('Setting senior approval to approved');
-        const { error: clientUpdateError } = await supabase
-          .from('kyc_clients')
-          .update({ senior_approval_status: 'approved' })
-          .eq('id', clientId);
-
-        if (clientUpdateError) {
-          console.error('Error updating client:', clientUpdateError);
-          throw clientUpdateError;
-        }
-        console.log('Client senior approval updated successfully');
-      }
-
-      await fetchEDDDocuments();
-
-      if (onUpdate) {
-        console.log('Calling onUpdate to refresh parent');
-        await onUpdate();
-      }
-
-      alert(`${docType?.name || 'Document'} completed`);
-    } catch (error) {
-      console.error('Error marking document as completed:', error);
-      alert('Failed to mark document as completed: ' + error.message);
-    }
-  };
-
-  const getDocumentStatus = (documentTypeId) => {
-    const doc = eddDocuments.find(d => d.document_type_id === documentTypeId);
-    return doc?.verification_status === 'verified' ? 'completed' : 'pending';
-  };
-
   const handleVerifyDocument = async (documentId, newStatus) => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -286,126 +174,6 @@ const EDDDocumentTemplates = ({ clientId, clientName, onClose, onUpdate, isReadO
     } catch (error) {
       console.error('Error updating document status:', error);
       alert('Failed to update document status: ' + error.message);
-    }
-  };
-
-  const handleFileSelect = (e, documentTypeId) => {
-    const file = e.target.files[0];
-    if (file) {
-      const maxSize = 10 * 1024 * 1024;
-      if (file.size > maxSize) {
-        setUploadError('File size must be less than 10MB');
-        return;
-      }
-
-      const allowedTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
-      if (!allowedTypes.includes(file.type)) {
-        setUploadError('Only PDF, JPG, JPEG, and PNG files are allowed');
-        return;
-      }
-
-      setSelectedFile(file);
-      setUploadingDocumentType(documentTypeId);
-      setUploadError('');
-      setUploadSuccess('');
-    }
-  };
-
-  const handleUpload = async () => {
-    if (!selectedFile || !uploadingDocumentType) return;
-
-    try {
-      setUploadError('');
-      setUploadSuccess('');
-
-      const { data: { user } } = await supabase.auth.getUser();
-      const { data: profile } = await supabase
-        .from('user_profiles')
-        .select('organization_id')
-        .eq('id', user.id)
-        .single();
-
-      if (!profile?.organization_id) {
-        throw new Error('Organization ID not found');
-      }
-
-      const docType = documentTypes.find(dt => dt.id === uploadingDocumentType);
-      const fileExt = selectedFile.name.split('.').pop();
-      const fileName = `${clientId}_${docType.code}_${Date.now()}.${fileExt}`;
-      const filePath = `${profile.organization_id}/${fileName}`;
-
-      console.log('Uploading file:', { fileName, filePath, fileSize: selectedFile.size });
-
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from('client-documents')
-        .upload(filePath, selectedFile, {
-          cacheControl: '3600',
-          upsert: false
-        });
-
-      if (uploadError) {
-        console.error('Storage upload error:', uploadError);
-        throw uploadError;
-      }
-
-      console.log('Upload successful:', uploadData);
-
-      const existingDoc = eddDocuments.find(doc => doc.document_type_id === uploadingDocumentType);
-
-      const documentRecord = {
-        file_name: selectedFile.name,
-        storage_path: filePath,
-        mime_type: selectedFile.type,
-        file_size: selectedFile.size,
-        verification_status: 'pending',
-        uploaded_at: new Date().toISOString(),
-        uploaded_by: user.id
-      };
-
-      if (existingDoc) {
-        const { error: updateError } = await supabase
-          .from('client_documents')
-          .update(documentRecord)
-          .eq('id', existingDoc.id);
-
-        if (updateError) {
-          console.error('Database update error:', updateError);
-          throw updateError;
-        }
-      } else {
-        const { error: insertError } = await supabase
-          .from('client_documents')
-          .insert({
-            ...documentRecord,
-            client_id: clientId,
-            organization_id: profile.organization_id,
-            document_type_id: uploadingDocumentType,
-            document_type: docType?.code || 'edd_template',
-            document_category: 'legal',
-            document_name: docType?.name || 'EDD Template',
-            is_mandatory: true,
-            is_current: true
-          });
-
-        if (insertError) {
-          console.error('Database insert error:', insertError);
-          throw insertError;
-        }
-      }
-
-      setUploadSuccess(`${docType?.name} uploaded successfully!`);
-      setSelectedFile(null);
-      setUploadingDocumentType(null);
-
-      await fetchEDDDocuments();
-      if (onUpdate) {
-        onUpdate();
-      }
-
-      setTimeout(() => setUploadSuccess(''), 5000);
-    } catch (error) {
-      console.error('Error uploading document:', error);
-      setUploadError('Failed to upload document: ' + error.message);
     }
   };
 
@@ -551,90 +319,13 @@ const EDDDocumentTemplates = ({ clientId, clientName, onClose, onUpdate, isReadO
         <div style={styles.infoBox}>
           <p style={styles.clientName}>Client: {clientName}</p>
           <p style={styles.infoText}>
-            Upload completed EDD templates or select a template below to view and print
+            Enhanced Due Diligence documents for high-risk clients
           </p>
         </div>
 
-        {!isReadOnly && (
-          <div style={styles.uploadSection}>
-            <div style={styles.uploadHeader}>
-              <h3 style={styles.uploadTitle}>📤 Upload Completed EDD Templates</h3>
-              <button
-                onClick={() => setShowUploadSection(!showUploadSection)}
-                style={styles.toggleButton}
-              >
-                {showUploadSection ? 'Hide' : 'Show'}
-              </button>
-            </div>
-
-            {showUploadSection && (
-              <div style={styles.uploadContent}>
-                {uploadSuccess && (
-                  <div style={styles.successMessage}>
-                    ✓ {uploadSuccess}
-                  </div>
-                )}
-
-                {uploadError && (
-                  <div style={styles.errorMessage}>
-                    ✗ {uploadError}
-                  </div>
-                )}
-
-                <div style={styles.uploadGrid}>
-                  {documentTypes.map((docType) => {
-                    const status = getDocumentStatus(docType.id);
-                    const hasDocument = eddDocuments.find(d => d.document_type_id === docType.id && d.file_url);
-
-                    return (
-                      <div key={docType.id} style={styles.uploadCard}>
-                        <div style={styles.uploadCardHeader}>
-                          <span style={styles.uploadCardTitle}>{docType.name}</span>
-                          {hasDocument && (
-                            <span style={styles.uploadedBadge}>✓ Uploaded</span>
-                          )}
-                        </div>
-
-                        <div style={styles.uploadCardBody}>
-                          <input
-                            type="file"
-                            id={`file-${docType.id}`}
-                            accept=".pdf,.jpg,.jpeg,.png"
-                            onChange={(e) => handleFileSelect(e, docType.id)}
-                            style={{ display: 'none' }}
-                          />
-
-                          <label
-                            htmlFor={`file-${docType.id}`}
-                            style={styles.fileSelectButton}
-                          >
-                            Choose File
-                          </label>
-
-                          {uploadingDocumentType === docType.id && selectedFile && (
-                            <div style={styles.selectedFile}>
-                              <span style={styles.fileName}>{selectedFile.name}</span>
-                              <button
-                                onClick={handleUpload}
-                                style={styles.uploadButton}
-                              >
-                                Upload
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {eddDocuments.length > 0 && (
+        {eddDocuments.length > 0 ? (
           <div style={styles.uploadedSection}>
-            <h3 style={styles.uploadedTitle}>Uploaded EDD Documents</h3>
+            <h3 style={styles.uploadedTitle}>EDD Documents</h3>
             <div style={styles.uploadedList}>
               {eddDocuments.filter(doc => doc.storage_path).map((doc) => (
                 <div key={doc.id} style={styles.uploadedItem}>
@@ -727,85 +418,15 @@ const EDDDocumentTemplates = ({ clientId, clientName, onClose, onUpdate, isReadO
               ))}
             </div>
           </div>
-        )}
-
-        <div style={styles.templateGrid}>
-          {documentTypes.map((docType) => {
-            const status = getDocumentStatus(docType.id);
-            const isSelected = selectedTemplate === docType.id;
-            return (
-              <div
-                key={docType.id}
-                style={{
-                  ...styles.templateCard,
-                  ...(isSelected ? styles.templateCardSelected : {})
-                }}
-                onClick={() => setSelectedTemplate(docType.id)}
-              >
-                <div style={styles.cardHeader}>
-                  <h3 style={styles.cardTitle}>{docType.name}</h3>
-                  <span
-                    style={{
-                      ...styles.statusBadge,
-                      ...(status === 'completed' || status === 'reviewed' || status === 'approved'
-                        ? styles.statusBadgeCompleted
-                        : styles.statusBadgePending)
-                    }}
-                  >
-                    {status}
-                  </span>
-                </div>
-                <p style={styles.cardDescription}>{docType.description}</p>
-              </div>
-            );
-          })}
-        </div>
-
-        {selectedTemplate && (
-          <div style={styles.actionButtons}>
-            <button onClick={handlePrint} style={styles.printButton}>
-              Print Template
-            </button>
-            {!isReadOnly && (
-              <button
-                onClick={() => markAsCompleted(selectedTemplate)}
-                style={styles.completeButton}
-              >
-                Mark as Completed
-              </button>
-            )}
+        ) : (
+          <div style={styles.emptyState}>
+            <p style={styles.emptyStateText}>No EDD documents uploaded yet</p>
+            <p style={styles.emptyStateSubtext}>
+              EDD documents should be uploaded through the Documents tab in Client Details
+            </p>
           </div>
         )}
       </div>
-
-      {selectedTemplate && (
-        <div className="template-content">
-          {selectedTemplate === documentTypes.find(dt => dt.code === 'pep_declaration')?.id && (
-            <PEPDeclarationTemplate clientName={clientName} />
-          )}
-          {selectedTemplate === documentTypes.find(dt => dt.code === 'edd_questionnaire')?.id && (
-            <EnhancedDDQuestionnaireTemplate clientName={clientName} />
-          )}
-          {selectedTemplate === documentTypes.find(dt => dt.code === 'public_records_search')?.id && (
-            <PublicRecordsSearchTemplate clientName={clientName} />
-          )}
-          {selectedTemplate === documentTypes.find(dt => dt.code === 'senior_approval')?.id && (
-            <SeniorManagementApprovalTemplate clientName={clientName} />
-          )}
-          {selectedTemplate === documentTypes.find(dt => dt.code === 'monitoring_checklist')?.id && (
-            <OngoingMonitoringChecklistTemplate clientName={clientName} />
-          )}
-          {selectedTemplate === documentTypes.find(dt => dt.code === 'pep_assessment')?.id && (
-            <PEPAssessmentFormTemplate clientName={clientName} />
-          )}
-          {selectedTemplate === documentTypes.find(dt => dt.code === 'economic_rationale')?.id && (
-            <TransactionEconomicRationaleTemplate clientName={clientName} />
-          )}
-          {selectedTemplate === documentTypes.find(dt => dt.code === 'country_risk_assessment')?.id && (
-            <CountryRiskAssessmentTemplate clientName={clientName} />
-          )}
-        </div>
-      )}
     </div>
   );
 };
@@ -956,6 +577,24 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     gap: '4px',
+  },
+  emptyState: {
+    padding: '60px 20px',
+    textAlign: 'center',
+    background: '#f9fafb',
+    borderRadius: '8px',
+    border: '2px dashed #d1d5db',
+  },
+  emptyStateText: {
+    fontSize: '16px',
+    fontWeight: '600',
+    color: '#6b7280',
+    margin: '0 0 8px 0',
+  },
+  emptyStateSubtext: {
+    fontSize: '14px',
+    color: '#9ca3af',
+    margin: 0,
   },
   cardDescription: {
     fontSize: '12px',
