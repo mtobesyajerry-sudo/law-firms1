@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { DocumentService } from '../services/documentService';
 import { supabase } from '../supabaseClient';
 
 export default function DocumentUploadManager({
@@ -88,8 +87,18 @@ export default function DocumentUploadManager({
 
   const loadClientDocuments = async () => {
     try {
-      const docs = await DocumentService.getClientDocuments(clientId);
-      setUploadedDocuments(docs || []);
+      const { data, error } = await supabase
+        .from('client_documents')
+        .select(`
+          *,
+          document_type:document_types(*)
+        `)
+        .eq('client_id', clientId)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      setUploadedDocuments(data || []);
     } catch (err) {
       console.error('Error loading documents:', err);
     }
@@ -153,37 +162,80 @@ export default function DocumentUploadManager({
       setSuccess('');
       setUploadProgress(10);
 
-      const validation = await DocumentService.validateFile(selectedFile);
-      if (!validation.valid) {
-        throw new Error(validation.errors.join(', '));
+      const MAX_FILE_SIZE = 50 * 1024 * 1024;
+      if (selectedFile.size > MAX_FILE_SIZE) {
+        throw new Error('File size exceeds 50MB limit');
       }
       setUploadProgress(30);
 
-      const result = await DocumentService.uploadDocument({
-        file: selectedFile,
-        documentTypeId: selectedDocumentType,
-        clientId: clientId,
-        organizationId: organizationId,
-        classification: 'confidential',
-        requiresMFA: true,
-        watermarkText: `Client: ${clientId}`,
-        metadata: {
-          uploadedFrom: 'KYC Client Management',
-          uploadTimestamp: new Date().toISOString()
-        }
-      });
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        throw new Error('User not authenticated');
+      }
+
+      const { data: docType } = await supabase
+        .from('document_types')
+        .select('*')
+        .eq('id', selectedDocumentType)
+        .single();
+
+      const fileExt = selectedFile.name.split('.').pop();
+      const fileName = `${clientId}_${docType?.name.replace(/\s+/g, '_')}_${Date.now()}.${fileExt}`;
+      const filePath = `${organizationId}/${fileName}`;
+
+      setUploadProgress(50);
+
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('client-documents')
+        .upload(filePath, selectedFile, {
+          cacheControl: '3600',
+          upsert: false
+        });
+
+      if (uploadError) {
+        throw uploadError;
+      }
+
+      setUploadProgress(70);
+
+      const documentRecord = {
+        client_id: clientId,
+        organization_id: organizationId,
+        document_type_id: selectedDocumentType,
+        document_type: docType?.name || 'Document',
+        document_category: docType?.category || 'other',
+        document_name: selectedFile.name,
+        file_name: fileName,
+        file_size: selectedFile.size,
+        file_type: selectedFile.type,
+        mime_type: selectedFile.type,
+        storage_path: filePath,
+        verification_status: 'pending',
+        is_mandatory: true,
+        is_current: true,
+        uploaded_by: user.id
+      };
+
+      const { error: dbError } = await supabase
+        .from('client_documents')
+        .insert(documentRecord);
+
+      if (dbError) {
+        throw dbError;
+      }
 
       setUploadProgress(100);
       setSuccess('Document uploaded successfully!');
       setSelectedFile(null);
       setSelectedDocumentType('');
 
-      document.getElementById('file-input').value = '';
+      const fileInput = document.getElementById('file-input');
+      if (fileInput) fileInput.value = '';
 
       await loadClientDocuments();
 
       if (onUploadComplete) {
-        onUploadComplete(result);
+        onUploadComplete({ success: true });
       }
 
       setTimeout(() => {
@@ -200,39 +252,68 @@ export default function DocumentUploadManager({
     }
   };
 
-  const handleDownload = async (documentId) => {
+  const handleDownload = async (doc) => {
     try {
-      console.log('Download clicked for document:', documentId);
-      const url = await DocumentService.downloadDocument(documentId);
-      console.log('Download URL:', url);
-      window.open(url, '_blank');
+      const { data, error } = await supabase.storage
+        .from('client-documents')
+        .createSignedUrl(doc.storage_path, 3600);
+
+      if (error) throw error;
+
+      const response = await fetch(data.signedUrl);
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = doc.file_name;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
     } catch (err) {
       console.error('Download error:', err);
       alert(`Failed to download document: ${err.message}`);
     }
   };
 
-  const handleView = async (documentId) => {
+  const handleView = async (doc) => {
     try {
-      console.log('View clicked for document:', documentId);
-      const result = await DocumentService.viewDocument(documentId);
-      console.log('View result:', result);
-      setDocumentToView(result);
+      const { data, error } = await supabase.storage
+        .from('client-documents')
+        .createSignedUrl(doc.storage_path, 3600);
+
+      if (error) throw error;
+
+      window.open(data.signedUrl, '_blank');
     } catch (err) {
       console.error('View error:', err);
       alert(`Failed to view document: ${err.message}`);
     }
   };
 
-  const handleDelete = async (documentId) => {
-    console.log('Delete clicked for document:', documentId);
+  const handleDelete = async (doc) => {
     if (!confirm('Are you sure you want to delete this document? This action cannot be undone.')) {
       return;
     }
 
     try {
-      console.log('Deleting document:', documentId);
-      await DocumentService.deleteDocument(documentId);
+      if (doc.storage_path) {
+        const { error: storageError } = await supabase.storage
+          .from('client-documents')
+          .remove([doc.storage_path]);
+
+        if (storageError) {
+          console.error('Error deleting from storage:', storageError);
+        }
+      }
+
+      const { error: dbError } = await supabase
+        .from('client_documents')
+        .delete()
+        .eq('id', doc.id);
+
+      if (dbError) throw dbError;
+
       setSuccess('Document deleted successfully');
       await loadClientDocuments();
       setTimeout(() => setSuccess(''), 3000);
@@ -243,12 +324,23 @@ export default function DocumentUploadManager({
   };
 
   const handleVerify = async (documentId, status) => {
-    console.log('Verify clicked for document:', documentId, 'status:', status);
     const notes = prompt(`Enter verification notes (optional):`);
 
     try {
-      console.log('Verifying document:', documentId, 'with status:', status);
-      await DocumentService.verifyDocument(documentId, status, notes || '');
+      const { data: { user } } = await supabase.auth.getUser();
+
+      const { error } = await supabase
+        .from('client_documents')
+        .update({
+          verification_status: status,
+          verified_by: user.id,
+          verification_date: new Date().toISOString(),
+          verification_notes: notes || ''
+        })
+        .eq('id', documentId);
+
+      if (error) throw error;
+
       setSuccess(`Document ${status === 'verified' ? 'verified' : 'rejected'} successfully`);
       await loadClientDocuments();
       setTimeout(() => setSuccess(''), 3000);
@@ -263,6 +355,24 @@ export default function DocumentUploadManager({
       ...prev,
       [category]: !prev[category]
     }));
+  };
+
+  const formatFileSize = (bytes) => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+  };
+
+  const getFileIcon = (mimeType) => {
+    if (!mimeType) return '📎';
+    if (mimeType.startsWith('image/')) return '🖼️';
+    if (mimeType === 'application/pdf') return '📄';
+    if (mimeType.includes('word')) return '📝';
+    if (mimeType.includes('excel') || mimeType.includes('sheet')) return '📊';
+    if (mimeType.includes('zip')) return '📦';
+    return '📎';
   };
 
   const formatCategoryName = (category) => {
@@ -649,13 +759,13 @@ export default function DocumentUploadManager({
                                       marginBottom: '4px',
                                       wordBreak: 'break-word'
                                     }}>
-                                      {DocumentService.getFileIcon(doc.mime_type)} {doc.file_name}
+                                      {getFileIcon(doc.mime_type)} {doc.file_name}
                                     </div>
                                     <div style={{
                                       fontSize: '11px',
                                       color: '#6b7280'
                                     }}>
-                                      {DocumentService.formatFileSize(doc.file_size)} • {new Date(doc.created_at).toLocaleDateString()}
+                                      {formatFileSize(doc.file_size)} • {new Date(doc.created_at).toLocaleDateString()}
                                     </div>
                                   </div>
                                   <div style={{
@@ -664,7 +774,7 @@ export default function DocumentUploadManager({
                                     gap: '6px'
                                   }}>
                                     <button
-                                      onClick={() => handleView(doc.secure_document_id)}
+                                      onClick={() => handleView(doc)}
                                       style={{
                                         padding: '6px 12px',
                                         background: '#dbeafe',
@@ -679,7 +789,7 @@ export default function DocumentUploadManager({
                                       View
                                     </button>
                                     <button
-                                      onClick={() => handleDownload(doc.secure_document_id)}
+                                      onClick={() => handleDownload(doc)}
                                       style={{
                                         padding: '6px 12px',
                                         background: '#d1fae5',
@@ -696,7 +806,7 @@ export default function DocumentUploadManager({
                                     {!isReadOnly && doc.verification_status === 'pending' && (
                                       <>
                                         <button
-                                          onClick={() => handleVerify(doc.secure_document_id, 'verified')}
+                                          onClick={() => handleVerify(doc.id, 'verified')}
                                           style={{
                                             padding: '6px 12px',
                                             background: '#d1fae5',
@@ -711,7 +821,7 @@ export default function DocumentUploadManager({
                                           ✓ Verify
                                         </button>
                                         <button
-                                          onClick={() => handleVerify(doc.secure_document_id, 'rejected')}
+                                          onClick={() => handleVerify(doc.id, 'rejected')}
                                           style={{
                                             padding: '6px 12px',
                                             background: '#fee2e2',
@@ -729,7 +839,7 @@ export default function DocumentUploadManager({
                                     )}
                                     {!isReadOnly && (
                                       <button
-                                        onClick={() => handleDelete(doc.secure_document_id)}
+                                        onClick={() => handleDelete(doc)}
                                         style={{
                                           padding: '6px 12px',
                                           background: '#fee2e2',
