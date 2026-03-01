@@ -2,9 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
+import ClientDocumentManagement from './ClientDocumentManagement';
 import SOFSOWTemplates from './SOFSOWTemplates';
+import EDDDocumentTemplates from './EDDDocumentTemplates';
 import ClientDeclarationForm from './ClientDeclarationForm';
-import UnifiedDocumentManager from './UnifiedDocumentManager';
+import DocumentUploadManager from './DocumentUploadManager';
 import LoadingSpinner from './LoadingSpinner';
 import {
   getRiskColor,
@@ -1057,11 +1059,15 @@ export default function KYCClientDetails() {
         )}
 
         {activeTab === 'documents' && (
-          <UnifiedDocumentManager
-            clientId={client.id}
-            clientName={client.client_name}
-            onClose={() => setActiveTab('overview')}
-          />
+          <div>
+            <DocumentUploadManager
+              clientId={client.id}
+              organizationId={client.organization_id}
+              mode="kyc"
+              onUploadComplete={() => loadClient()}
+              isReadOnly={isReadOnly}
+            />
+          </div>
         )}
 
         {activeTab === 'risk' && (
@@ -1109,10 +1115,12 @@ export default function KYCClientDetails() {
         )}
 
         {activeTab === 'edd-templates' && (
-          <UnifiedDocumentManager
+          <EDDDocumentTemplates
             clientId={client.id}
             clientName={client.client_name}
             onClose={() => setActiveTab('overview')}
+            onUpdate={loadClient}
+            isReadOnly={isReadOnly}
           />
         )}
 
