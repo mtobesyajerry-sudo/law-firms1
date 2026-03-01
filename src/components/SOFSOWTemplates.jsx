@@ -55,47 +55,66 @@ const SOFSOWTemplates = ({ client, onClose, onUpdate, isReadOnly = false }) => {
     try {
       const fileExt = file.name.split('.').pop();
       const fileName = `${client.id}_${documentType}_${Date.now()}.${fileExt}`;
-      const filePath = `client-documents/${client.organization_id}/${fileName}`;
+      const filePath = `${client.organization_id}/${fileName}`;
 
-      const { error: uploadError } = await supabase.storage
+      console.log('Uploading file:', { fileName, filePath, fileSize: file.size });
+
+      const { data: uploadData, error: uploadError } = await supabase.storage
         .from('client-documents')
-        .upload(filePath, file);
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false
+        });
 
-      if (uploadError) throw uploadError;
+      if (uploadError) {
+        console.error('Storage upload error:', uploadError);
+        throw uploadError;
+      }
+
+      console.log('Upload successful:', uploadData);
 
       const { data: urlData } = supabase.storage
         .from('client-documents')
         .getPublicUrl(filePath);
 
+      console.log('Public URL:', urlData.publicUrl);
+
+      const documentRecord = {
+        client_id: client.id,
+        organization_id: client.organization_id,
+        document_type: documentType === 'sof' ? 'Source of Funds' : 'Source of Wealth',
+        document_category: 'financial',
+        document_name: file.name,
+        file_name: fileName,
+        file_path: filePath,
+        file_url: urlData.publicUrl,
+        file_size: file.size,
+        file_type: file.type,
+        mime_type: file.type,
+        storage_path: filePath,
+        verification_status: 'pending',
+        is_mandatory: true,
+        is_current: true,
+        uploaded_by: user?.id
+      };
+
+      console.log('Inserting document record:', documentRecord);
+
       const { error: dbError } = await supabase
         .from('client_documents')
-        .insert({
-          client_id: client.id,
-          organization_id: client.organization_id,
-          document_type: documentType === 'sof' ? 'Source of Funds' : 'Source of Wealth',
-          document_category: 'financial',
-          document_name: file.name,
-          file_name: fileName,
-          file_path: filePath,
-          file_url: urlData.publicUrl,
-          file_size: file.size,
-          file_type: file.type,
-          mime_type: file.type,
-          storage_path: filePath,
-          verification_status: 'pending',
-          is_mandatory: true,
-          is_current: true,
-          uploaded_by: user?.id
-        });
+        .insert(documentRecord);
 
-      if (dbError) throw dbError;
+      if (dbError) {
+        console.error('Database insert error:', dbError);
+        throw dbError;
+      }
 
       alert(`${documentType === 'sof' ? 'Source of Funds' : 'Source of Wealth'} document uploaded successfully`);
       await loadUploadedDocuments();
       event.target.value = '';
     } catch (error) {
       console.error('Error uploading document:', error);
-      alert('Failed to upload document. Please try again.');
+      alert(`Failed to upload document: ${error.message || 'Please try again.'}`);
     } finally {
       setUploading(false);
     }
