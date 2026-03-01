@@ -7,7 +7,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Client-Info, Apikey',
 };
 
-const ENCRYPTION_KEY = Deno.env.get('ENCRYPTION_KEY') || 'default-encryption-key-change-in-production';
+const ENCRYPTION_KEY = 'user-registration-encryption-key-2026';
 
 function decryptPassword(encryptedPassword: string | null): string | null {
   if (!encryptedPassword) return null;
