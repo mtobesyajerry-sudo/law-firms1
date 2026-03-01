@@ -73,12 +73,6 @@ const SOFSOWTemplates = ({ client, onClose, onUpdate, isReadOnly = false }) => {
 
       console.log('Upload successful:', uploadData);
 
-      const { data: urlData } = supabase.storage
-        .from('client-documents')
-        .getPublicUrl(filePath);
-
-      console.log('Public URL:', urlData.publicUrl);
-
       const documentRecord = {
         client_id: client.id,
         organization_id: client.organization_id,
@@ -86,7 +80,6 @@ const SOFSOWTemplates = ({ client, onClose, onUpdate, isReadOnly = false }) => {
         document_category: 'financial',
         document_name: file.name,
         file_name: fileName,
-        file_url: urlData.publicUrl,
         file_size: file.size,
         file_type: file.type,
         mime_type: file.type,
@@ -211,9 +204,30 @@ const SOFSOWTemplates = ({ client, onClose, onUpdate, isReadOnly = false }) => {
     }
   };
 
-  const handleDownloadDocument = async (fileUrl, fileName) => {
+  const handleViewDocument = async (storagePath) => {
     try {
-      const response = await fetch(fileUrl);
+      const { data, error } = await supabase.storage
+        .from('client-documents')
+        .createSignedUrl(storagePath, 3600);
+
+      if (error) throw error;
+
+      window.open(data.signedUrl, '_blank');
+    } catch (error) {
+      console.error('Error viewing document:', error);
+      alert('Failed to view document: ' + error.message);
+    }
+  };
+
+  const handleDownloadDocument = async (storagePath, fileName) => {
+    try {
+      const { data, error } = await supabase.storage
+        .from('client-documents')
+        .createSignedUrl(storagePath, 3600);
+
+      if (error) throw error;
+
+      const response = await fetch(data.signedUrl);
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -225,7 +239,7 @@ const SOFSOWTemplates = ({ client, onClose, onUpdate, isReadOnly = false }) => {
       document.body.removeChild(a);
     } catch (error) {
       console.error('Error downloading document:', error);
-      alert('Failed to download document');
+      alert('Failed to download document: ' + error.message);
     }
   };
 
@@ -466,18 +480,18 @@ const SOFSOWTemplates = ({ client, onClose, onUpdate, isReadOnly = false }) => {
                           </div>
                         </div>
                         <div style={styles.docActions}>
-                          {doc.file_url && (
+                          {doc.storage_path && (
                             <button
-                              onClick={() => window.open(doc.file_url, '_blank')}
+                              onClick={() => handleViewDocument(doc.storage_path)}
                               style={styles.actionButton}
                               title="View Document"
                             >
                               👁️ View
                             </button>
                           )}
-                          {doc.file_url && (
+                          {doc.storage_path && (
                             <button
-                              onClick={() => handleDownloadDocument(doc.file_url, doc.document_name)}
+                              onClick={() => handleDownloadDocument(doc.storage_path, doc.document_name)}
                               style={styles.actionButton}
                               title="Download Document"
                             >
