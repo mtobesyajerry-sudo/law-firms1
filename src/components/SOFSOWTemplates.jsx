@@ -7,7 +7,7 @@ const SOFSOWTemplates = ({ client, onClose, onUpdate, isReadOnly = false }) => {
   const [loading, setLoading] = useState(false);
   const [uploadedDocuments, setUploadedDocuments] = useState([]);
   const [uploading, setUploading] = useState(false);
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
 
   const templates = [
     {
@@ -136,6 +136,78 @@ const SOFSOWTemplates = ({ client, onClose, onUpdate, isReadOnly = false }) => {
       alert('Failed to update verification status');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleVerifyDocument = async (documentId) => {
+    if (!confirm('Verify this document?')) return;
+
+    try {
+      const { error } = await supabase
+        .from('client_documents')
+        .update({
+          verification_status: 'verified',
+          verified_by: user?.id,
+          verified_at: new Date().toISOString()
+        })
+        .eq('id', documentId);
+
+      if (error) throw error;
+
+      alert('Document verified successfully');
+      await loadUploadedDocuments();
+    } catch (error) {
+      console.error('Error verifying document:', error);
+      alert('Failed to verify document');
+    }
+  };
+
+  const handleDeleteDocument = async (documentId, filePath) => {
+    if (!confirm('Are you sure you want to delete this document?')) return;
+
+    try {
+      // Delete from storage
+      if (filePath) {
+        const { error: storageError } = await supabase.storage
+          .from('client-documents')
+          .remove([filePath]);
+
+        if (storageError) {
+          console.error('Storage deletion error:', storageError);
+        }
+      }
+
+      // Delete from database
+      const { error: dbError } = await supabase
+        .from('client_documents')
+        .delete()
+        .eq('id', documentId);
+
+      if (dbError) throw dbError;
+
+      alert('Document deleted successfully');
+      await loadUploadedDocuments();
+    } catch (error) {
+      console.error('Error deleting document:', error);
+      alert('Failed to delete document');
+    }
+  };
+
+  const handleDownloadDocument = async (fileUrl, fileName) => {
+    try {
+      const response = await fetch(fileUrl);
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error) {
+      console.error('Error downloading document:', error);
+      alert('Failed to download document');
     }
   };
 
@@ -329,7 +401,7 @@ const SOFSOWTemplates = ({ client, onClose, onUpdate, isReadOnly = false }) => {
                       style={{ display: 'none' }}
                       disabled={uploading}
                     />
-                    {uploading ? 'Uploading...' : 'Upload Proof Document'}
+                    {uploading ? 'Uploading...' : 'Upload Document'}
                   </label>
                   <button
                     onClick={() => markAsCompleted(selectedTemplate)}
@@ -375,16 +447,44 @@ const SOFSOWTemplates = ({ client, onClose, onUpdate, isReadOnly = false }) => {
                             </span>
                           </div>
                         </div>
-                        {doc.file_url && (
-                          <a
-                            href={doc.file_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            style={styles.viewLink}
-                          >
-                            View
-                          </a>
-                        )}
+                        <div style={styles.docActions}>
+                          {doc.file_url && (
+                            <button
+                              onClick={() => window.open(doc.file_url, '_blank')}
+                              style={styles.actionButton}
+                              title="View Document"
+                            >
+                              👁️ View
+                            </button>
+                          )}
+                          {doc.file_url && (
+                            <button
+                              onClick={() => handleDownloadDocument(doc.file_url, doc.document_name)}
+                              style={styles.actionButton}
+                              title="Download Document"
+                            >
+                              ⬇️ Download
+                            </button>
+                          )}
+                          {profile?.role === 'staff' && doc.verification_status !== 'verified' && (
+                            <button
+                              onClick={() => handleVerifyDocument(doc.id)}
+                              style={{...styles.actionButton, ...styles.verifyButton}}
+                              title="Verify Document"
+                            >
+                              ✓ Verify
+                            </button>
+                          )}
+                          {profile?.role === 'staff' && (
+                            <button
+                              onClick={() => handleDeleteDocument(doc.id, doc.file_path)}
+                              style={{...styles.actionButton, ...styles.deleteButton}}
+                              title="Delete Document"
+                            >
+                              🗑️ Delete
+                            </button>
+                          )}
+                        </div>
                       </div>
                     ))}
                 </div>
@@ -1434,16 +1534,33 @@ const styles = {
     background: '#fee2e2',
     color: '#991b1b',
   },
-  viewLink: {
-    fontSize: '13px',
-    color: '#2563eb',
-    textDecoration: 'none',
-    fontWeight: '500',
+  docActions: {
+    display: 'flex',
+    gap: '8px',
     flexShrink: 0,
+    flexWrap: 'wrap',
+  },
+  actionButton: {
+    fontSize: '12px',
     padding: '6px 12px',
-    border: '1px solid #2563eb',
+    background: '#f3f4f6',
+    color: '#374151',
+    border: '1px solid #d1d5db',
     borderRadius: '4px',
+    cursor: 'pointer',
+    fontWeight: '500',
     transition: 'all 0.2s',
+    whiteSpace: 'nowrap',
+  },
+  verifyButton: {
+    background: '#d1fae5',
+    color: '#065f46',
+    borderColor: '#6ee7b7',
+  },
+  deleteButton: {
+    background: '#fee2e2',
+    color: '#991b1b',
+    borderColor: '#fca5a5',
   },
 };
 
