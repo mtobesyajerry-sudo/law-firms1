@@ -784,20 +784,6 @@ export default function KYCClientDetails() {
                         <span style={styles.infoValue}>{new Date(client.account_opening_date).toLocaleDateString()}</span>
                       </div>
                     )}
-                    {client.digital_identity_verified !== null && (
-                      <div style={styles.infoRow}>
-                        <span style={styles.infoLabel}>Digital Identity:</span>
-                        <span style={{...styles.infoValue, color: client.digital_identity_verified ? '#059669' : '#dc2626'}}>
-                          {client.digital_identity_verified ? '✓ Verified' : '✗ Not Verified'}
-                        </span>
-                      </div>
-                    )}
-                    {client.biometric_verification_status && (
-                      <div style={styles.infoRow}>
-                        <span style={styles.infoLabel}>Biometric Status:</span>
-                        <span style={styles.infoValue}>{client.biometric_verification_status.toUpperCase()}</span>
-                      </div>
-                    )}
                     {client.products_services && client.products_services.length > 0 && (
                       <div style={styles.infoRow}>
                         <span style={styles.infoLabel}>Products/Services:</span>
