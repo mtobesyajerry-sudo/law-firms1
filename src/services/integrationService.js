@@ -27,9 +27,15 @@ export const integrationService = {
 
       if (clientError) throw clientError;
 
-      // Transaction alerts feature not yet implemented
-      const alerts = [];
-      const alertsError = null;
+      const { data: alerts, error: alertsError } = await supabase
+        .from('transaction_alerts')
+        .select('*')
+        .eq('client_id', clientId)
+        .order('created_at', { ascending: false });
+
+      if (alertsError) {
+        console.error('Error loading alerts:', alertsError);
+      }
 
       const { data: assessment, error: assessmentError } = await supabase
         .from('assessments')
@@ -89,10 +95,11 @@ export const integrationService = {
       'Very Low': 1,
       'Low': 2,
       'Medium': 3,
+      'Substantial': 3.5,
       'High': 4,
       'Very High': 5
     };
-    const baseRisk = baseRiskMap[client.risk_level] || 3;
+    const baseRisk = baseRiskMap[client.current_risk_rating] || 3;
     riskScore += baseRisk * 20;
     factors.push({ name: 'KYC Base Risk', value: baseRisk, weight: 20 });
 
@@ -113,7 +120,7 @@ export const integrationService = {
       factors.push({ name: 'Recent Alert Activity', value: recentActivityScore, weight: 10 });
     }
 
-    if (client.is_pep) {
+    if (client.pep_status) {
       riskScore += 4 * 15;
       factors.push({ name: 'PEP Status', value: 4, weight: 15 });
     }
@@ -195,12 +202,12 @@ export const integrationService = {
       'Very Low': 730
     };
 
-    const requiredFrequency = reviewFrequency[client.risk_level] || 365;
+    const requiredFrequency = reviewFrequency[client.current_risk_rating] || 365;
     if (daysSinceLastReview > requiredFrequency) {
       recommendations.push({
         priority: 'Medium',
         action: 'Schedule KYC Review',
-        reason: `Last review was ${daysSinceLastReview} days ago (${client.risk_level} risk requires ${requiredFrequency} days)`,
+        reason: `Last review was ${daysSinceLastReview} days ago (${client.current_risk_rating} risk requires ${requiredFrequency} days)`,
         category: 'kyc'
       });
     }
@@ -214,7 +221,7 @@ export const integrationService = {
       });
     }
 
-    if (!client.source_of_funds_verified && client.risk_level !== 'Low') {
+    if (!client.source_of_funds_verified && client.current_risk_rating !== 'Low') {
       recommendations.push({
         priority: 'High',
         action: 'Verify Source of Funds',
@@ -230,10 +237,10 @@ export const integrationService = {
     try {
       console.log('[IntegrationService] Loading organization risk overview for:', organizationId);
 
-      const [clientsResult, assessmentResult] = await Promise.all([
+      const [clientsResult, assessmentResult, alertsResult] = await Promise.all([
         supabase
           .from('kyc_clients')
-          .select('risk_level, is_pep, client_status, current_dd_level')
+          .select('current_risk_rating, pep_status, client_status, current_dd_level')
           .eq('organization_id', organizationId),
 
         supabase
@@ -243,11 +250,13 @@ export const integrationService = {
           .eq('status', 'completed')
           .order('completed_at', { ascending: false })
           .limit(1)
-          .maybeSingle()
-      ]);
+          .maybeSingle(),
 
-      // Transaction alerts feature not yet implemented
-      const alertsResult = { data: [], error: null };
+        supabase
+          .from('transaction_alerts')
+          .select('*')
+          .eq('organization_id', organizationId)
+      ]);
 
       if (clientsResult.error) {
         console.error('[IntegrationService] Error loading clients:', clientsResult.error);
@@ -272,13 +281,14 @@ export const integrationService = {
       const clientDistribution = {
         total: clients.length,
         byRisk: {
-          veryHigh: clients.filter(c => c.risk_level === 'Very High').length,
-          high: clients.filter(c => c.risk_level === 'High').length,
-          medium: clients.filter(c => c.risk_level === 'Medium').length,
-          low: clients.filter(c => c.risk_level === 'Low').length,
-          veryLow: clients.filter(c => c.risk_level === 'Very Low').length
+          veryHigh: clients.filter(c => c.current_risk_rating === 'Very High').length,
+          high: clients.filter(c => c.current_risk_rating === 'High').length,
+          substantial: clients.filter(c => c.current_risk_rating === 'Substantial').length,
+          medium: clients.filter(c => c.current_risk_rating === 'Medium').length,
+          low: clients.filter(c => c.current_risk_rating === 'Low').length,
+          veryLow: clients.filter(c => c.current_risk_rating === 'Very Low').length
         },
-        peps: clients.filter(c => c.is_pep).length,
+        peps: clients.filter(c => c.pep_status).length,
         active: clients.filter(c => c.client_status === 'active').length,
         byDDLevel: {
           enhanced: clients.filter(c => c.current_dd_level === 'enhanced').length,
@@ -540,25 +550,25 @@ export const integrationService = {
 
       const { data: client } = await supabase
         .from('kyc_clients')
-        .select('risk_level, risk_score')
+        .select('current_risk_rating, base_risk_score')
         .eq('id', clientId)
         .single();
 
       if (!client) return;
 
       let shouldUpgrade = false;
-      let newRating = client.risk_level;
+      let newRating = client.current_risk_rating;
       let reason = '';
 
-      if (strFiled > 0 && client.risk_level !== 'Very High') {
+      if (strFiled > 0 && client.current_risk_rating !== 'Very High') {
         shouldUpgrade = true;
         newRating = 'Very High';
         reason = `STR filed (${strFiled})`;
-      } else if (criticalAlerts >= 3 && client.risk_level !== 'Very High' && client.risk_level !== 'High') {
+      } else if (criticalAlerts >= 3 && client.current_risk_rating !== 'Very High' && client.current_risk_rating !== 'High') {
         shouldUpgrade = true;
         newRating = 'High';
         reason = `${criticalAlerts} critical alerts in 180 days`;
-      } else if (alerts.length >= 5 && client.risk_level === 'Medium') {
+      } else if (alerts.length >= 5 && client.current_risk_rating === 'Medium') {
         shouldUpgrade = true;
         newRating = 'High';
         reason = `${alerts.length} alerts in 180 days`;
@@ -568,7 +578,7 @@ export const integrationService = {
         await supabase
           .from('kyc_clients')
           .update({
-            risk_level: newRating,
+            current_risk_rating: newRating,
             enhanced_monitoring_required: true,
             enhanced_monitoring_reason: reason,
             updated_at: new Date().toISOString()
