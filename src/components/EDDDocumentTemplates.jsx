@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../supabaseClient';
+import { useAuth } from '../contexts/AuthContext';
 
 const EDDDocumentTemplates = ({ clientId, clientName, onClose, onUpdate, isReadOnly = false }) => {
+  const { profile } = useAuth();
   const [selectedTemplate, setSelectedTemplate] = useState(null);
   const [documentTypes, setDocumentTypes] = useState([]);
   const [eddDocuments, setEddDocuments] = useState([]);
@@ -13,6 +15,9 @@ const EDDDocumentTemplates = ({ clientId, clientName, onClose, onUpdate, isReadO
   const [uploadSuccess, setUploadSuccess] = useState('');
   const [documentUrls, setDocumentUrls] = useState({});
   const isFetchingRef = useRef(false);
+
+  // Check if user can verify documents (Staff, Compliance Officer, or Admin)
+  const canVerifyDocuments = profile?.role === 'staff' || profile?.role === 'compliance_officer' || profile?.role === 'admin';
 
   useEffect(() => {
     fetchDocumentTypes();
@@ -214,6 +219,48 @@ const EDDDocumentTemplates = ({ clientId, clientName, onClose, onUpdate, isReadO
   const getDocumentStatus = (documentTypeId) => {
     const doc = eddDocuments.find(d => d.document_type_id === documentTypeId);
     return doc?.verification_status === 'verified' ? 'completed' : 'pending';
+  };
+
+  const handleVerifyDocument = async (documentId, newStatus) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      const { data: profile } = await supabase
+        .from('user_profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single();
+
+      if (!profile || (profile.role !== 'staff' && profile.role !== 'compliance_officer' && profile.role !== 'admin')) {
+        alert('Only Staff and Compliance Officers can verify documents');
+        return;
+      }
+
+      const statusMessage = newStatus === 'verified' ? 'verify' : 'reject';
+      if (!confirm(`Are you sure you want to ${statusMessage} this document?`)) {
+        return;
+      }
+
+      const { error } = await supabase
+        .from('client_documents')
+        .update({
+          verification_status: newStatus,
+          verified_by: user.id,
+          verification_date: new Date().toISOString().split('T')[0]
+        })
+        .eq('id', documentId);
+
+      if (error) throw error;
+
+      alert(`Document ${newStatus === 'verified' ? 'verified' : 'rejected'} successfully`);
+      await fetchEDDDocuments();
+
+      if (onUpdate) {
+        await onUpdate();
+      }
+    } catch (error) {
+      console.error('Error updating document status:', error);
+      alert('Failed to update document status: ' + error.message);
+    }
   };
 
   const handleFileSelect = (e, documentTypeId) => {
@@ -566,6 +613,11 @@ const EDDDocumentTemplates = ({ clientId, clientName, onClose, onUpdate, isReadO
                     <span style={styles.uploadedDate}>
                       Uploaded: {new Date(doc.uploaded_at).toLocaleDateString()}
                     </span>
+                    {doc.verification_date && (
+                      <span style={styles.uploadedDate}>
+                        Verified: {new Date(doc.verification_date).toLocaleDateString()}
+                      </span>
+                    )}
                   </div>
                   <div style={styles.uploadedActions}>
                     {documentUrls[doc.id] ? (
@@ -585,9 +637,43 @@ const EDDDocumentTemplates = ({ clientId, clientName, onClose, onUpdate, isReadO
                         Load Document
                       </button>
                     )}
+
+                    {/* Verify/Reject buttons for Staff and Compliance Officers */}
+                    {canVerifyDocuments && doc.verification_status !== 'verified' && (
+                      <>
+                        <button
+                          onClick={() => handleVerifyDocument(doc.id, 'verified')}
+                          style={styles.verifyButton}
+                          title="Verify this document"
+                        >
+                          ✓ Verify
+                        </button>
+                        <button
+                          onClick={() => handleVerifyDocument(doc.id, 'rejected')}
+                          style={styles.rejectButton}
+                          title="Reject this document"
+                        >
+                          ✗ Reject
+                        </button>
+                      </>
+                    )}
+
+                    {/* Allow re-verification if document was rejected */}
+                    {canVerifyDocuments && doc.verification_status === 'verified' && (
+                      <button
+                        onClick={() => handleVerifyDocument(doc.id, 'rejected')}
+                        style={styles.rejectButton}
+                        title="Reject this document"
+                      >
+                        ✗ Reject
+                      </button>
+                    )}
+
                     <span style={{
                       ...styles.statusBadge,
-                      ...(doc.verification_status === 'verified' ? styles.statusBadgeCompleted : styles.statusBadgePending)
+                      ...(doc.verification_status === 'verified' ? styles.statusBadgeCompleted :
+                          doc.verification_status === 'rejected' ? styles.statusBadgeRejected :
+                          styles.statusBadgePending)
                     }}>
                       {doc.verification_status === 'verified' ? 'Verified' :
                        doc.verification_status === 'pending' ? 'Pending Review' :
@@ -780,6 +866,40 @@ const styles = {
   statusBadgePending: {
     background: '#fef3c7',
     color: '#92400e',
+  },
+  statusBadgeRejected: {
+    background: '#fee2e2',
+    color: '#991b1b',
+  },
+  verifyButton: {
+    padding: '6px 12px',
+    background: '#059669',
+    color: 'white',
+    border: 'none',
+    borderRadius: '6px',
+    fontSize: '12px',
+    fontWeight: '600',
+    cursor: 'pointer',
+    marginLeft: '8px',
+    transition: 'all 0.2s ease',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '4px',
+  },
+  rejectButton: {
+    padding: '6px 12px',
+    background: '#dc2626',
+    color: 'white',
+    border: 'none',
+    borderRadius: '6px',
+    fontSize: '12px',
+    fontWeight: '600',
+    cursor: 'pointer',
+    marginLeft: '8px',
+    transition: 'all 0.2s ease',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '4px',
   },
   cardDescription: {
     fontSize: '12px',
