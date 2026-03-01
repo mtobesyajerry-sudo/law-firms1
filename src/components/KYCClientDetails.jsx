@@ -1118,6 +1118,7 @@ export default function KYCClientDetails() {
           <EDDDocumentTemplates
             clientId={client.id}
             clientName={client.client_name}
+            client={client}
             onClose={() => setActiveTab('overview')}
             onUpdate={loadClient}
             isReadOnly={isReadOnly}

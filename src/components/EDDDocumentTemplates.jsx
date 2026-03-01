@@ -2,12 +2,13 @@ import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
 
-const EDDDocumentTemplates = ({ clientId, clientName, onClose, onUpdate, isReadOnly = false }) => {
-  const { profile } = useAuth();
+const EDDDocumentTemplates = ({ clientId, clientName, client, onClose, onUpdate, isReadOnly = false }) => {
+  const { user, profile } = useAuth();
   const [selectedTemplate, setSelectedTemplate] = useState(null);
   const [documentTypes, setDocumentTypes] = useState([]);
   const [eddDocuments, setEddDocuments] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState(false);
   const isFetchingRef = useRef(false);
 
   // Check if user can verify documents (Staff, Compliance Officer, or Admin)
@@ -95,6 +96,75 @@ const EDDDocumentTemplates = ({ clientId, clientName, onClose, onUpdate, isReadO
   const getDocumentStatus = (documentTypeId) => {
     const doc = eddDocuments.find(d => d.document_type_id === documentTypeId);
     return doc?.verification_status === 'verified' ? 'completed' : 'pending';
+  };
+
+  const handleFileUpload = async (event, documentTypeId, documentTypeName) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setUploading(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${clientId}_${documentTypeName.replace(/\s+/g, '_')}_${Date.now()}.${fileExt}`;
+      const filePath = `${client.organization_id}/${fileName}`;
+
+      console.log('Uploading file:', { fileName, filePath, fileSize: file.size });
+
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('client-documents')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false
+        });
+
+      if (uploadError) {
+        console.error('Storage upload error:', uploadError);
+        throw uploadError;
+      }
+
+      console.log('Upload successful:', uploadData);
+
+      const documentRecord = {
+        client_id: clientId,
+        organization_id: client.organization_id,
+        document_type_id: documentTypeId,
+        document_type: documentTypeName,
+        document_category: 'edd',
+        document_name: file.name,
+        file_name: fileName,
+        file_size: file.size,
+        file_type: file.type,
+        mime_type: file.type,
+        storage_path: filePath,
+        verification_status: 'pending',
+        is_mandatory: true,
+        is_current: true,
+        uploaded_by: user?.id
+      };
+
+      console.log('Inserting document record:', documentRecord);
+
+      const { error: dbError } = await supabase
+        .from('client_documents')
+        .insert(documentRecord);
+
+      if (dbError) {
+        console.error('Database insert error:', dbError);
+        throw dbError;
+      }
+
+      alert(`${documentTypeName} uploaded successfully`);
+      await fetchEDDDocuments();
+      if (onUpdate) {
+        await onUpdate();
+      }
+      event.target.value = '';
+    } catch (error) {
+      console.error('Error uploading document:', error);
+      alert(`Failed to upload document: ${error.message || 'Please try again.'}`);
+    } finally {
+      setUploading(false);
+    }
   };
 
   const handlePrint = () => {
@@ -458,39 +528,113 @@ const EDDDocumentTemplates = ({ clientId, clientName, onClose, onUpdate, isReadO
         ) : null}
 
         <div style={styles.templateSection}>
-          <h3 style={styles.sectionTitle}>Template Selection</h3>
+          <h3 style={styles.sectionTitle}>Enhanced Due Diligence Documents</h3>
           <p style={styles.sectionDescription}>
-            Select a template below to view and print for manual completion
+            Upload completed EDD documents or select a template to view and print
           </p>
         </div>
 
-        <div style={styles.templateGrid}>
+        <div style={styles.templateList}>
           {documentTypes.map((docType) => {
-            const status = getDocumentStatus(docType.id);
+            const uploadedDoc = eddDocuments.find(d => d.document_type_id === docType.id);
             const isSelected = selectedTemplate === docType.id;
+
             return (
-              <div
-                key={docType.id}
-                style={{
-                  ...styles.templateCard,
-                  ...(isSelected ? styles.templateCardSelected : {})
-                }}
-                onClick={() => setSelectedTemplate(docType.id)}
-              >
-                <div style={styles.cardHeader}>
-                  <h3 style={styles.cardTitle}>{docType.name}</h3>
-                  <span
-                    style={{
-                      ...styles.statusBadge,
-                      ...(status === 'completed' || status === 'reviewed' || status === 'approved'
-                        ? styles.statusBadgeCompleted
-                        : styles.statusBadgePending)
-                    }}
-                  >
-                    {status}
-                  </span>
+              <div key={docType.id} style={styles.templateRow}>
+                <div style={styles.templateInfo}>
+                  <div style={styles.templateName}>{docType.name}</div>
+                  <div style={styles.templateDescription}>{docType.description}</div>
                 </div>
-                <p style={styles.cardDescription}>{docType.description}</p>
+
+                {uploadedDoc ? (
+                  <div style={styles.uploadedDocSection}>
+                    <div style={styles.docInfo}>
+                      <div style={styles.docName}>{uploadedDoc.document_name}</div>
+                      <div style={styles.docMeta}>
+                        Uploaded {new Date(uploadedDoc.uploaded_at).toLocaleDateString()}
+                        {' • '}
+                        <span style={{
+                          ...styles.verificationBadge,
+                          ...(uploadedDoc.verification_status === 'verified'
+                            ? styles.verificationVerified
+                            : uploadedDoc.verification_status === 'rejected'
+                            ? styles.verificationRejected
+                            : styles.verificationPending)
+                        }}>
+                          {uploadedDoc.verification_status || 'pending'}
+                        </span>
+                      </div>
+                    </div>
+                    <div style={styles.docActions}>
+                      {uploadedDoc.storage_path && (
+                        <>
+                          <button
+                            onClick={() => handleViewDocument(uploadedDoc.storage_path)}
+                            style={styles.actionButton}
+                            title="View Document"
+                          >
+                            👁️ View
+                          </button>
+                          <button
+                            onClick={() => handleDownloadDocument(uploadedDoc.storage_path, uploadedDoc.document_name)}
+                            style={styles.actionButton}
+                            title="Download Document"
+                          >
+                            ⬇️ Download
+                          </button>
+                        </>
+                      )}
+                      {canVerifyDocuments && uploadedDoc.verification_status !== 'verified' && (
+                        <button
+                          onClick={() => handleVerifyDocument(uploadedDoc.id, 'verified')}
+                          style={{...styles.actionButton, ...styles.verifyButton}}
+                          title="Verify Document"
+                        >
+                          ✓ Verify
+                        </button>
+                      )}
+                      {canVerifyDocuments && uploadedDoc.verification_status !== 'rejected' && (
+                        <button
+                          onClick={() => handleVerifyDocument(uploadedDoc.id, 'rejected')}
+                          style={{...styles.actionButton, ...styles.rejectButton}}
+                          title="Reject Document"
+                        >
+                          ✗ Reject
+                        </button>
+                      )}
+                      {profile?.role === 'staff' && (
+                        <button
+                          onClick={() => handleDeleteDocument(uploadedDoc.id, uploadedDoc.storage_path)}
+                          style={{...styles.actionButton, ...styles.deleteButton}}
+                          title="Delete Document"
+                        >
+                          🗑️ Delete
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div style={styles.uploadActions}>
+                    <label style={styles.uploadLabel}>
+                      <input
+                        type="file"
+                        accept=".pdf,.jpg,.jpeg,.png"
+                        onChange={(e) => handleFileUpload(e, docType.id, docType.name)}
+                        style={styles.fileInput}
+                        disabled={uploading}
+                      />
+                      <span style={styles.uploadButtonText}>
+                        {uploading ? 'Uploading...' : '📤 Upload'}
+                      </span>
+                    </label>
+                    <button
+                      onClick={() => setSelectedTemplate(isSelected ? null : docType.id)}
+                      style={styles.viewTemplateButton}
+                    >
+                      {isSelected ? '✓ Template Selected' : '👁️ View Template'}
+                    </button>
+                  </div>
+                )}
               </div>
             );
           })}
@@ -500,6 +644,9 @@ const EDDDocumentTemplates = ({ clientId, clientName, onClose, onUpdate, isReadO
           <div style={styles.actionButtons}>
             <button onClick={handlePrint} style={styles.printButton}>
               Print Template
+            </button>
+            <button onClick={() => setSelectedTemplate(null)} style={styles.closeTemplateButton}>
+              Close Template
             </button>
           </div>
         )}
@@ -609,50 +756,6 @@ const styles = {
     background: '#fee2e2',
     color: '#991b1b',
   },
-  verifyButton: {
-    padding: '6px 12px',
-    background: '#059669',
-    color: 'white',
-    border: 'none',
-    borderRadius: '6px',
-    fontSize: '12px',
-    fontWeight: '600',
-    cursor: 'pointer',
-    marginLeft: '8px',
-    transition: 'all 0.2s ease',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '4px',
-  },
-  rejectButton: {
-    padding: '6px 12px',
-    background: '#dc2626',
-    color: 'white',
-    border: 'none',
-    borderRadius: '6px',
-    cursor: 'pointer',
-    fontSize: '13px',
-    fontWeight: '500',
-    transition: 'all 0.2s ease',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '4px',
-  },
-  deleteButton: {
-    padding: '6px 12px',
-    background: '#ef4444',
-    color: 'white',
-    border: 'none',
-    borderRadius: '6px',
-    fontSize: '12px',
-    fontWeight: '600',
-    cursor: 'pointer',
-    marginLeft: '8px',
-    transition: 'all 0.2s ease',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '4px',
-  },
   templateSection: {
     marginTop: '32px',
     marginBottom: '16px',
@@ -667,6 +770,163 @@ const styles = {
     fontSize: '14px',
     color: '#6b7280',
     margin: 0,
+  },
+  templateList: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '16px',
+    marginBottom: '24px',
+  },
+  templateRow: {
+    border: '1px solid #e5e7eb',
+    borderRadius: '8px',
+    padding: '16px',
+    background: 'white',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: '16px',
+  },
+  templateInfo: {
+    flex: 1,
+  },
+  templateName: {
+    fontSize: '16px',
+    fontWeight: '600',
+    color: '#1f2937',
+    marginBottom: '4px',
+  },
+  templateDescription: {
+    fontSize: '14px',
+    color: '#6b7280',
+  },
+  uploadActions: {
+    display: 'flex',
+    gap: '8px',
+    alignItems: 'center',
+  },
+  viewTemplateButton: {
+    padding: '8px 16px',
+    background: 'white',
+    color: '#2563eb',
+    border: '1px solid #2563eb',
+    borderRadius: '6px',
+    fontSize: '14px',
+    fontWeight: '500',
+    cursor: 'pointer',
+    transition: 'all 0.2s ease',
+    whiteSpace: 'nowrap',
+  },
+  closeTemplateButton: {
+    padding: '12px 24px',
+    background: '#6b7280',
+    color: 'white',
+    border: 'none',
+    borderRadius: '6px',
+    fontSize: '14px',
+    fontWeight: '600',
+    cursor: 'pointer',
+    transition: 'all 0.2s ease',
+  },
+  uploadLabel: {
+    position: 'relative',
+    cursor: 'pointer',
+    display: 'inline-block',
+  },
+  fileInput: {
+    position: 'absolute',
+    width: '1px',
+    height: '1px',
+    padding: 0,
+    margin: '-1px',
+    overflow: 'hidden',
+    clip: 'rect(0, 0, 0, 0)',
+    whiteSpace: 'nowrap',
+    border: 0,
+  },
+  uploadButtonText: {
+    display: 'inline-block',
+    padding: '8px 16px',
+    background: '#10b981',
+    color: 'white',
+    borderRadius: '6px',
+    fontSize: '14px',
+    fontWeight: '500',
+    cursor: 'pointer',
+    transition: 'all 0.2s ease',
+    whiteSpace: 'nowrap',
+  },
+  uploadedDocSection: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '16px',
+    padding: '12px',
+    background: '#f9fafb',
+    borderRadius: '6px',
+    border: '1px solid #e5e7eb',
+  },
+  docInfo: {
+    flex: 1,
+  },
+  docName: {
+    fontSize: '14px',
+    fontWeight: '500',
+    color: '#1f2937',
+    marginBottom: '4px',
+  },
+  docMeta: {
+    fontSize: '12px',
+    color: '#6b7280',
+  },
+  docActions: {
+    display: 'flex',
+    gap: '8px',
+    flexWrap: 'wrap',
+  },
+  actionButton: {
+    padding: '6px 12px',
+    background: 'white',
+    color: '#6b7280',
+    border: '1px solid #d1d5db',
+    borderRadius: '4px',
+    fontSize: '12px',
+    fontWeight: '500',
+    cursor: 'pointer',
+    transition: 'all 0.2s ease',
+    whiteSpace: 'nowrap',
+  },
+  verificationBadge: {
+    padding: '2px 8px',
+    borderRadius: '4px',
+    fontSize: '11px',
+    fontWeight: '600',
+  },
+  verificationVerified: {
+    background: '#d1fae5',
+    color: '#065f46',
+  },
+  verificationPending: {
+    background: '#fef3c7',
+    color: '#92400e',
+  },
+  verificationRejected: {
+    background: '#fee2e2',
+    color: '#991b1b',
+  },
+  verifyButton: {
+    background: '#10b981',
+    color: 'white',
+    borderColor: '#10b981',
+  },
+  rejectButton: {
+    background: '#ef4444',
+    color: 'white',
+    borderColor: '#ef4444',
+  },
+  deleteButton: {
+    background: '#dc2626',
+    color: 'white',
+    borderColor: '#dc2626',
   },
   templateGrid: {
     display: 'grid',
