@@ -512,7 +512,9 @@ function NewMatterModal({ onClose, onSuccess, organizationId, userId, clients, s
         organization_id: organizationId,
         created_by: userId,
         matter_number: `MTR-${Date.now()}`,
-        opened_date: new Date().toISOString().split('T')[0]
+        opened_date: new Date().toISOString().split('T')[0],
+        // Convert empty strings to null for numeric fields
+        estimated_value: formData.estimated_value === '' ? null : parseFloat(formData.estimated_value) || null
       };
 
       const clientId = formData.client_id;
