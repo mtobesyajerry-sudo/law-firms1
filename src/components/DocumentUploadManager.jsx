@@ -912,7 +912,7 @@ export default function DocumentUploadManager({
             />
             {selectedFile && (
               <p style={{ marginTop: '8px', fontSize: '13px', color: '#6b7280' }}>
-                {DocumentService.getFileIcon(selectedFile.type)} {selectedFile.name} ({DocumentService.formatFileSize(selectedFile.size)})
+                {getFileIcon(selectedFile.type)} {selectedFile.name} ({formatFileSize(selectedFile.size)})
               </p>
             )}
             <p style={{ marginTop: '4px', fontSize: '12px', color: '#9ca3af' }}>
