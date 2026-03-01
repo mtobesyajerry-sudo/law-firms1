@@ -586,7 +586,7 @@ const styles = {
   backButton: {
     padding: '12px 24px',
     background: 'transparent',
-    color: '#0a1929',
+    color: '#ffffff',
     border: '2px solid #d4af37',
     borderRadius: '8px',
     cursor: 'pointer',
