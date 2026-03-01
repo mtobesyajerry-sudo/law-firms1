@@ -359,12 +359,6 @@ export default function DocumentUploadManager({
     return categoryNames[category] || category.toUpperCase().replace(/_/g, ' ');
   };
 
-  const triggerFileInput = (documentTypeId) => {
-    const fileInput = document.getElementById(`file-input-${documentTypeId}`);
-    if (fileInput) {
-      fileInput.click();
-    }
-  };
 
   // Group requirements by category
   const requirementsByCategory = requiredDocuments.reduce((acc, req) => {
@@ -668,45 +662,43 @@ export default function DocumentUploadManager({
 
                           {/* Upload button - Hidden for read-only users */}
                           {!isReadOnly && (
-                            <>
+                            <label
+                              style={{
+                                display: 'block',
+                                padding: '10px 16px',
+                                background: (uploading && uploadingDocId === req.document_type.id) ? '#d1d5db' : '#3b82f6',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '6px',
+                                fontSize: '13px',
+                                fontWeight: '600',
+                                cursor: (uploading && uploadingDocId === req.document_type.id) ? 'not-allowed' : 'pointer',
+                                transition: 'all 0.2s',
+                                width: '100%',
+                                marginTop: 'auto',
+                                textAlign: 'center',
+                                pointerEvents: (uploading && uploadingDocId === req.document_type.id) ? 'none' : 'auto'
+                              }}
+                              onMouseEnter={(e) => {
+                                if (!(uploading && uploadingDocId === req.document_type.id)) {
+                                  e.target.style.background = '#2563eb';
+                                }
+                              }}
+                              onMouseLeave={(e) => {
+                                if (!(uploading && uploadingDocId === req.document_type.id)) {
+                                  e.target.style.background = '#3b82f6';
+                                }
+                              }}
+                            >
                               <input
-                                id={`file-input-${req.document_type.id}`}
                                 type="file"
                                 onChange={(e) => handleFileUpload(e, req.document_type.id, req.document_type.name, req.document_type.category)}
                                 style={{ display: 'none' }}
                                 disabled={uploading && uploadingDocId === req.document_type.id}
                                 accept=".pdf,.jpg,.jpeg,.png,.gif,.doc,.docx,.xls,.xlsx,.txt,.zip"
                               />
-                              <button
-                                onClick={() => triggerFileInput(req.document_type.id)}
-                                disabled={uploading && uploadingDocId === req.document_type.id}
-                                style={{
-                                  padding: '10px 16px',
-                                  background: (uploading && uploadingDocId === req.document_type.id) ? '#d1d5db' : '#3b82f6',
-                                  color: 'white',
-                                  border: 'none',
-                                  borderRadius: '6px',
-                                  fontSize: '13px',
-                                  fontWeight: '600',
-                                  cursor: (uploading && uploadingDocId === req.document_type.id) ? 'not-allowed' : 'pointer',
-                                  transition: 'all 0.2s',
-                                  width: '100%',
-                                  marginTop: 'auto'
-                                }}
-                                onMouseEnter={(e) => {
-                                  if (!(uploading && uploadingDocId === req.document_type.id)) {
-                                    e.target.style.background = '#2563eb';
-                                  }
-                                }}
-                                onMouseLeave={(e) => {
-                                  if (!(uploading && uploadingDocId === req.document_type.id)) {
-                                    e.target.style.background = '#3b82f6';
-                                  }
-                                }}
-                              >
-                                {(uploading && uploadingDocId === req.document_type.id) ? 'Uploading...' : '+ Upload Document'}
-                              </button>
-                            </>
+                              {(uploading && uploadingDocId === req.document_type.id) ? 'Uploading...' : '+ Upload Document'}
+                            </label>
                           )}
 
                           {/* Show uploaded documents for this type */}
