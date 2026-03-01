@@ -532,15 +532,12 @@ function NewMatterModal({ onClose, onSuccess, organizationId, userId, clients, s
           .insert([{
             client_id: clientId,
             matter_id: newMatter.id,
-            relationship_type: 'primary_client',
-            is_primary: true,
-            conflict_status: 'no_conflict',
-            is_active: true,
-            created_by: userId
+            relationship_type: 'primary'
           }]);
 
         if (relError) {
           console.error('Error creating client relationship:', relError);
+          alert('Warning: Matter created but client relationship failed: ' + relError.message);
         }
       }
 
