@@ -570,7 +570,10 @@ const EDDDocumentTemplates = ({ clientId, clientName, onClose, onUpdate, isReadO
                       ...styles.statusBadge,
                       ...(doc.verification_status === 'verified' ? styles.statusBadgeCompleted : styles.statusBadgePending)
                     }}>
-                      {doc.verification_status}
+                      {doc.verification_status === 'verified' ? 'Verified' :
+                       doc.verification_status === 'pending' ? 'Pending Review' :
+                       doc.verification_status === 'rejected' ? 'Rejected' :
+                       doc.verification_status || 'Uploaded'}
                     </span>
                   </div>
                 </div>
