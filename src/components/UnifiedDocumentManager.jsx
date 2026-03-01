@@ -7,12 +7,14 @@ export default function UnifiedDocumentManager({ clientId, clientName, onClose }
   const [client, setClient] = useState(null);
   const [documents, setDocuments] = useState([]);
   const [documentTypes, setDocumentTypes] = useState([]);
+  const [requirements, setRequirements] = useState([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
   const [selectedDocumentTypeId, setSelectedDocumentTypeId] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [expandedCategories, setExpandedCategories] = useState({});
 
   // Check if user is staff (can upload, verify, delete)
   const isStaff = profile?.role === 'staff' || profile?.role === 'compliance_officer' || profile?.role === 'admin';
@@ -42,6 +44,33 @@ export default function UnifiedDocumentManager({ clientId, clientName, onClose }
 
       if (typesError) throw typesError;
       setDocumentTypes(typesData || []);
+
+      // Load document requirements for this client's DD level
+      const docClientType = clientData.client_type === 'individual' ? 'individual' : 'corporate';
+      const { data: reqData, error: reqError } = await supabase
+        .from('document_requirements')
+        .select(`
+          *,
+          document_type:document_types (
+            id,
+            name,
+            code,
+            category,
+            description
+          )
+        `)
+        .eq('dd_level', clientData.current_dd_level || 'standard')
+        .eq('client_type', docClientType)
+        .order('is_mandatory', { ascending: false });
+
+      if (reqError) throw reqError;
+      setRequirements(reqData || []);
+
+      // Initialize collapsed categories
+      const categories = [...new Set(reqData?.map(r => r.document_type.category) || [])];
+      const expanded = {};
+      categories.forEach(cat => expanded[cat] = false);
+      setExpandedCategories(expanded);
 
       // Load existing documents
       await loadDocuments();
@@ -304,6 +333,39 @@ export default function UnifiedDocumentManager({ clientId, clientName, onClose }
     }
   };
 
+  const toggleCategory = (category) => {
+    setExpandedCategories(prev => ({
+      ...prev,
+      [category]: !prev[category]
+    }));
+  };
+
+  const getDocumentStatus = (documentTypeId) => {
+    const uploaded = documents.filter(doc => doc.document_type_id === documentTypeId);
+    if (uploaded.length === 0) return { status: 'missing', count: 0 };
+
+    const verified = uploaded.filter(doc => doc.verification_status === 'verified');
+    const pending = uploaded.filter(doc => doc.verification_status === 'pending');
+    const rejected = uploaded.filter(doc => doc.verification_status === 'rejected');
+
+    if (verified.length > 0) return { status: 'verified', count: uploaded.length };
+    if (rejected.length > 0) return { status: 'rejected', count: uploaded.length };
+    return { status: 'pending', count: uploaded.length };
+  };
+
+  const getCategoryColor = (category) => {
+    const colors = {
+      identity: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+      address: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+      corporate: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+      ownership: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
+      financial: 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)',
+      regulatory: 'linear-gradient(135deg, #30cfd0 0%, #330867 100%)',
+      other: 'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)',
+    };
+    return colors[category] || 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+  };
+
   if (loading) {
     return (
       <div style={styles.container}>
@@ -326,6 +388,109 @@ export default function UnifiedDocumentManager({ clientId, clientName, onClose }
           ✕ Close
         </button>
       </div>
+
+      {/* Document Requirements Checklist */}
+      {requirements.length > 0 && (
+        <div style={styles.requirementsSection}>
+          <h3 style={styles.sectionTitle}>
+            Required Documents Checklist
+            <span style={styles.ddLevelBadge}>
+              {client?.current_dd_level || 'standard'} DD
+            </span>
+          </h3>
+
+          <div style={styles.categoriesList}>
+            {['identity', 'address', 'corporate', 'ownership', 'financial', 'regulatory', 'other'].map(category => {
+              const categoryReqs = requirements.filter(
+                req => req.document_type?.category === category
+              );
+
+              if (categoryReqs.length === 0) return null;
+
+              const displayCategory = category.charAt(0).toUpperCase() + category.slice(1);
+              const isExpanded = expandedCategories[category];
+
+              return (
+                <div key={category} style={styles.categoryItem}>
+                  <div
+                    style={{
+                      ...styles.categoryHeader,
+                      background: getCategoryColor(category)
+                    }}
+                    onClick={() => toggleCategory(category)}
+                  >
+                    <div style={styles.categoryHeaderContent}>
+                      <span style={styles.categoryName}>{displayCategory}</span>
+                      <span style={styles.documentCount}>
+                        {categoryReqs.length} {categoryReqs.length === 1 ? 'document' : 'documents'}
+                      </span>
+                    </div>
+                    <span style={styles.expandIcon}>
+                      {isExpanded ? '▼' : '▶'}
+                    </span>
+                  </div>
+
+                  {isExpanded && (
+                    <div style={styles.documentsList}>
+                      {categoryReqs.map(req => {
+                        const docStatus = getDocumentStatus(req.document_type.id);
+
+                        return (
+                          <div key={req.id} style={styles.requirementItem}>
+                            <div style={styles.requirementInfo}>
+                              <div style={styles.requirementName}>
+                                {req.document_type.name}
+                                {req.is_mandatory && (
+                                  <span style={styles.mandatoryBadge}>MANDATORY</span>
+                                )}
+                                {!req.is_mandatory && (
+                                  <span style={styles.optionalBadge}>Optional</span>
+                                )}
+                              </div>
+                              {req.description && (
+                                <div style={styles.requirementDescription}>
+                                  {req.description}
+                                </div>
+                              )}
+                              {req.document_type.description && (
+                                <div style={styles.requirementDescription}>
+                                  {req.document_type.description}
+                                </div>
+                              )}
+                            </div>
+                            <div style={styles.requirementStatus}>
+                              {docStatus.status === 'verified' && (
+                                <span style={styles.statusVerifiedBadge}>
+                                  ✓ Verified ({docStatus.count})
+                                </span>
+                              )}
+                              {docStatus.status === 'pending' && (
+                                <span style={styles.statusPendingBadge}>
+                                  ⏳ Pending ({docStatus.count})
+                                </span>
+                              )}
+                              {docStatus.status === 'rejected' && (
+                                <span style={styles.statusRejectedBadge}>
+                                  ✗ Rejected ({docStatus.count})
+                                </span>
+                              )}
+                              {docStatus.status === 'missing' && (
+                                <span style={styles.statusMissingBadge}>
+                                  ⚠️ Missing
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Upload Section - Staff Only */}
       {isStaff && (
@@ -534,6 +699,134 @@ const styles = {
     fontWeight: '500',
     cursor: 'pointer',
     color: '#374151',
+  },
+  requirementsSection: {
+    background: 'white',
+    border: '1px solid #e5e7eb',
+    borderRadius: '8px',
+    padding: '20px',
+    marginBottom: '24px',
+  },
+  ddLevelBadge: {
+    marginLeft: '12px',
+    padding: '4px 12px',
+    background: '#dbeafe',
+    color: '#1e40af',
+    borderRadius: '12px',
+    fontSize: '12px',
+    fontWeight: '600',
+    textTransform: 'uppercase',
+  },
+  categoriesList: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '12px',
+  },
+  categoryItem: {
+    border: '1px solid #e5e7eb',
+    borderRadius: '8px',
+    overflow: 'hidden',
+  },
+  categoryHeader: {
+    padding: '16px',
+    cursor: 'pointer',
+    color: 'white',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    transition: 'opacity 0.2s',
+  },
+  categoryHeaderContent: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px',
+  },
+  categoryName: {
+    fontSize: '16px',
+    fontWeight: '600',
+  },
+  documentCount: {
+    fontSize: '12px',
+    opacity: 0.9,
+  },
+  expandIcon: {
+    fontSize: '14px',
+  },
+  requirementItem: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: '12px 16px',
+    background: '#f9fafb',
+    borderBottom: '1px solid #e5e7eb',
+  },
+  requirementInfo: {
+    flex: 1,
+  },
+  requirementName: {
+    fontSize: '14px',
+    fontWeight: '500',
+    color: '#111827',
+    marginBottom: '4px',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+  },
+  requirementDescription: {
+    fontSize: '12px',
+    color: '#6b7280',
+    marginTop: '4px',
+  },
+  mandatoryBadge: {
+    padding: '2px 8px',
+    background: '#fee2e2',
+    color: '#991b1b',
+    borderRadius: '4px',
+    fontSize: '10px',
+    fontWeight: '700',
+  },
+  optionalBadge: {
+    padding: '2px 8px',
+    background: '#dbeafe',
+    color: '#1e40af',
+    borderRadius: '4px',
+    fontSize: '10px',
+    fontWeight: '700',
+  },
+  requirementStatus: {
+    marginLeft: '16px',
+  },
+  statusVerifiedBadge: {
+    padding: '6px 12px',
+    background: '#d1fae5',
+    color: '#065f46',
+    borderRadius: '12px',
+    fontSize: '12px',
+    fontWeight: '600',
+  },
+  statusPendingBadge: {
+    padding: '6px 12px',
+    background: '#fef3c7',
+    color: '#92400e',
+    borderRadius: '12px',
+    fontSize: '12px',
+    fontWeight: '600',
+  },
+  statusRejectedBadge: {
+    padding: '6px 12px',
+    background: '#fee2e2',
+    color: '#991b1b',
+    borderRadius: '12px',
+    fontSize: '12px',
+    fontWeight: '600',
+  },
+  statusMissingBadge: {
+    padding: '6px 12px',
+    background: '#f3f4f6',
+    color: '#6b7280',
+    borderRadius: '12px',
+    fontSize: '12px',
+    fontWeight: '600',
   },
   uploadSection: {
     background: '#f9fafb',
