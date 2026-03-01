@@ -381,9 +381,9 @@ export default function DocumentUploadManager({
       'identity': 'Identity Documents',
       'address': 'Address Verification',
       'corporate': 'Corporate Documents',
-      'financial': 'Financial Documents',
+      'financial': 'Financial Documents (SOF/SOW)',
       'ownership': 'Ownership & Control',
-      'regulatory': 'Regulatory Documents',
+      'regulatory': 'Regulatory & Enhanced DD Documents',
       'other': 'Other Documents'
     };
     return categoryNames[category] || category.toUpperCase().replace(/_/g, ' ');
