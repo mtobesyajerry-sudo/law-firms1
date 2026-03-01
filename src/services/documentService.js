@@ -508,17 +508,25 @@ export class DocumentService {
         throw new Error('User not authenticated');
       }
 
+      const updateData = {
+        verification_status: status,
+        verified_by: user.id,
+        verification_notes: notes
+      };
+
+      if (status === 'verified' || status === 'rejected') {
+        updateData.verified_at = new Date().toISOString();
+      }
+
       const { error } = await supabase
         .from('client_documents')
-        .update({
-          verification_status: status,
-          verified_by: user.id,
-          verification_date: new Date().toISOString().split('T')[0],
-          verification_notes: notes
-        })
+        .update(updateData)
         .eq('secure_document_id', documentId);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Update error details:', error);
+        throw error;
+      }
 
       await this.logDocumentAccess({
         documentId: documentId,
