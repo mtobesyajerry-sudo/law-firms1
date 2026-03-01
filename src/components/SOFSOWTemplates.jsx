@@ -1,9 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
+import { useAuth } from '../contexts/AuthContext';
 
 const SOFSOWTemplates = ({ client, onClose, onUpdate, isReadOnly = false }) => {
   const [selectedTemplate, setSelectedTemplate] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [uploadedDocuments, setUploadedDocuments] = useState([]);
+  const [uploading, setUploading] = useState(false);
+  const { user } = useAuth();
 
   const templates = [
     {
@@ -19,6 +23,83 @@ const SOFSOWTemplates = ({ client, onClose, onUpdate, isReadOnly = false }) => {
       status: client.source_of_wealth_verified ? 'completed' : 'pending'
     }
   ];
+
+  useEffect(() => {
+    if (client?.id) {
+      loadUploadedDocuments();
+    }
+  }, [client?.id]);
+
+  const loadUploadedDocuments = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('client_documents')
+        .select('*')
+        .eq('client_id', client.id)
+        .in('document_category', ['financial', 'other'])
+        .or('document_type.eq.Source of Funds,document_type.eq.Source of Wealth')
+        .order('uploaded_at', { ascending: false });
+
+      if (error) throw error;
+      setUploadedDocuments(data || []);
+    } catch (error) {
+      console.error('Error loading documents:', error);
+    }
+  };
+
+  const handleFileUpload = async (event, documentType) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setUploading(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${client.id}_${documentType}_${Date.now()}.${fileExt}`;
+      const filePath = `client-documents/${client.organization_id}/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('client-documents')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data: urlData } = supabase.storage
+        .from('client-documents')
+        .getPublicUrl(filePath);
+
+      const { error: dbError } = await supabase
+        .from('client_documents')
+        .insert({
+          client_id: client.id,
+          organization_id: client.organization_id,
+          document_type: documentType === 'sof' ? 'Source of Funds' : 'Source of Wealth',
+          document_category: 'financial',
+          document_name: file.name,
+          file_name: fileName,
+          file_path: filePath,
+          file_url: urlData.publicUrl,
+          file_size: file.size,
+          file_type: file.type,
+          mime_type: file.type,
+          storage_path: filePath,
+          verification_status: 'pending',
+          is_mandatory: true,
+          is_current: true,
+          uploaded_by: user?.id
+        });
+
+      if (dbError) throw dbError;
+
+      alert(`${documentType === 'sof' ? 'Source of Funds' : 'Source of Wealth'} document uploaded successfully`);
+      await loadUploadedDocuments();
+      event.target.value = '';
+    } catch (error) {
+      console.error('Error uploading document:', error);
+      alert('Failed to upload document. Please try again.');
+    } finally {
+      setUploading(false);
+    }
+  };
 
   const handlePrint = () => {
     window.print();
@@ -233,20 +314,83 @@ const SOFSOWTemplates = ({ client, onClose, onUpdate, isReadOnly = false }) => {
         </div>
 
         {selectedTemplate && (
-          <div style={styles.actionButtons}>
-            <button onClick={handlePrint} style={styles.printButton}>
-              Print Template
-            </button>
-            {!isReadOnly && (
-              <button
-                onClick={() => markAsCompleted(selectedTemplate)}
-                style={styles.completeButton}
-                disabled={loading}
-              >
-                {loading ? 'Updating...' : 'Mark as Completed'}
+          <>
+            <div style={styles.actionButtons}>
+              <button onClick={handlePrint} style={styles.printButton}>
+                Print Template
               </button>
+              {!isReadOnly && (
+                <>
+                  <label style={styles.uploadButton}>
+                    <input
+                      type="file"
+                      accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                      onChange={(e) => handleFileUpload(e, selectedTemplate)}
+                      style={{ display: 'none' }}
+                      disabled={uploading}
+                    />
+                    {uploading ? 'Uploading...' : 'Upload Proof Document'}
+                  </label>
+                  <button
+                    onClick={() => markAsCompleted(selectedTemplate)}
+                    style={styles.completeButton}
+                    disabled={loading}
+                  >
+                    {loading ? 'Updating...' : 'Mark as Completed'}
+                  </button>
+                </>
+              )}
+            </div>
+
+            {/* Show uploaded documents for this template */}
+            {uploadedDocuments.filter(doc =>
+              (selectedTemplate === 'sof' && doc.document_type === 'Source of Funds') ||
+              (selectedTemplate === 'sow' && doc.document_type === 'Source of Wealth')
+            ).length > 0 && (
+              <div style={styles.uploadedDocsSection}>
+                <h3 style={styles.uploadedDocsTitle}>Uploaded Documents</h3>
+                <div style={styles.docsList}>
+                  {uploadedDocuments
+                    .filter(doc =>
+                      (selectedTemplate === 'sof' && doc.document_type === 'Source of Funds') ||
+                      (selectedTemplate === 'sow' && doc.document_type === 'Source of Wealth')
+                    )
+                    .map(doc => (
+                      <div key={doc.id} style={styles.docItem}>
+                        <div style={styles.docIcon}>📄</div>
+                        <div style={styles.docInfo}>
+                          <div style={styles.docName}>{doc.document_name}</div>
+                          <div style={styles.docMeta}>
+                            Uploaded {new Date(doc.uploaded_at).toLocaleDateString()}
+                            {' • '}
+                            <span style={{
+                              ...styles.verificationBadge,
+                              ...(doc.verification_status === 'verified'
+                                ? styles.verificationVerified
+                                : doc.verification_status === 'rejected'
+                                ? styles.verificationRejected
+                                : styles.verificationPending)
+                            }}>
+                              {doc.verification_status || 'pending'}
+                            </span>
+                          </div>
+                        </div>
+                        {doc.file_url && (
+                          <a
+                            href={doc.file_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={styles.viewLink}
+                          >
+                            View
+                          </a>
+                        )}
+                      </div>
+                    ))}
+                </div>
+              </div>
             )}
-          </div>
+          </>
         )}
       </div>
 
@@ -1211,6 +1355,95 @@ const styles = {
     fontSize: '14px',
     fontWeight: '500',
     cursor: 'pointer',
+  },
+  uploadButton: {
+    padding: '12px 24px',
+    background: '#7c3aed',
+    color: 'white',
+    border: 'none',
+    borderRadius: '6px',
+    fontSize: '14px',
+    fontWeight: '500',
+    cursor: 'pointer',
+    display: 'inline-block',
+  },
+  uploadedDocsSection: {
+    background: '#f9fafb',
+    border: '1px solid #e5e7eb',
+    borderRadius: '8px',
+    padding: '16px',
+    marginBottom: '24px',
+  },
+  uploadedDocsTitle: {
+    fontSize: '16px',
+    fontWeight: '600',
+    color: '#1f2937',
+    margin: '0 0 16px 0',
+  },
+  docsList: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '12px',
+  },
+  docItem: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px',
+    background: 'white',
+    border: '1px solid #e5e7eb',
+    borderRadius: '6px',
+    padding: '12px',
+  },
+  docIcon: {
+    fontSize: '24px',
+    flexShrink: 0,
+  },
+  docInfo: {
+    flex: 1,
+    minWidth: 0,
+  },
+  docName: {
+    fontSize: '14px',
+    fontWeight: '500',
+    color: '#1f2937',
+    marginBottom: '4px',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
+  },
+  docMeta: {
+    fontSize: '12px',
+    color: '#6b7280',
+  },
+  verificationBadge: {
+    fontSize: '11px',
+    padding: '2px 6px',
+    borderRadius: '4px',
+    fontWeight: '600',
+    textTransform: 'uppercase',
+  },
+  verificationVerified: {
+    background: '#d1fae5',
+    color: '#065f46',
+  },
+  verificationPending: {
+    background: '#fef3c7',
+    color: '#92400e',
+  },
+  verificationRejected: {
+    background: '#fee2e2',
+    color: '#991b1b',
+  },
+  viewLink: {
+    fontSize: '13px',
+    color: '#2563eb',
+    textDecoration: 'none',
+    fontWeight: '500',
+    flexShrink: 0,
+    padding: '6px 12px',
+    border: '1px solid #2563eb',
+    borderRadius: '4px',
+    transition: 'all 0.2s',
   },
 };
 
