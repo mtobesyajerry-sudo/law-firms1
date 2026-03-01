@@ -44,7 +44,7 @@ export default function StaffDashboard() {
             kyc_clients (
               id,
               client_name,
-              risk_level
+              current_risk_rating
             )
           )
         `)
@@ -79,7 +79,7 @@ export default function StaffDashboard() {
 
       const { data: allClients } = await supabase
         .from('kyc_clients')
-        .select('id, risk_level, current_dd_level, next_review_due')
+        .select('id, current_risk_rating, current_dd_level, next_review_date, pep_status')
         .eq('organization_id', profile.organization_id)
         .eq('relationship_manager_id', user.id);
 
@@ -91,7 +91,7 @@ export default function StaffDashboard() {
 
       const today = new Date().toISOString().split('T')[0];
       const overdueReviews = allClients?.filter(c =>
-        c.next_review_due && c.next_review_due < today
+        c.next_review_date && c.next_review_date < today
       ).length || 0;
 
       setMyMatters(matters || []);
@@ -100,7 +100,7 @@ export default function StaffDashboard() {
         myMatters: allMatters?.length || 0,
         openMatters: allMatters?.filter(m => m.status === 'open' || m.status === 'active').length || 0,
         myClients: allClients?.length || 0,
-        highRiskClients: allClients?.filter(c => c.risk_level === 'high' || c.risk_level === 'very_high').length || 0,
+        highRiskClients: allClients?.filter(c => c.current_risk_rating === 'High' || c.current_risk_rating === 'Very High').length || 0,
         conflictsPending: conflicts?.length || 0,
         eddRequired: allClients?.filter(c => c.current_dd_level === 'enhanced').length || 0,
         overdueReviews
@@ -403,7 +403,7 @@ export default function StaffDashboard() {
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               {myClients.map((client) => {
-                const riskStyle = getRiskStyle(client.risk_level);
+                const riskStyle = getRiskStyle(client.current_risk_rating);
                 const matterCount = client.client_matter_relationships?.length || 0;
                 const activeMatters = client.client_matter_relationships?.filter(
                   rel => rel.matters?.status === 'open' || rel.matters?.status === 'active'
@@ -442,12 +442,12 @@ export default function StaffDashboard() {
                         background: riskStyle.bg,
                         color: riskStyle.color
                       }}>
-                        {client.risk_level || 'medium'}
+                        {client.current_risk_rating || 'Medium'}
                       </span>
                     </div>
                     <div style={{ fontSize: '12px', color: '#64748b', display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
                       <span>{client.client_type}</span>
-                      {client.is_pep && <span style={{ color: '#f59e0b', fontWeight: '600' }}>• PEP</span>}
+                      {client.pep_status && <span style={{ color: '#f59e0b', fontWeight: '600' }}>• PEP</span>}
                       {matterCount > 0 && (
                         <span style={{
                           color: '#3b82f6',
@@ -620,12 +620,13 @@ function getStatusStyle(status) {
 
 function getRiskStyle(riskLevel) {
   const styles = {
-    low: { bg: '#d1fae5', color: '#065f46' },
-    medium: { bg: '#fef3c7', color: '#92400e' },
-    high: { bg: '#fee2e2', color: '#991b1b' },
-    very_high: { bg: '#fce7f3', color: '#831843' }
+    'Low': { bg: '#d1fae5', color: '#065f46' },
+    'Medium': { bg: '#fef3c7', color: '#92400e' },
+    'Substantial': { bg: '#fed7aa', color: '#9a3412' },
+    'High': { bg: '#fee2e2', color: '#991b1b' },
+    'Very High': { bg: '#fce7f3', color: '#831843' }
   };
-  return styles[riskLevel] || styles.medium;
+  return styles[riskLevel] || styles['Medium'];
 }
 
 const styles = {
