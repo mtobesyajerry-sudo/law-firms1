@@ -9,10 +9,18 @@ const EDDDocumentTemplates = ({ clientId, clientName, client, onClose, onUpdate,
   const [eddDocuments, setEddDocuments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
+  const [expandedCategories, setExpandedCategories] = useState({ edd: true });
   const isFetchingRef = useRef(false);
 
   // Check if user can verify documents (Staff, Compliance Officer, or Admin)
   const canVerifyDocuments = profile?.role === 'staff' || profile?.role === 'compliance_officer' || profile?.role === 'admin';
+
+  const toggleCategory = (category) => {
+    setExpandedCategories(prev => ({
+      ...prev,
+      [category]: !prev[category]
+    }));
+  };
 
   useEffect(() => {
     fetchDocumentTypes();
@@ -430,108 +438,301 @@ const EDDDocumentTemplates = ({ clientId, clientName, client, onClose, onUpdate,
           </p>
         </div>
 
-        <div style={styles.templateSection}>
-          <h3 style={styles.sectionTitle}>Enhanced Due Diligence Documents</h3>
-          <p style={styles.sectionDescription}>
-            Upload completed EDD documents or select a template to view and print
-          </p>
-        </div>
-
-        <div style={styles.templateList}>
-          {documentTypes.map((docType) => {
-            const uploadedDoc = eddDocuments.find(d => d.document_type_id === docType.id);
-            const isSelected = selectedTemplate === docType.id;
-
-            return (
-              <div key={docType.id} style={styles.templateRow}>
-                <div style={styles.templateInfo}>
-                  <div style={styles.templateName}>{docType.name}</div>
-                  <div style={styles.templateDescription}>{docType.description}</div>
+        <div style={{
+          background: 'white',
+          borderRadius: '12px',
+          border: '1px solid #e5e7eb',
+          overflow: 'hidden'
+        }}>
+          <div
+            key="edd"
+            style={{
+              marginBottom: '0',
+              border: 'none',
+              borderRadius: '0',
+              overflow: 'hidden'
+            }}
+          >
+            <button
+              onClick={() => toggleCategory('edd')}
+              style={{
+                width: '100%',
+                padding: '16px 20px',
+                background: '#f9fafb',
+                border: 'none',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                borderBottom: '1px solid #e5e7eb'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = '#eff6ff';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = '#f9fafb';
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                <div style={{ textAlign: 'left' }}>
+                  <div style={{ fontSize: '16px', fontWeight: '600', color: '#1f2937', marginBottom: '2px' }}>
+                    Enhanced Due Diligence Documents
+                  </div>
+                  <div style={{ fontSize: '12px', color: '#6b7280' }}>
+                    {eddDocuments.filter(d => d.verification_status === 'verified').length} of {documentTypes.length} completed
+                  </div>
                 </div>
-
-                {uploadedDoc ? (
-                  <div style={styles.uploadedDocSection}>
-                    <div style={styles.docInfo}>
-                      <div style={styles.docName}>{uploadedDoc.document_name}</div>
-                      <div style={styles.docMeta}>
-                        Uploaded {new Date(uploadedDoc.uploaded_at).toLocaleDateString()}
-                        {' • '}
-                        <span style={{
-                          ...styles.verificationBadge,
-                          ...(uploadedDoc.verification_status === 'verified'
-                            ? styles.verificationVerified
-                            : uploadedDoc.verification_status === 'rejected'
-                            ? styles.verificationRejected
-                            : styles.verificationPending)
-                        }}>
-                          {uploadedDoc.verification_status || 'pending'}
-                        </span>
-                      </div>
-                    </div>
-                    <div style={styles.docActions}>
-                      {uploadedDoc.storage_path && (
-                        <>
-                          <button
-                            onClick={() => handleViewDocument(uploadedDoc.storage_path)}
-                            style={styles.actionButton}
-                            title="View Document"
-                          >
-                            👁️ View
-                          </button>
-                          <button
-                            onClick={() => handleDownloadDocument(uploadedDoc.storage_path, uploadedDoc.document_name)}
-                            style={styles.actionButton}
-                            title="Download Document"
-                          >
-                            ⬇️ Download
-                          </button>
-                        </>
-                      )}
-                      {canVerifyDocuments && uploadedDoc.verification_status !== 'verified' && (
-                        <button
-                          onClick={() => handleVerifyDocument(uploadedDoc.id, 'verified')}
-                          style={{...styles.actionButton, ...styles.verifyButton}}
-                          title="Verify Document"
-                        >
-                          ✓ Verify
-                        </button>
-                      )}
-                      {profile?.role === 'staff' && (
-                        <button
-                          onClick={() => handleDeleteDocument(uploadedDoc.id, uploadedDoc.storage_path)}
-                          style={{...styles.actionButton, ...styles.deleteButton}}
-                          title="Delete Document"
-                        >
-                          🗑️ Delete
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                ) : (
-                  <div style={styles.uploadActions}>
-                    <label style={styles.uploadLabel}>
-                      <input
-                        type="file"
-                        accept=".pdf,.jpg,.jpeg,.png"
-                        onChange={(e) => handleFileUpload(e, docType.id, docType.name)}
-                        style={styles.fileInput}
-                        disabled={uploading}
-                      />
-                      <span style={styles.uploadButtonText}>
-                        {uploading ? 'Uploading...' : '📤 Upload'}
-                      </span>
-                    </label>
-                    <button
-                      onClick={() => setSelectedTemplate(isSelected ? null : docType.id)}
-                      style={styles.viewTemplateButton}
-                    >
-                      {isSelected ? '✓ Template Selected' : '👁️ View Template'}
-                    </button>
-                  </div>
-                )}
               </div>
-            );
-          })}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{
+                  fontSize: '12px',
+                  fontWeight: '600',
+                  color: eddDocuments.filter(d => d.verification_status === 'verified').length === documentTypes.length ? '#065f46' : '#92400e',
+                  padding: '4px 10px',
+                  background: eddDocuments.filter(d => d.verification_status === 'verified').length === documentTypes.length ? '#d1fae5' : '#fef3c7',
+                  borderRadius: '4px'
+                }}>
+                  {documentTypes.length > 0 ? Math.round((eddDocuments.filter(d => d.verification_status === 'verified').length / documentTypes.length) * 100) : 0}%
+                </div>
+                <span style={{
+                  fontSize: '12px',
+                  color: '#6b7280',
+                  transition: 'transform 0.2s',
+                  transform: expandedCategories['edd'] ? 'rotate(180deg)' : 'rotate(0deg)',
+                  display: 'inline-block'
+                }}>
+                  ▼
+                </span>
+              </div>
+            </button>
+
+            {expandedCategories['edd'] && (
+              <div style={{
+                padding: '20px',
+                background: 'white',
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
+                gap: '16px'
+              }}>
+                {documentTypes.map((docType) => {
+                  const uploadedDoc = eddDocuments.find(d => d.document_type_id === docType.id);
+                  const isSelected = selectedTemplate === docType.id;
+
+                  return (
+                    <div
+                      key={docType.id}
+                      style={{
+                        background: 'white',
+                        border: `1px solid ${uploadedDoc?.verification_status === 'verified' ? '#10b981' : uploadedDoc ? '#d1d5db' : '#fca5a5'}`,
+                        borderRadius: '8px',
+                        padding: '16px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        transition: 'all 0.2s',
+                        position: 'relative',
+                        minHeight: '200px'
+                      }}
+                    >
+                      {/* Status indicator badge in top right */}
+                      <div style={{
+                        position: 'absolute',
+                        top: '12px',
+                        right: '12px'
+                      }}>
+                        {uploadedDoc ? (
+                          <span style={{
+                            fontSize: '11px',
+                            padding: '4px 10px',
+                            borderRadius: '6px',
+                            fontWeight: '700',
+                            textTransform: 'uppercase',
+                            backgroundColor: uploadedDoc.verification_status === 'verified' ? '#d1fae5' : uploadedDoc.verification_status === 'rejected' ? '#fee2e2' : '#fef3c7',
+                            color: uploadedDoc.verification_status === 'verified' ? '#065f46' : uploadedDoc.verification_status === 'rejected' ? '#991b1b' : '#92400e',
+                            border: `2px solid ${uploadedDoc.verification_status === 'verified' ? '#10b981' : uploadedDoc.verification_status === 'rejected' ? '#dc2626' : '#f59e0b'}`
+                          }}>
+                            {uploadedDoc.verification_status}
+                          </span>
+                        ) : (
+                          <span style={{
+                            fontSize: '11px',
+                            padding: '4px 10px',
+                            borderRadius: '6px',
+                            fontWeight: '700',
+                            textTransform: 'uppercase',
+                            backgroundColor: '#fee2e2',
+                            color: '#991b1b',
+                            border: '2px solid #dc2626'
+                          }}>
+                            MISSING
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Document name */}
+                      <h4 style={{
+                        fontSize: '14px',
+                        fontWeight: '600',
+                        color: '#1f2937',
+                        marginBottom: '6px',
+                        marginRight: '90px',
+                        lineHeight: '1.4'
+                      }}>
+                        {docType.name}
+                      </h4>
+
+                      {/* Description */}
+                      <p style={{
+                        fontSize: '12px',
+                        color: '#6b7280',
+                        marginBottom: '12px',
+                        lineHeight: '1.5',
+                        flex: 1
+                      }}>
+                        {docType.description}
+                      </p>
+
+                      {/* Upload info or upload button */}
+                      {uploadedDoc ? (
+                        <div style={{
+                          marginTop: '8px',
+                          paddingTop: '12px',
+                          borderTop: '1px solid #e5e7eb'
+                        }}>
+                          <div style={{
+                            fontSize: '11px',
+                            color: '#6b7280',
+                            marginBottom: '8px'
+                          }}>
+                            📎 {uploadedDoc.document_name}
+                            <div style={{ marginTop: '2px', fontSize: '10px' }}>
+                              Uploaded {new Date(uploadedDoc.uploaded_at).toLocaleDateString()}
+                            </div>
+                          </div>
+                          <div style={{
+                            display: 'flex',
+                            flexWrap: 'wrap',
+                            gap: '6px'
+                          }}>
+                            {uploadedDoc.storage_path && (
+                              <>
+                                <button
+                                  onClick={() => handleViewDocument(uploadedDoc.storage_path)}
+                                  style={{
+                                    padding: '6px 12px',
+                                    background: '#dbeafe',
+                                    color: '#1e40af',
+                                    border: 'none',
+                                    borderRadius: '6px',
+                                    fontSize: '11px',
+                                    fontWeight: '600',
+                                    cursor: 'pointer'
+                                  }}
+                                >
+                                  View
+                                </button>
+                                <button
+                                  onClick={() => handleDownloadDocument(uploadedDoc.storage_path, uploadedDoc.document_name)}
+                                  style={{
+                                    padding: '6px 12px',
+                                    background: '#d1fae5',
+                                    color: '#065f46',
+                                    border: 'none',
+                                    borderRadius: '6px',
+                                    fontSize: '11px',
+                                    fontWeight: '600',
+                                    cursor: 'pointer'
+                                  }}
+                                >
+                                  Download
+                                </button>
+                              </>
+                            )}
+                            {canVerifyDocuments && uploadedDoc.verification_status !== 'verified' && (
+                              <button
+                                onClick={() => handleVerifyDocument(uploadedDoc.id, 'verified')}
+                                style={{
+                                  padding: '6px 12px',
+                                  background: '#d1fae5',
+                                  color: '#065f46',
+                                  border: 'none',
+                                  borderRadius: '6px',
+                                  fontSize: '11px',
+                                  fontWeight: '600',
+                                  cursor: 'pointer'
+                                }}
+                              >
+                                ✓ Verify
+                              </button>
+                            )}
+                            {profile?.role === 'staff' && (
+                              <button
+                                onClick={() => handleDeleteDocument(uploadedDoc.id, uploadedDoc.storage_path)}
+                                style={{
+                                  padding: '6px 12px',
+                                  background: '#fee2e2',
+                                  color: '#991b1b',
+                                  border: 'none',
+                                  borderRadius: '6px',
+                                  fontSize: '11px',
+                                  fontWeight: '600',
+                                  cursor: 'pointer'
+                                }}
+                              >
+                                Delete
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      ) : (
+                        <div style={{ marginTop: 'auto' }}>
+                          <div style={{ display: 'flex', gap: '6px', flexDirection: 'column' }}>
+                            <label style={{
+                              display: 'block',
+                              padding: '10px 16px',
+                              background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+                              color: 'white',
+                              borderRadius: '6px',
+                              fontSize: '12px',
+                              fontWeight: '600',
+                              cursor: 'pointer',
+                              textAlign: 'center',
+                              transition: 'all 0.2s'
+                            }}>
+                              <input
+                                type="file"
+                                accept=".pdf,.jpg,.jpeg,.png"
+                                onChange={(e) => handleFileUpload(e, docType.id, docType.name)}
+                                style={{ display: 'none' }}
+                                disabled={uploading || isReadOnly}
+                              />
+                              {uploading ? 'Uploading...' : '+ Upload Document'}
+                            </label>
+                            <button
+                              onClick={() => setSelectedTemplate(isSelected ? null : docType.id)}
+                              style={{
+                                padding: '10px 16px',
+                                background: isSelected ? '#eff6ff' : '#f9fafb',
+                                color: isSelected ? '#1e40af' : '#374151',
+                                border: `1px solid ${isSelected ? '#3b82f6' : '#d1d5db'}`,
+                                borderRadius: '6px',
+                                fontSize: '12px',
+                                fontWeight: '600',
+                                cursor: 'pointer',
+                                textAlign: 'center'
+                              }}
+                            >
+                              {isSelected ? '✓ Template Selected' : 'View Template'}
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </div>
 
         {selectedTemplate && (

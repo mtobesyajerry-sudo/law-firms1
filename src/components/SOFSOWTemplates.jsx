@@ -7,6 +7,7 @@ const SOFSOWTemplates = ({ client, onClose, onUpdate, isReadOnly = false }) => {
   const [loading, setLoading] = useState(false);
   const [uploadedDocuments, setUploadedDocuments] = useState([]);
   const [uploading, setUploading] = useState(false);
+  const [expandedCategories, setExpandedCategories] = useState({ sof_sow: true });
   const { user, profile } = useAuth();
 
   const templates = [
@@ -23,6 +24,13 @@ const SOFSOWTemplates = ({ client, onClose, onUpdate, isReadOnly = false }) => {
       status: client.source_of_wealth_verified ? 'completed' : 'pending'
     }
   ];
+
+  const toggleCategory = (category) => {
+    setExpandedCategories(prev => ({
+      ...prev,
+      [category]: !prev[category]
+    }));
+  };
 
   useEffect(() => {
     if (client?.id) {
@@ -386,35 +394,192 @@ const SOFSOWTemplates = ({ client, onClose, onUpdate, isReadOnly = false }) => {
           </p>
         </div>
 
-        <div style={styles.templateGrid}>
-          {templates.map((template) => {
-            const isSelected = selectedTemplate === template.id;
-            return (
-              <div
-                key={template.id}
-                style={{
-                  ...styles.templateCard,
-                  ...(isSelected ? styles.templateCardSelected : {})
-                }}
-                onClick={() => setSelectedTemplate(template.id)}
-              >
-                <div style={styles.cardHeader}>
-                  <h3 style={styles.cardTitle}>{template.name}</h3>
-                  <span
-                    style={{
-                      ...styles.statusBadge,
-                      ...(template.status === 'completed'
-                        ? styles.statusBadgeCompleted
-                        : styles.statusBadgePending)
-                    }}
-                  >
-                    {template.status}
-                  </span>
+        <div style={{
+          background: 'white',
+          borderRadius: '12px',
+          border: '1px solid #e5e7eb',
+          overflow: 'hidden'
+        }}>
+          <div
+            key="sof_sow"
+            style={{
+              marginBottom: '0',
+              border: 'none',
+              borderRadius: '0',
+              overflow: 'hidden'
+            }}
+          >
+            <button
+              onClick={() => toggleCategory('sof_sow')}
+              style={{
+                width: '100%',
+                padding: '16px 20px',
+                background: '#f9fafb',
+                border: 'none',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                borderBottom: '1px solid #e5e7eb'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = '#eff6ff';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = '#f9fafb';
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                <div style={{ textAlign: 'left' }}>
+                  <div style={{ fontSize: '16px', fontWeight: '600', color: '#1f2937', marginBottom: '2px' }}>
+                    Source of Funds/Wealth Verification Templates
+                  </div>
+                  <div style={{ fontSize: '12px', color: '#6b7280' }}>
+                    {templates.filter(t => t.status === 'completed').length} of {templates.length} completed
+                  </div>
                 </div>
-                <p style={styles.cardDescription}>{template.description}</p>
               </div>
-            );
-          })}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{
+                  fontSize: '12px',
+                  fontWeight: '600',
+                  color: templates.filter(t => t.status === 'completed').length === templates.length ? '#065f46' : '#92400e',
+                  padding: '4px 10px',
+                  background: templates.filter(t => t.status === 'completed').length === templates.length ? '#d1fae5' : '#fef3c7',
+                  borderRadius: '4px'
+                }}>
+                  {Math.round((templates.filter(t => t.status === 'completed').length / templates.length) * 100)}%
+                </div>
+                <span style={{
+                  fontSize: '12px',
+                  color: '#6b7280',
+                  transition: 'transform 0.2s',
+                  transform: expandedCategories['sof_sow'] ? 'rotate(180deg)' : 'rotate(0deg)',
+                  display: 'inline-block'
+                }}>
+                  ▼
+                </span>
+              </div>
+            </button>
+
+            {expandedCategories['sof_sow'] && (
+              <div style={{
+                padding: '20px',
+                background: 'white',
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
+                gap: '16px'
+              }}>
+                {templates.map((template) => {
+                  const isSelected = selectedTemplate === template.id;
+                  const docs = uploadedDocuments.filter(doc =>
+                    (template.id === 'sof' && doc.document_type === 'Source of Funds') ||
+                    (template.id === 'sow' && doc.document_type === 'Source of Wealth')
+                  );
+
+                  return (
+                    <div
+                      key={template.id}
+                      style={{
+                        background: 'white',
+                        border: `2px solid ${isSelected ? '#3b82f6' : template.status === 'completed' ? '#10b981' : '#d1d5db'}`,
+                        borderRadius: '8px',
+                        padding: '16px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        transition: 'all 0.2s',
+                        position: 'relative',
+                        minHeight: '180px',
+                        cursor: 'pointer'
+                      }}
+                      onClick={() => setSelectedTemplate(template.id)}
+                    >
+                      {/* Status indicator badge in top right */}
+                      <div style={{
+                        position: 'absolute',
+                        top: '12px',
+                        right: '12px'
+                      }}>
+                        <span style={{
+                          fontSize: '11px',
+                          padding: '4px 10px',
+                          borderRadius: '6px',
+                          fontWeight: '700',
+                          textTransform: 'uppercase',
+                          backgroundColor: template.status === 'completed' ? '#d1fae5' : '#fef3c7',
+                          color: template.status === 'completed' ? '#065f46' : '#92400e',
+                          border: `2px solid ${template.status === 'completed' ? '#10b981' : '#f59e0b'}`
+                        }}>
+                          {template.status}
+                        </span>
+                      </div>
+
+                      {/* Document name */}
+                      <h4 style={{
+                        fontSize: '14px',
+                        fontWeight: '600',
+                        color: '#1f2937',
+                        marginBottom: '6px',
+                        marginRight: '90px',
+                        lineHeight: '1.4'
+                      }}>
+                        {template.name}
+                      </h4>
+
+                      {/* Description */}
+                      <p style={{
+                        fontSize: '12px',
+                        color: '#6b7280',
+                        marginBottom: '12px',
+                        lineHeight: '1.5',
+                        flex: 1
+                      }}>
+                        {template.description}
+                      </p>
+
+                      {/* Upload count */}
+                      {docs.length > 0 && (
+                        <div style={{
+                          fontSize: '11px',
+                          color: '#6b7280',
+                          marginBottom: '10px',
+                          padding: '4px 8px',
+                          background: '#f9fafb',
+                          border: '1px solid #e5e7eb',
+                          borderRadius: '4px',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          alignSelf: 'flex-start'
+                        }}>
+                          <span>📎</span>
+                          <span>{docs.length} document{docs.length > 1 ? 's' : ''} uploaded</span>
+                        </div>
+                      )}
+
+                      {/* Select button */}
+                      {isSelected && (
+                        <div style={{
+                          marginTop: '12px',
+                          padding: '8px',
+                          background: '#eff6ff',
+                          border: '1px solid #3b82f6',
+                          borderRadius: '6px',
+                          textAlign: 'center',
+                          fontSize: '12px',
+                          fontWeight: '600',
+                          color: '#1e40af'
+                        }}>
+                          ✓ Selected - View options below
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </div>
 
         {selectedTemplate && (
