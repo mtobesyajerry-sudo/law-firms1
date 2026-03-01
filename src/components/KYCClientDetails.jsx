@@ -1150,8 +1150,9 @@ export default function KYCClientDetails() {
                               borderRadius: '6px',
                               fontSize: '11px',
                               fontWeight: '600',
-                              backgroundColor: result.screening_status === 'completed' ? '#d1fae5' : '#fef3c7',
-                              color: result.screening_status === 'completed' ? '#065f46' : '#92400e'
+                              textTransform: 'capitalize',
+                              backgroundColor: result.screening_status === 'cleared' ? '#d1fae5' : result.screening_status === 'pending' ? '#fef3c7' : '#e0e7ff',
+                              color: result.screening_status === 'cleared' ? '#065f46' : result.screening_status === 'pending' ? '#92400e' : '#3730a3'
                             }}>
                               {result.screening_status}
                             </span>
@@ -1162,8 +1163,9 @@ export default function KYCClientDetails() {
                               borderRadius: '6px',
                               fontSize: '11px',
                               fontWeight: '600',
-                              backgroundColor: result.risk_level === 'None' || result.risk_level === 'Low' ? '#d1fae5' : result.risk_level === 'High' || result.risk_level === 'Critical' ? '#fee2e2' : '#fef3c7',
-                              color: result.risk_level === 'None' || result.risk_level === 'Low' ? '#065f46' : result.risk_level === 'High' || result.risk_level === 'Critical' ? '#991b1b' : '#92400e'
+                              textTransform: 'capitalize',
+                              backgroundColor: result.risk_level === 'low' ? '#d1fae5' : result.risk_level === 'high' || result.risk_level === 'critical' ? '#fee2e2' : '#fef3c7',
+                              color: result.risk_level === 'low' ? '#065f46' : result.risk_level === 'high' || result.risk_level === 'critical' ? '#991b1b' : '#92400e'
                             }}>
                               {result.risk_level}
                             </span>
@@ -1313,7 +1315,7 @@ export default function KYCClientDetails() {
                           </td>
                           <td style={{padding: '12px', fontSize: '12px'}}>{txn.counterparty_name}</td>
                           <td style={{padding: '12px', fontSize: '11px', color: '#6b7280', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'}}>
-                            {txn.description}
+                            {txn.transaction_description}
                           </td>
                           <td style={{padding: '12px', textAlign: 'center'}}>
                             <span style={{
@@ -1328,7 +1330,7 @@ export default function KYCClientDetails() {
                             </span>
                           </td>
                           <td style={{padding: '12px', textAlign: 'center'}}>
-                            {txn.flagged_for_review ? (
+                            {txn.alert_triggered ? (
                               <span style={{fontSize: '16px', color: '#dc2626'}}>🚩</span>
                             ) : (
                               <span style={{fontSize: '16px', color: '#10b981'}}>✓</span>
