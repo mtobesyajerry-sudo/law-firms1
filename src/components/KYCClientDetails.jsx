@@ -411,7 +411,7 @@ export default function KYCClientDetails() {
       setDdTriggers(triggers);
 
       const { data: eddDocs } = await supabase
-        .from('kyc_documents')
+        .from('client_documents')
         .select('*, document_type:document_types(*)')
         .eq('client_id', clientId)
         .in('document_type.code', [
