@@ -4,6 +4,8 @@ import { useAuth } from '../contexts/AuthContext';
 
 const EDDDocumentTemplates = ({ clientId, clientName, onClose, onUpdate, isReadOnly = false }) => {
   const { profile } = useAuth();
+  const [selectedTemplate, setSelectedTemplate] = useState(null);
+  const [documentTypes, setDocumentTypes] = useState([]);
   const [eddDocuments, setEddDocuments] = useState([]);
   const [loading, setLoading] = useState(true);
   const isFetchingRef = useRef(false);
@@ -12,8 +14,34 @@ const EDDDocumentTemplates = ({ clientId, clientName, onClose, onUpdate, isReadO
   const canVerifyDocuments = profile?.role === 'staff' || profile?.role === 'compliance_officer' || profile?.role === 'admin';
 
   useEffect(() => {
+    fetchDocumentTypes();
     fetchEDDDocuments();
   }, [clientId]);
+
+  const fetchDocumentTypes = async () => {
+    const { data, error } = await supabase
+      .from('document_types')
+      .select('*')
+      .not('template_content', 'is', null)
+      .in('code', [
+        'pep_declaration',
+        'edd_questionnaire',
+        'public_records_search',
+        'senior_approval',
+        'monitoring_checklist',
+        'pep_assessment',
+        'economic_rationale',
+        'country_risk_assessment'
+      ])
+      .order('display_order');
+
+    if (error) {
+      console.error('Error fetching document types:', error);
+    } else if (data) {
+      console.log('Document types loaded:', data);
+      setDocumentTypes(data);
+    }
+  };
 
   const fetchEDDDocuments = async () => {
     if (isFetchingRef.current) {
@@ -62,6 +90,15 @@ const EDDDocumentTemplates = ({ clientId, clientName, onClose, onUpdate, isReadO
       isFetchingRef.current = false;
       setLoading(false);
     }
+  };
+
+  const getDocumentStatus = (documentTypeId) => {
+    const doc = eddDocuments.find(d => d.document_type_id === documentTypeId);
+    return doc?.verification_status === 'verified' ? 'completed' : 'pending';
+  };
+
+  const handlePrint = () => {
+    window.print();
   };
 
   const handleViewDocument = async (storagePath) => {
@@ -418,15 +455,84 @@ const EDDDocumentTemplates = ({ clientId, clientName, onClose, onUpdate, isReadO
               ))}
             </div>
           </div>
-        ) : (
-          <div style={styles.emptyState}>
-            <p style={styles.emptyStateText}>No EDD documents uploaded yet</p>
-            <p style={styles.emptyStateSubtext}>
-              EDD documents should be uploaded through the Documents tab in Client Details
-            </p>
+        ) : null}
+
+        <div style={styles.templateSection}>
+          <h3 style={styles.sectionTitle}>Template Selection</h3>
+          <p style={styles.sectionDescription}>
+            Select a template below to view and print for manual completion
+          </p>
+        </div>
+
+        <div style={styles.templateGrid}>
+          {documentTypes.map((docType) => {
+            const status = getDocumentStatus(docType.id);
+            const isSelected = selectedTemplate === docType.id;
+            return (
+              <div
+                key={docType.id}
+                style={{
+                  ...styles.templateCard,
+                  ...(isSelected ? styles.templateCardSelected : {})
+                }}
+                onClick={() => setSelectedTemplate(docType.id)}
+              >
+                <div style={styles.cardHeader}>
+                  <h3 style={styles.cardTitle}>{docType.name}</h3>
+                  <span
+                    style={{
+                      ...styles.statusBadge,
+                      ...(status === 'completed' || status === 'reviewed' || status === 'approved'
+                        ? styles.statusBadgeCompleted
+                        : styles.statusBadgePending)
+                    }}
+                  >
+                    {status}
+                  </span>
+                </div>
+                <p style={styles.cardDescription}>{docType.description}</p>
+              </div>
+            );
+          })}
+        </div>
+
+        {selectedTemplate && (
+          <div style={styles.actionButtons}>
+            <button onClick={handlePrint} style={styles.printButton}>
+              Print Template
+            </button>
           </div>
         )}
       </div>
+
+      {selectedTemplate && (
+        <div className="template-content">
+          {selectedTemplate === documentTypes.find(dt => dt.code === 'pep_declaration')?.id && (
+            <PEPDeclarationTemplate clientName={clientName} />
+          )}
+          {selectedTemplate === documentTypes.find(dt => dt.code === 'edd_questionnaire')?.id && (
+            <EnhancedDDQuestionnaireTemplate clientName={clientName} />
+          )}
+          {selectedTemplate === documentTypes.find(dt => dt.code === 'public_records_search')?.id && (
+            <PublicRecordsSearchTemplate clientName={clientName} />
+          )}
+          {selectedTemplate === documentTypes.find(dt => dt.code === 'senior_approval')?.id && (
+            <SeniorManagementApprovalTemplate clientName={clientName} />
+          )}
+          {selectedTemplate === documentTypes.find(dt => dt.code === 'monitoring_checklist')?.id && (
+            <OngoingMonitoringChecklistTemplate clientName={clientName} />
+          )}
+          {selectedTemplate === documentTypes.find(dt => dt.code === 'pep_assessment')?.id && (
+            <PEPAssessmentFormTemplate clientName={clientName} />
+          )}
+          {selectedTemplate === documentTypes.find(dt => dt.code === 'economic_rationale')?.id && (
+            <TransactionEconomicRationaleTemplate clientName={clientName} />
+          )}
+          {selectedTemplate === documentTypes.find(dt => dt.code === 'country_risk_assessment')?.id && (
+            <CountryRiskAssessmentTemplate clientName={clientName} />
+          )}
+        </div>
+      )}
     </div>
   );
 };
@@ -483,37 +589,6 @@ const styles = {
     fontSize: '13px',
     color: '#1e40af',
     margin: 0,
-  },
-  templateGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
-    gap: '16px',
-    marginBottom: '24px',
-  },
-  templateCard: {
-    border: '1px solid #d1d5db',
-    borderRadius: '8px',
-    padding: '16px',
-    cursor: 'pointer',
-    transition: 'all 0.2s',
-    background: 'white',
-  },
-  templateCardSelected: {
-    borderColor: '#3b82f6',
-    background: '#eff6ff',
-  },
-  cardHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: '8px',
-  },
-  cardTitle: {
-    fontSize: '14px',
-    fontWeight: '600',
-    color: '#1f2937',
-    margin: 0,
-    flex: 1,
   },
   statusBadge: {
     fontSize: '11px',
@@ -578,33 +653,57 @@ const styles = {
     alignItems: 'center',
     gap: '4px',
   },
-  emptyState: {
-    padding: '60px 20px',
-    textAlign: 'center',
-    background: '#f9fafb',
-    borderRadius: '8px',
-    border: '2px dashed #d1d5db',
+  templateSection: {
+    marginTop: '32px',
+    marginBottom: '16px',
   },
-  emptyStateText: {
-    fontSize: '16px',
-    fontWeight: '600',
-    color: '#6b7280',
+  sectionTitle: {
+    fontSize: '18px',
+    fontWeight: '700',
+    color: '#1f2937',
     margin: '0 0 8px 0',
   },
-  emptyStateSubtext: {
+  sectionDescription: {
     fontSize: '14px',
-    color: '#9ca3af',
-    margin: 0,
-  },
-  cardDescription: {
-    fontSize: '12px',
     color: '#6b7280',
     margin: 0,
-    lineHeight: '1.5',
+  },
+  templateGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+    gap: '16px',
+    marginBottom: '24px',
+  },
+  templateCard: {
+    background: 'white',
+    border: '2px solid #e5e7eb',
+    borderRadius: '8px',
+    padding: '16px',
+    cursor: 'pointer',
+    transition: 'all 0.2s ease',
+  },
+  templateCardSelected: {
+    borderColor: '#2563eb',
+    background: '#eff6ff',
+  },
+  cardHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: '8px',
+  },
+  cardTitle: {
+    fontSize: '16px',
+    fontWeight: '600',
+    color: '#1f2937',
+    margin: 0,
+    flex: 1,
   },
   actionButtons: {
     display: 'flex',
     gap: '12px',
+    justifyContent: 'center',
+    marginTop: '16px',
     marginBottom: '24px',
   },
   printButton: {
@@ -614,8 +713,15 @@ const styles = {
     border: 'none',
     borderRadius: '6px',
     fontSize: '14px',
-    fontWeight: '500',
+    fontWeight: '600',
     cursor: 'pointer',
+    transition: 'all 0.2s ease',
+  },
+  cardDescription: {
+    fontSize: '12px',
+    color: '#6b7280',
+    margin: 0,
+    lineHeight: '1.5',
   },
   completeButton: {
     padding: '12px 24px',
