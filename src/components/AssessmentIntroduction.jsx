@@ -58,7 +58,7 @@ export default function AssessmentIntroduction({ assessment, organization, onCom
       newErrors.contact_email = 'Please enter a valid email address';
     }
     if (!formData.business_description) {
-      newErrors.business_description = 'Overview of financial services is required';
+      newErrors.business_description = 'Overview of legal services is required';
     }
     if (!formData.number_of_employees) {
       newErrors.number_of_employees = 'Please select number of employees';
