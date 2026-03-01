@@ -90,8 +90,8 @@ export default function STRAlertDashboard() {
         .from('transaction_alerts')
         .select(`
           *,
-          kyc_clients(client_name, client_type),
-          transaction_monitoring_rules(rule_name, rule_code)
+          kyc_clients!transaction_alerts_client_id_fkey(client_name, client_type),
+          transaction_monitoring_rules!transaction_alerts_triggered_by_rule_id_fkey(rule_name, rule_code)
         `)
         .eq('organization_id', profile.organization_id);
 
