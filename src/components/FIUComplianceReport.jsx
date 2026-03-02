@@ -47,6 +47,33 @@ export default function FIUComplianceReport({ assessment, sectionScores, respons
     }
   };
 
+  const getInstitutionType = () => {
+    if (!organization) return 'N/A';
+
+    if (organization.business_type === 'law_firm') {
+      return 'Law Firm';
+    }
+
+    if (organization.dnfbp_category) {
+      const categoryLabels = {
+        'bank': 'Bank',
+        'insurance': 'Insurance Company',
+        'securities': 'Securities Firm',
+        'money_services': 'Money Services Business',
+        'casino': 'Casino',
+        'real_estate': 'Real Estate Agent',
+        'dealer_precious_metals': 'Dealer in Precious Metals/Stones',
+        'lawyer': 'Lawyer/Legal Professional',
+        'accountant': 'Accountant',
+        'trust_company': 'Trust and Company Service Provider',
+        'other': 'Other DNFBP'
+      };
+      return categoryLabels[organization.dnfbp_category] || organization.dnfbp_category;
+    }
+
+    return organization.business_type || 'N/A';
+  };
+
   const calculateInherentRiskScores = () => {
     if (!riskBreakdown) {
       return {
@@ -417,7 +444,7 @@ export default function FIUComplianceReport({ assessment, sectionScores, respons
           new Paragraph({
             children: [
               new TextRun({ text: 'Type of Institution: ', bold: true }),
-              new TextRun(assessment.dnfbp_category || 'N/A')
+              new TextRun(getInstitutionType())
             ],
             spacing: { after: 200 }
           }),
@@ -1208,7 +1235,7 @@ export default function FIUComplianceReport({ assessment, sectionScores, respons
 
           <div style={styles.metadata}>
             <p><strong>Name of Reporting Person:</strong> {organization?.name || 'N/A'}</p>
-            <p><strong>Type of Institution:</strong> {assessment.dnfbp_category || 'N/A'}</p>
+            <p><strong>Type of Institution:</strong> {getInstitutionType()}</p>
             <p><strong>Reporting Period:</strong> {formatDate(assessment.created_at)} – {formatDate(new Date())}</p>
             <p><strong>Date of Assessment:</strong> {formatDate(assessment.created_at)}</p>
           </div>
