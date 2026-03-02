@@ -438,7 +438,7 @@ export default function FIUComplianceReport({ assessment, sectionScores, respons
 
           new Paragraph({
             children: [
-              new TextRun({ text: '[This report is confidential and prepared in compliance with the Anti-Money Laundering Act (Cap.423) and FIU guidelines. It should be retained for 10 years and submitted to relevant authorities as required.]', italics: true })
+              new TextRun({ text: '[This report is confidential and prepared in compliance with the Anti-Money Laundering Act (Cap.423) and FIU guidelines. It should be retained for 10 years and submitted to relevant authorities as and/or when required.]', italics: true })
             ],
             alignment: AlignmentType.CENTER,
             spacing: { before: 200, after: 800 }
@@ -1221,7 +1221,7 @@ export default function FIUComplianceReport({ assessment, sectionScores, respons
             fontSize: '0.95em',
             lineHeight: '1.6'
           }}>
-            [This report is confidential and prepared in compliance with the Anti-Money Laundering Act (Cap.423) and FIU guidelines. It should be retained for 10 years and submitted to relevant authorities as required.]
+            [This report is confidential and prepared in compliance with the Anti-Money Laundering Act (Cap.423) and FIU guidelines. It should be retained for 10 years and submitted to relevant authorities as and/or when required.]
           </p>
         </div>
 
