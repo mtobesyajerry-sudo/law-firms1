@@ -51,20 +51,33 @@ export default function ControlAssessmentForm() {
       setControlAssessments(assessmentsMap);
 
       if (Object.keys(assessmentsMap).length === 0) {
-        await ControlAssessmentService.initializeControlAssessments(
-          id,
-          assessmentData.dnfbp_tier || 1
-        );
-        const refreshed = await ControlAssessmentService.getControlAssessments(id);
-        const refreshedMap = {};
-        refreshed.forEach(ca => {
-          refreshedMap[ca.control_id] = ca;
-        });
-        setControlAssessments(refreshedMap);
+        try {
+          await ControlAssessmentService.initializeControlAssessments(
+            id,
+            assessmentData.dnfbp_tier || 1
+          );
+          const refreshed = await ControlAssessmentService.getControlAssessments(id);
+          const refreshedMap = {};
+          refreshed.forEach(ca => {
+            refreshedMap[ca.control_id] = ca;
+          });
+          setControlAssessments(refreshedMap);
+        } catch (initError) {
+          if (initError.code === '23505') {
+            const refreshed = await ControlAssessmentService.getControlAssessments(id);
+            const refreshedMap = {};
+            refreshed.forEach(ca => {
+              refreshedMap[ca.control_id] = ca;
+            });
+            setControlAssessments(refreshedMap);
+          } else {
+            throw initError;
+          }
+        }
       }
     } catch (error) {
       console.error('Error loading data:', error);
-      alert('Error loading assessment data');
+      alert(`Error loading assessment data: ${error.message || 'Unknown error'}`);
     } finally {
       setLoading(false);
     }
