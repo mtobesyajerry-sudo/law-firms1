@@ -145,19 +145,46 @@ export default function FIUComplianceReport({ assessment, sectionScores, respons
   };
 
   const getResidualRisk = () => {
-    if (!riskBreakdown) return { rating: 'UNKNOWN', formula: '' };
+    if (!riskBreakdown) return { rating: 'UNKNOWN', formula: '', narrative: '' };
 
     const finalScore = riskBreakdown.residual_risk_score || 0;
     const ce = riskBreakdown.control_effectiveness || 0;
     const ir = riskBreakdown.inherent_risk_score || 0;
+    const m2Score = riskBreakdown.technical_compliance_score || 0;
+    const m3Score = riskBreakdown.operational_effectiveness_score || 0;
 
     const rating = classify_risk_rating(finalScore);
+    const cePercentage = (ce * 100).toFixed(1);
+    const controlGap = ((1 - ce) * 100).toFixed(1);
+
     const formula = `RR = IR × (1 - CE) = ${ir.toFixed(2)} × (1 - ${ce.toFixed(3)}) = ${finalScore.toFixed(2)}`;
+
+    // Generate narrative
+    const tcRating = getTechnicalComplianceRating();
+    const effRating = getEffectivenessRating();
+
+    let narrative = `The institution's inherent ML/TF/PF risk exposure is rated at ${ir.toFixed(2)} on a 1-5 scale. `;
+    narrative += `Through implementation of AML/CFT controls, the overall control effectiveness stands at ${cePercentage}%, `;
+    narrative += `combining technical compliance (Module 2: ${tcRating}, score ${m2Score.toFixed(2)}) weighted at 60% `;
+    narrative += `and operational effectiveness (Module 3: ${effRating}, score ${m3Score.toFixed(2)}) weighted at 40%. `;
+    narrative += `This results in a control gap of ${controlGap}%, meaning ${controlGap}% of the inherent risk remains unmitigated. `;
+    narrative += `The residual risk after control mitigation is ${finalScore.toFixed(2)}, classified as ${rating.toUpperCase()} risk. `;
+
+    if (ce < 0.40) {
+      narrative += `The low control effectiveness (below 40%) indicates significant deficiencies in either technical compliance or operational effectiveness that require immediate attention.`;
+    } else if (ce < 0.60) {
+      narrative += `The moderate control effectiveness (40-60%) suggests controls are partially implemented but require strengthening to adequately mitigate inherent risks.`;
+    } else if (ce < 0.75) {
+      narrative += `The good control effectiveness (60-75%) indicates controls are substantially implemented and operating, though opportunities for improvement remain.`;
+    } else {
+      narrative += `The strong control effectiveness (above 75%) demonstrates robust controls that are effectively mitigating the majority of inherent risks.`;
+    }
 
     return {
       rating: rating.toUpperCase(),
       formula,
-      finalScore
+      finalScore,
+      narrative
     };
   };
 
@@ -807,7 +834,7 @@ export default function FIUComplianceReport({ assessment, sectionScores, respons
             spacing: { before: 400, after: 200 }
           }),
           new Paragraph({
-            text: 'Residual risk is determined by combining: inherent risk exposure (Module 1), technical compliance (Module 2), effectiveness of controls (Module 3), and institutional maturity (Module 4). The maturity level influences the institution\'s ability to detect, prevent, and respond to ML/TF/PF risks.',
+            text: 'Residual risk represents the remaining ML/TF/PF risk exposure after applying all control measures. It is calculated using the FATF methodology that combines inherent risk exposure with control effectiveness.',
             alignment: AlignmentType.JUSTIFIED,
             spacing: { after: 200 }
           }),
@@ -819,13 +846,29 @@ export default function FIUComplianceReport({ assessment, sectionScores, respons
             spacing: { after: 200 }
           }),
           new Paragraph({
-            text: 'FATF Risk Calculation:',
+            text: 'FATF Risk Calculation Formula:',
             bold: true,
             spacing: { after: 100 }
           }),
           new Paragraph({
             text: residualRisk.formula,
             alignment: AlignmentType.LEFT,
+            spacing: { after: 200 }
+          }),
+          new Paragraph({
+            text: 'Where: CE (Control Effectiveness) = (Technical Compliance × 60%) + (Operational Effectiveness × 40%)',
+            italics: true,
+            alignment: AlignmentType.LEFT,
+            spacing: { after: 300 }
+          }),
+          new Paragraph({
+            text: 'Risk Assessment Narrative:',
+            bold: true,
+            spacing: { after: 100 }
+          }),
+          new Paragraph({
+            text: residualRisk.narrative,
+            alignment: AlignmentType.JUSTIFIED,
             spacing: { after: 400 }
           }),
 
@@ -1216,11 +1259,14 @@ export default function FIUComplianceReport({ assessment, sectionScores, respons
 
           <h2 style={styles.sectionHeading}>3. RESIDUAL ML/TF/PF RISK ASSESSMENT</h2>
           <p style={styles.justifiedText}>
-            Residual risk is determined by combining: inherent risk exposure (Module 1), technical compliance (Module 2), and effectiveness of controls (Module 3).
+            Residual risk represents the remaining ML/TF/PF risk exposure after applying all control measures. It is calculated using the FATF methodology that combines inherent risk exposure with control effectiveness.
           </p>
           <p style={styles.boldText}>Overall Residual ML/TF/PF Risk: {residualRisk.rating}</p>
-          <p style={styles.boldText}>FATF Risk Calculation:</p>
+          <p style={styles.boldText}>FATF Risk Calculation Formula:</p>
           <p style={styles.justifiedText}>{residualRisk.formula}</p>
+          <p style={styles.italicText}>Where: CE (Control Effectiveness) = (Technical Compliance × 60%) + (Operational Effectiveness × 40%)</p>
+          <p style={styles.boldText}>Risk Assessment Narrative:</p>
+          <p style={styles.justifiedText}>{residualRisk.narrative}</p>
 
           <h2 style={styles.sectionHeading}>4. RISK MITIGATION MEASURES AND ACTION PLAN</h2>
           <p style={styles.italicText}>(Auto-generated from gaps identified in Modules 2 and 3)</p>
