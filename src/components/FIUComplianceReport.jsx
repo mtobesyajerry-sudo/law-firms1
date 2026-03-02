@@ -433,7 +433,15 @@ export default function FIUComplianceReport({ assessment, sectionScores, respons
               new TextRun({ text: 'Date of Assessment: ', bold: true }),
               new TextRun(formatDate(assessment.created_at))
             ],
-            spacing: { after: 800 }
+            spacing: { after: 400 }
+          }),
+
+          new Paragraph({
+            children: [
+              new TextRun({ text: '[This report is confidential and prepared in compliance with the Anti-Money Laundering Act (Cap.423) and FIU guidelines. It should be retained for 10 years and submitted to relevant authorities as required.]', italics: true })
+            ],
+            alignment: AlignmentType.CENTER,
+            spacing: { before: 200, after: 800 }
           }),
 
           new Paragraph({
@@ -1145,11 +1153,6 @@ export default function FIUComplianceReport({ assessment, sectionScores, respons
           new Paragraph({
             text: generateResidualRiskInterpretation(residualRisk.rating, inherentRisks.overallRating, tcRating, effRating),
             alignment: AlignmentType.JUSTIFIED,
-            spacing: { after: 400 }
-          }),
-          new Paragraph({
-            text: 'This report is confidential and prepared in compliance with the Anti-Money Laundering Act (Cap.423) and FIU guidelines. It should be retained for 10 years and submitted to relevant authorities as required.',
-            alignment: AlignmentType.JUSTIFIED,
             spacing: { after: 800 }
           }),
 
@@ -1209,6 +1212,17 @@ export default function FIUComplianceReport({ assessment, sectionScores, respons
             <p><strong>Reporting Period:</strong> {formatDate(assessment.created_at)} – {formatDate(new Date())}</p>
             <p><strong>Date of Assessment:</strong> {formatDate(assessment.created_at)}</p>
           </div>
+
+          <p style={{
+            textAlign: 'center',
+            fontStyle: 'italic',
+            marginTop: '40px',
+            padding: '20px',
+            fontSize: '0.95em',
+            lineHeight: '1.6'
+          }}>
+            [This report is confidential and prepared in compliance with the Anti-Money Laundering Act (Cap.423) and FIU guidelines. It should be retained for 10 years and submitted to relevant authorities as required.]
+          </p>
         </div>
 
         <div style={styles.content}>
@@ -1500,9 +1514,6 @@ export default function FIUComplianceReport({ assessment, sectionScores, respons
           </p>
           <p style={styles.justifiedText}>
             {generateResidualRiskInterpretation(residualRisk.rating, inherentRisks.overallRating, tcRating, effRating)}
-          </p>
-          <p style={styles.justifiedText}>
-            This report is confidential and prepared in compliance with the Anti-Money Laundering Act (Cap.423) and FIU guidelines. It should be retained for 10 years and submitted to relevant authorities as required.
           </p>
 
           <div style={styles.signatureSection}>
