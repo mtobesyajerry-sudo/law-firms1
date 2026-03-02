@@ -111,15 +111,16 @@ export default function FIUComplianceReport({ assessment, sectionScores, respons
 
   const getTechnicalComplianceRating = () => {
     const module2Score = assessment.module_2_score || 0;
-    if (module2Score < 1.5) return 'Compliant';
-    if (module2Score < 2.5) return 'Partially Compliant';
+    if (module2Score < 2.0) return 'Compliant';
+    if (module2Score < 3.5) return 'Partially Compliant';
     return 'Non-Compliant';
   };
 
   const getEffectivenessRating = () => {
     const module3Score = assessment.module_3_score || 0;
-    if (module3Score < 1.5) return 'Effective';
-    if (module3Score < 2.5) return 'Partially Effective';
+    if (module3Score < 2.0) return 'Effective';
+    if (module3Score < 3.5) return 'Partially Effective';
+    if (module3Score < 4.5) return 'Weak';
     return 'Ineffective';
   };
 
