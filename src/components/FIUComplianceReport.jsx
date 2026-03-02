@@ -167,6 +167,136 @@ export default function FIUComplianceReport({ assessment, sectionScores, respons
     return 'Very High';
   };
 
+  const generateMaturityNarrative = (rating) => {
+    const module4Responses = responses.filter(r => r.question_code?.startsWith('D'));
+
+    if (module4Responses.length === 0) {
+      return `The institution's AML/CFT control maturity has been assessed and determined to be at ${rating} level. This assessment evaluates the sophistication, integration, and continuous improvement of controls across all compliance areas.`;
+    }
+
+    const initial = module4Responses.filter(r => r.response === 'Initial');
+    const developing = module4Responses.filter(r => r.response === 'Developing');
+    const defined = module4Responses.filter(r => r.response === 'Defined');
+    const managed = module4Responses.filter(r => r.response === 'Managed');
+    const optimizing = module4Responses.filter(r => r.response === 'Optimizing');
+    const total = module4Responses.length;
+
+    let narrative = `The institution's AML/CFT control maturity has been assessed and determined to be at ${rating} level based on evaluation of ${total} control dimensions. `;
+
+    if (initial.length > 0) {
+      narrative += `${initial.length} control areas are at Initial maturity (${Math.round(initial.length/total*100)}%), indicating ad-hoc processes with minimal documentation. `;
+    }
+    if (developing.length > 0) {
+      narrative += `${developing.length} areas are Developing (${Math.round(developing.length/total*100)}%), with basic processes established but inconsistently applied. `;
+    }
+    if (defined.length > 0) {
+      narrative += `${defined.length} areas are Defined (${Math.round(defined.length/total*100)}%), demonstrating documented and standardized processes. `;
+    }
+    if (managed.length > 0) {
+      narrative += `${managed.length} areas are Managed (${Math.round(managed.length/total*100)}%), with measured and controlled processes. `;
+    }
+    if (optimizing.length > 0) {
+      narrative += `${optimizing.length} areas are Optimizing (${Math.round(optimizing.length/total*100)}%), with continuous improvement and innovation. `;
+    }
+
+    narrative += `\n\nDEVELOPMENT PRIORITIES: `;
+    if (initial.length + developing.length > total * 0.5) {
+      narrative += `Priority focus: Establish documented procedures, standardize processes across the organization, invest in staff training and technology infrastructure.`;
+    } else if (defined.length > total * 0.4) {
+      narrative += `Priority focus: Implement performance monitoring systems, establish quality assurance mechanisms, and begin automation of routine processes.`;
+    } else {
+      narrative += `Priority focus: Enhance data analytics capabilities, optimize existing processes, and develop predictive risk models.`;
+    }
+
+    return narrative;
+  };
+
+  const generateActionPlan = () => {
+    const actions = [];
+    const tcRating = getTechnicalComplianceRating();
+    const effRating = getEffectivenessRating();
+    const maturityRating = getMaturityRating();
+
+    const module2Responses = responses.filter(r => r.question_code?.startsWith('B'));
+    const module3Responses = responses.filter(r => r.question_code?.startsWith('C'));
+    const module4Responses = responses.filter(r => r.question_code?.startsWith('D'));
+
+    module2Responses.forEach(r => {
+      if (r.response === 'Not in place') {
+        actions.push({
+          category: 'Technical Compliance',
+          action: `Establish and document ${r.question_text?.replace(/^Does the (firm|institution) have /i, '').replace(/\?$/, '').toLowerCase()}`,
+          priority: 'High',
+          timeline: 'Within 3 months'
+        });
+      } else if (r.response === 'Partially implemented') {
+        actions.push({
+          category: 'Technical Compliance',
+          action: `Complete implementation and documentation of ${r.question_text?.replace(/^Does the (firm|institution) have /i, '').replace(/\?$/, '').toLowerCase()}`,
+          priority: 'Medium',
+          timeline: 'Within 6 months'
+        });
+      }
+    });
+
+    module3Responses.forEach(r => {
+      if (r.response === 'Ineffective') {
+        actions.push({
+          category: 'Operational Effectiveness',
+          action: `Strengthen operational effectiveness of ${r.question_text?.replace(/^Are /i, '').replace(/\?$/, '').toLowerCase()}`,
+          priority: 'High',
+          timeline: 'Within 3 months'
+        });
+      } else if (r.response === 'Weak') {
+        actions.push({
+          category: 'Operational Effectiveness',
+          action: `Improve quality and consistency of ${r.question_text?.replace(/^Are /i, '').replace(/\?$/, '').toLowerCase()}`,
+          priority: 'Medium',
+          timeline: 'Within 6 months'
+        });
+      }
+    });
+
+    module4Responses.forEach(r => {
+      if (r.response === 'Initial' || r.response === 'Developing') {
+        actions.push({
+          category: 'Maturity Enhancement',
+          action: `Advance maturity of ${r.question_text?.replace(/^What is the maturity level of /i, '').replace(/\?$/, '').toLowerCase()}`,
+          priority: 'Medium',
+          timeline: 'Within 12 months'
+        });
+      }
+    });
+
+    if (tcRating === 'Non-Compliant' || tcRating === 'Partially Compliant') {
+      actions.push({
+        category: 'Governance',
+        action: 'Establish comprehensive AML/CFT governance framework with clear accountability',
+        priority: 'High',
+        timeline: 'Within 3 months'
+      });
+    }
+
+    if (effRating === 'Ineffective' || effRating === 'Weak') {
+      actions.push({
+        category: 'Quality Assurance',
+        action: 'Implement quality assurance program for AML/CFT operations',
+        priority: 'High',
+        timeline: 'Within 3 months'
+      });
+    }
+
+    const groupedActions = actions.reduce((acc, action) => {
+      if (!acc[action.category]) acc[action.category] = [];
+      acc[action.category].push(action);
+      return acc;
+    }, {});
+
+    return {
+      totalActions: actions.length,
+      groupedActions
+    };
+  };
 
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
