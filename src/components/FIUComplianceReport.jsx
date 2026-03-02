@@ -74,6 +74,17 @@ export default function FIUComplianceReport({ assessment, sectionScores, respons
     return organization.business_type || 'N/A';
   };
 
+  const getReportingPeriod = () => {
+    const assessmentDate = new Date(assessment.created_at);
+    const oneYearBefore = new Date(assessmentDate);
+    oneYearBefore.setFullYear(oneYearBefore.getFullYear() - 1);
+
+    return {
+      start: oneYearBefore,
+      end: assessmentDate
+    };
+  };
+
   const calculateInherentRiskScores = () => {
     if (!riskBreakdown) {
       return {
@@ -451,7 +462,7 @@ export default function FIUComplianceReport({ assessment, sectionScores, respons
           new Paragraph({
             children: [
               new TextRun({ text: 'Reporting Period: ', bold: true }),
-              new TextRun(`${formatDate(assessment.created_at)} – ${formatDate(new Date())}`)
+              new TextRun(`${formatDate(getReportingPeriod().start)} – ${formatDate(getReportingPeriod().end)}`)
             ],
             spacing: { after: 200 }
           }),
@@ -1236,7 +1247,7 @@ export default function FIUComplianceReport({ assessment, sectionScores, respons
           <div style={styles.metadata}>
             <p><strong>Name of Reporting Person:</strong> {organization?.name || 'N/A'}</p>
             <p><strong>Type of Institution:</strong> {getInstitutionType()}</p>
-            <p><strong>Reporting Period:</strong> {formatDate(assessment.created_at)} – {formatDate(new Date())}</p>
+            <p><strong>Reporting Period:</strong> {formatDate(getReportingPeriod().start)} – {formatDate(getReportingPeriod().end)}</p>
             <p><strong>Date of Assessment:</strong> {formatDate(assessment.created_at)}</p>
           </div>
 
