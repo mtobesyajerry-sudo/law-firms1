@@ -236,6 +236,124 @@ The enhanced narratives provide institutional users with:
 6. **Strategic Context**: Integration with board governance and strategic planning
 7. **Professional Presentation**: Suitable for regulatory submissions and board reporting
 
+### 5. Overall Conclusion (Section 5)
+
+**Enhanced Description:**
+- Comprehensive structured conclusion with clear subsections
+- Detailed summary of all key assessment findings
+- Individual breakdowns of inherent risk, technical compliance, and effectiveness ratings
+- Dynamic residual risk interpretation based on the interplay between inherent risk and controls
+- Action-oriented guidance tailored to specific residual risk levels
+- Integration with Board governance and strategic decision-making
+
+**New Structure:**
+1. **Summary of Risk Assessment Results**: Overview of assessment methodology and scope
+2. **Key Assessment Findings**: Detailed breakdown of each component
+   - Inherent ML/TF/PF Risk with sub-category ratings
+   - Technical Compliance with regulatory context
+   - Control Effectiveness with operational dimensions
+3. **Overall Residual Risk Conclusion**: Prominent display with contextual interpretation
+4. **Dynamic Risk Interpretation**: Scenario-based narrative generation
+
+**Dynamic Interpretation Logic:**
+
+The system now generates intelligent, context-aware interpretations based on risk scenarios:
+
+**Strong Control Scenario:**
+- High/Very High inherent risk + Low/Very Low residual risk
+- Recognizes successful control implementation despite elevated exposure
+- Acknowledges mature, robust AML/CFT framework capabilities
+
+**Effective Control Scenario:**
+- Medium/High inherent risk + Medium residual risk
+- Identifies functioning controls with improvement opportunities
+- Provides balanced assessment of current state
+
+**Weak Control Scenario:**
+- Any High/Very High residual risk
+- Highlights inadequate mitigation or control weaknesses
+- Emphasizes immediate management attention requirement
+
+**Low Risk Scenario:**
+- Low/Very Low inherent risk + Low/Very Low residual risk
+- Recognizes appropriate controls for risk profile
+- Maintains focus on ongoing monitoring
+
+**Action Guidance by Residual Risk Level:**
+
+1. **VERY HIGH/HIGH Risk:**
+   - **IMMEDIATE ACTION REQUIRED**
+   - Prioritize remediation of control weaknesses
+   - Enhance monitoring and oversight
+   - Allocate additional compliance resources
+   - Potential supervisory intervention
+   - Board and senior management urgent action plan required
+
+2. **MEDIUM Risk:**
+   - **MANAGEMENT ATTENTION REQUIRED**
+   - Develop targeted action plan for specific control areas
+   - Focus on technical compliance gaps
+   - Improve operational effectiveness where needed
+   - Ensure adequate resource allocation
+   - Regular Board monitoring and progress reporting
+
+3. **LOW Risk:**
+   - **MAINTAIN AND MONITOR**
+   - Continue maintaining current control standards
+   - Monitor emerging risks and regulatory changes
+   - Conduct regular independent testing
+   - Ensure ongoing staff training
+   - Consider periodic enhancements as risk environment evolves
+
+4. **VERY LOW Risk:**
+   - **EXEMPLARY PERFORMANCE**
+   - Demonstrate mature, highly effective controls
+   - Continue best practices and industry leadership
+   - Share knowledge and expertise
+   - Maintain vigilance for emerging risks
+   - Ensure controls remain proportionate and risk-based
+
+**Professional Presentation:**
+- Clear visual hierarchy with headings and subheadings
+- Bold highlighting for key ratings and conclusions
+- Prominent residual risk rating display
+- Comprehensive narrative suitable for Board reporting
+- Regulatory submission ready format
+
+## Implementation Summary
+
+### Technical Changes
+1. **Enhanced All Risk Category Descriptions** (Sections 2.4.1-2.4.4)
+2. **Expanded Technical Compliance Narrative** (Section 2.5)
+3. **Enhanced Effectiveness Assessment** (Section 2.6)
+4. **Improved Residual Risk Explanation** (Section 3)
+5. **Completely Restructured Overall Conclusion** (Section 5)
+6. **Added Dynamic Risk Interpretation Function**
+7. **Updated Both Word Export and HTML Preview Formats**
+
+### Code Additions
+- New `generateResidualRiskInterpretation()` function with scenario-based logic
+- Enhanced section descriptions with 5-10x more detail
+- Action-oriented guidance generation
+- Context-aware narrative building
+
+### Build Status
+✅ Successfully built and tested
+- No errors or warnings
+- All enhancements integrated seamlessly
+- Both export (Word) and preview (HTML) functionality preserved
+- Dynamic interpretation working correctly
+
 ## Conclusion
 
-The enhanced report narratives transform the FIU Compliance Report from a simple score output into a comprehensive, professional risk assessment document that provides institutional users with the context, guidance, and understanding needed to make informed AML/CFT risk management decisions. The enhancements maintain full technical accuracy while significantly improving usability and professional presentation quality.
+The enhanced report narratives transform the FIU Compliance Report from a simple score output into a comprehensive, professional risk assessment document that provides institutional users with the context, guidance, and understanding needed to make informed AML/CFT risk management decisions.
+
+Key achievements:
+1. **Professional Quality**: Suitable for Board presentations and regulatory submissions
+2. **Technical Accuracy**: Fully aligned with FATF methodology and corrected scoring
+3. **User Guidance**: Clear action-oriented recommendations for every risk scenario
+4. **Comprehensive Coverage**: All major sections enhanced with detailed explanations
+5. **Dynamic Intelligence**: Context-aware interpretations based on actual assessment results
+6. **Strategic Value**: Integration with governance, planning, and resource allocation decisions
+
+The enhancements maintain full technical accuracy while significantly improving usability, professional presentation quality, and strategic decision-making support.

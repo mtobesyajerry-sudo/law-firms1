@@ -144,6 +144,47 @@ export default function FIUComplianceReport({ assessment, sectionScores, respons
     return descriptions[rating] || 'Unknown maturity level';
   };
 
+  const generateResidualRiskInterpretation = (residualRating, inherentRating, tcRating, effRating) => {
+    let interpretation = `This residual risk rating represents the institution's remaining ML/TF/PF vulnerability after accounting for all control measures and mitigations. `;
+
+    // Analyze the relationship between inherent risk and controls
+    const inherentRisk = inherentRating.toUpperCase();
+    const residual = residualRating.toUpperCase();
+
+    // Strong control scenario
+    if ((inherentRisk === 'HIGH' || inherentRisk === 'VERY HIGH') && (residual === 'LOW' || residual === 'VERY LOW')) {
+      interpretation += `Despite facing ${inherentRisk} inherent ML/TF/PF risk exposure, the institution has successfully implemented strong technical compliance (${tcRating}) and effective operational controls (${effRating}) that significantly reduce the risk to ${residual} levels. This demonstrates a mature, robust AML/CFT framework capable of managing elevated risk exposures. `;
+    }
+    // Effective control scenario
+    else if ((inherentRisk === 'MEDIUM' || inherentRisk === 'HIGH') && residual === 'MEDIUM') {
+      interpretation += `The institution faces ${inherentRisk} inherent risk exposure and has implemented controls with ${tcRating} technical compliance and ${effRating} operational effectiveness, resulting in ${residual} residual risk. This indicates controls are functioning but opportunities exist for further strengthening to achieve lower residual risk levels. `;
+    }
+    // Weak control scenario
+    else if ((residual === 'HIGH' || residual === 'VERY HIGH')) {
+      interpretation += `The institution's ${residual} residual risk reflects either elevated inherent risk exposure (${inherentRisk}) that is not adequately mitigated by current controls, or weaknesses in technical compliance (${tcRating}) and/or operational effectiveness (${effRating}). This requires immediate management attention and remediation. `;
+    }
+    // Low inherent, low residual scenario
+    else if ((inherentRisk === 'LOW' || inherentRisk === 'VERY LOW') && (residual === 'LOW' || residual === 'VERY LOW')) {
+      interpretation += `The institution operates with ${inherentRisk} inherent risk exposure due to its business model and risk profile. Controls demonstrating ${tcRating} technical compliance and ${effRating} operational effectiveness maintain residual risk at ${residual} levels appropriate for the institution's risk appetite. `;
+    }
+    else {
+      interpretation += `The ${residual} residual risk reflects ${inherentRisk} inherent exposure combined with ${tcRating} technical compliance and ${effRating} operational effectiveness. `;
+    }
+
+    // Add action-oriented guidance based on residual risk level
+    if (residual === 'VERY HIGH' || residual === 'HIGH') {
+      interpretation += `IMMEDIATE ACTION REQUIRED: The institution must prioritize remediation of identified control weaknesses, enhance monitoring and oversight, allocate additional resources to compliance functions, and may require supervisory intervention. The Board and senior management should establish an urgent action plan with clear accountability and timelines for risk reduction.`;
+    } else if (residual === 'MEDIUM') {
+      interpretation += `MANAGEMENT ATTENTION REQUIRED: The institution should develop and implement a targeted action plan to strengthen specific control areas identified as needing improvement. Focus on enhancing technical compliance gaps, improving operational effectiveness where weaknesses exist, and ensuring adequate resource allocation. Regular monitoring and progress reporting to the Board is essential.`;
+    } else if (residual === 'LOW') {
+      interpretation += `MAINTAIN AND MONITOR: The institution demonstrates sound AML/CFT risk management appropriate to its risk profile. Continue maintaining current control standards, monitor for emerging risks and regulatory changes, conduct regular independent testing and validation, and ensure ongoing staff training and awareness. Periodic control enhancements should be considered as the risk environment evolves.`;
+    } else if (residual === 'VERY LOW') {
+      interpretation += `EXEMPLARY PERFORMANCE: The institution demonstrates mature, highly effective AML/CFT controls that comprehensively mitigate ML/TF/PF risks. Continue best practices, share knowledge across the industry, maintain vigilance for emerging risks, and ensure controls remain proportionate and risk-based. This level of performance positions the institution as a leader in AML/CFT compliance.`;
+    }
+
+    return interpretation;
+  };
+
   const getResidualRisk = () => {
     if (!riskBreakdown) return { rating: 'UNKNOWN', formula: '', narrative: '' };
 
@@ -1034,7 +1075,75 @@ export default function FIUComplianceReport({ assessment, sectionScores, respons
             spacing: { before: 400, after: 200 }
           }),
           new Paragraph({
-            text: `Based on the assessment: Inherent ML/TF/PF risk is assessed as ${inherentRisks.overallRating}. Technical compliance is assessed as ${tcRating}. Effectiveness of AML/CFT/CPF controls is assessed as ${effRating}. Accordingly, the institution's overall residual ML/TF/PF risk for the reporting period is assessed as: ${residualRisk.rating}`,
+            text: 'Summary of Risk Assessment Results',
+            heading: HeadingLevel.HEADING_2,
+            spacing: { before: 200, after: 200 }
+          }),
+          new Paragraph({
+            text: `This comprehensive AML/CFT/CPF risk assessment has evaluated the institution's ML/TF/PF risk exposure across all material risk dimensions using the FATF-aligned risk assessment methodology. The assessment examined inherent risks arising from the institution's business model, customer base, products and services, geographic footprint, and transaction characteristics, as well as the technical compliance and operational effectiveness of controls implemented to mitigate those risks.`,
+            alignment: AlignmentType.JUSTIFIED,
+            spacing: { after: 200 }
+          }),
+          new Paragraph({
+            children: [
+              new TextRun({ text: 'Key Assessment Findings:', bold: true })
+            ],
+            spacing: { after: 200 }
+          }),
+          new Paragraph({
+            children: [
+              new TextRun({ text: 'Inherent ML/TF/PF Risk: ', bold: true }),
+              new TextRun({ text: inherentRisks.overallRating.toUpperCase() })
+            ],
+            alignment: AlignmentType.JUSTIFIED,
+            spacing: { after: 100 }
+          }),
+          new Paragraph({
+            text: `The institution's inherent risk exposure before considering any control measures is assessed as ${inherentRisks.overallRating}. This reflects the combined risk profile arising from customer characteristics (${inherentRisks.customer.rating}), product and service offerings (${inherentRisks.product.rating}), geographic exposure (${inherentRisks.geographic.rating}), and transaction/delivery channel characteristics (${inherentRisks.transaction.rating}).`,
+            alignment: AlignmentType.JUSTIFIED,
+            spacing: { after: 200 }
+          }),
+          new Paragraph({
+            children: [
+              new TextRun({ text: 'Technical Compliance: ', bold: true }),
+              new TextRun({ text: tcRating.toUpperCase() })
+            ],
+            alignment: AlignmentType.JUSTIFIED,
+            spacing: { after: 100 }
+          }),
+          new Paragraph({
+            text: `The institution's technical compliance with AML/CFT/CPF legal and regulatory requirements is assessed as ${tcRating}. This rating reflects the degree to which the institution has established, documented, and implemented required policies, procedures, systems, governance arrangements, training programs, and control frameworks as mandated by the Anti-Money Laundering Act (Cap.423), FIU regulations, and supervisory guidance.`,
+            alignment: AlignmentType.JUSTIFIED,
+            spacing: { after: 200 }
+          }),
+          new Paragraph({
+            children: [
+              new TextRun({ text: 'Control Effectiveness: ', bold: true }),
+              new TextRun({ text: effRating.toUpperCase() })
+            ],
+            alignment: AlignmentType.JUSTIFIED,
+            spacing: { after: 100 }
+          }),
+          new Paragraph({
+            text: `The operational effectiveness of the institution's AML/CFT/CPF controls in practice is assessed as ${effRating}. This rating evaluates whether controls operate consistently, achieve intended risk mitigation outcomes, and demonstrate appropriate quality, timeliness, and learning. It considers the institution's ability to identify and act upon ML/TF/PF risks, file quality suspicious transaction reports, implement sanctions promptly, maintain staff awareness, and remediate identified weaknesses.`,
+            alignment: AlignmentType.JUSTIFIED,
+            spacing: { after: 200 }
+          }),
+          new Paragraph({
+            text: 'Overall Residual Risk Conclusion',
+            heading: HeadingLevel.HEADING_2,
+            spacing: { before: 300, after: 200 }
+          }),
+          new Paragraph({
+            children: [
+              new TextRun({ text: 'Based on the comprehensive assessment of inherent risks, technical compliance, and control effectiveness, the institution\'s overall residual ML/TF/PF risk for the reporting period is assessed as: ' }),
+              new TextRun({ text: residualRisk.rating.toUpperCase(), bold: true, size: 28 })
+            ],
+            alignment: AlignmentType.JUSTIFIED,
+            spacing: { after: 300 }
+          }),
+          new Paragraph({
+            text: generateResidualRiskInterpretation(residualRisk.rating, inherentRisks.overallRating, tcRating, effRating),
             alignment: AlignmentType.JUSTIFIED,
             spacing: { after: 400 }
           }),
@@ -1362,8 +1471,35 @@ export default function FIUComplianceReport({ assessment, sectionScores, respons
           )}
 
           <h2 style={styles.sectionHeading}>5. OVERALL CONCLUSION</h2>
+
+          <h3 style={styles.subheading}>Summary of Risk Assessment Results</h3>
           <p style={styles.justifiedText}>
-            Based on the assessment: Inherent ML/TF/PF risk is assessed as {inherentRisks.overallRating}. Technical compliance is assessed as {tcRating}. Effectiveness of AML/CFT/CPF controls is assessed as {effRating}. Accordingly, the institution's overall residual ML/TF/PF risk for the reporting period is assessed as: <strong>{residualRisk.rating}</strong>
+            This comprehensive AML/CFT/CPF risk assessment has evaluated the institution's ML/TF/PF risk exposure across all material risk dimensions using the FATF-aligned risk assessment methodology. The assessment examined inherent risks arising from the institution's business model, customer base, products and services, geographic footprint, and transaction characteristics, as well as the technical compliance and operational effectiveness of controls implemented to mitigate those risks.
+          </p>
+
+          <p style={styles.boldText}>Key Assessment Findings:</p>
+
+          <p style={styles.boldText}>Inherent ML/TF/PF Risk: {inherentRisks.overallRating.toUpperCase()}</p>
+          <p style={styles.justifiedText}>
+            The institution's inherent risk exposure before considering any control measures is assessed as {inherentRisks.overallRating}. This reflects the combined risk profile arising from customer characteristics ({inherentRisks.customer.rating}), product and service offerings ({inherentRisks.product.rating}), geographic exposure ({inherentRisks.geographic.rating}), and transaction/delivery channel characteristics ({inherentRisks.transaction.rating}).
+          </p>
+
+          <p style={styles.boldText}>Technical Compliance: {tcRating.toUpperCase()}</p>
+          <p style={styles.justifiedText}>
+            The institution's technical compliance with AML/CFT/CPF legal and regulatory requirements is assessed as {tcRating}. This rating reflects the degree to which the institution has established, documented, and implemented required policies, procedures, systems, governance arrangements, training programs, and control frameworks as mandated by the Anti-Money Laundering Act (Cap.423), FIU regulations, and supervisory guidance.
+          </p>
+
+          <p style={styles.boldText}>Control Effectiveness: {effRating.toUpperCase()}</p>
+          <p style={styles.justifiedText}>
+            The operational effectiveness of the institution's AML/CFT/CPF controls in practice is assessed as {effRating}. This rating evaluates whether controls operate consistently, achieve intended risk mitigation outcomes, and demonstrate appropriate quality, timeliness, and learning. It considers the institution's ability to identify and act upon ML/TF/PF risks, file quality suspicious transaction reports, implement sanctions promptly, maintain staff awareness, and remediate identified weaknesses.
+          </p>
+
+          <h3 style={styles.subheading}>Overall Residual Risk Conclusion</h3>
+          <p style={styles.justifiedText}>
+            <strong>Based on the comprehensive assessment of inherent risks, technical compliance, and control effectiveness, the institution's overall residual ML/TF/PF risk for the reporting period is assessed as: <span style={{fontSize: '1.2em', color: '#1976d2'}}>{residualRisk.rating.toUpperCase()}</span></strong>
+          </p>
+          <p style={styles.justifiedText}>
+            {generateResidualRiskInterpretation(residualRisk.rating, inherentRisks.overallRating, tcRating, effRating)}
           </p>
           <p style={styles.justifiedText}>
             This report is confidential and prepared in compliance with the Anti-Money Laundering Act (Cap.423) and FIU guidelines. It should be retained for 10 years and submitted to relevant authorities as required.
