@@ -187,6 +187,8 @@ export default function AssessmentForm() {
 
     } catch (error) {
       console.error('Error loading assessment:', error);
+      alert(`Error loading assessment data: ${error.message || 'Unknown error'}. Please try refreshing the page or contact support if the issue persists.`);
+      navigateToDashboard();
     } finally {
       setLoading(false);
     }
