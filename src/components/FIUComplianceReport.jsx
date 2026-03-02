@@ -2,6 +2,14 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
 import { Document, Paragraph, TextRun, AlignmentType, HeadingLevel, Table, TableRow, TableCell, WidthType, BorderStyle, Packer } from 'docx';
 import { saveAs } from 'file-saver';
+import {
+  generateCustomerRiskNarrative,
+  generateProductRiskNarrative,
+  generateGeographicRiskNarrative,
+  generateTransactionRiskNarrative,
+  generateTechnicalComplianceNarrative,
+  generateEffectivenessNarrative
+} from '../services/reportNarratives';
 
 export default function FIUComplianceReport({ assessment, sectionScores, responses, onClose }) {
   const [organization, setOrganization] = useState(null);
@@ -159,487 +167,6 @@ export default function FIUComplianceReport({ assessment, sectionScores, respons
     return 'Very High';
   };
 
-  const generateCustomerNarrative = (rating) => {
-    // Extract Module 1A responses (Products & Services for banks and financial institutions)
-    const module1AResponses = responses.filter(r => r.question_code?.startsWith('1A.'));
-
-    if (module1AResponses.length === 0) {
-      return `Customer inherent risk is assessed as ${rating}. No specific service-related risk factors were identified during the assessment.`;
-    }
-
-    const highRiskServices = [];
-    const partialRiskServices = [];
-    const noRiskServices = [];
-
-    module1AResponses.forEach(r => {
-      const response = r.response?.toLowerCase();
-      if (response === 'yes') highRiskServices.push(r);
-      else if (response === 'partially' || response === 'partial') partialRiskServices.push(r);
-      else if (response === 'no') noRiskServices.push(r);
-    });
-
-    let narrative = `Customer inherent risk is assessed as ${rating}. `;
-
-    if (highRiskServices.length > 0) {
-      const examples = highRiskServices.slice(0, 3).map(r => {
-        const text = r.question_text || '';
-        return text.replace(/^Does the (firm|institution) (assist clients in |assist in |provide |act as |create, operate, or manage )?/i, '').replace(/\?$/, '');
-      }).join('; ');
-      narrative += `The assessment confirms the firm provides the following higher-risk services: ${examples}. These service offerings involve handling client funds, creating legal structures, or facilitating transactions that present elevated money laundering and terrorist financing risks. `;
-    }
-
-    if (partialRiskServices.length > 0) {
-      narrative += `The firm has partial or limited exposure to ${partialRiskServices.length} additional service area${partialRiskServices.length > 1 ? 's' : ''}, requiring case-by-case assessment. `;
-    }
-
-    if (noRiskServices.length >= module1AResponses.length * 0.6) {
-      narrative += `The firm does not provide ${noRiskServices.length} of the assessed higher-risk services, which reduces overall inherent risk exposure.`;
-    } else if (highRiskServices.length + partialRiskServices.length > 0) {
-      narrative += `These service exposures collectively contribute to the ${rating} customer inherent risk profile and require risk-based customer due diligence, enhanced monitoring, and appropriate controls.`;
-    }
-
-    return narrative;
-  };
-
-  const generateProductNarrative = (rating) => {
-    // Extract Module 1B responses specifically (Customer Profile for banks and financial institutions framework)
-    const module1BResponses = responses.filter(r => r.question_code?.startsWith('1B.'));
-
-    if (module1BResponses.length === 0) {
-      return `Product and service inherent risk is assessed as ${rating}. The assessment did not identify specific client profile risk exposures.`;
-    }
-
-    const clientRiskExposures = module1BResponses.filter(r => r.response?.toLowerCase() === 'yes' || r.response?.toLowerCase() === 'partially');
-
-    let narrative = `Product and service inherent risk is assessed as ${rating}. `;
-
-    if (clientRiskExposures.length > 0) {
-      const clientTypes = clientRiskExposures.slice(0, 4).map(r => {
-        const text = r.question_text || '';
-        return text.replace(/^Does the (firm|institution) (serve |assist )?/i, '').replace(/\?$/, '');
-      }).join('; ');
-
-      narrative += `The assessment identified the following client profile risk characteristics: ${clientTypes}. These client types present elevated inherent risk due to their complexity, geographic factors, sector exposure, or potential links to higher-risk activities. `;
-
-      const pepsExposure = module1BResponses.find(r => r.question_text?.toLowerCase().includes('politically exposed') && (r.response?.toLowerCase() === 'yes' || r.response?.toLowerCase() === 'partially'));
-      const foreignExposure = module1BResponses.find(r => (r.question_text?.toLowerCase().includes('non-resident') || r.question_text?.toLowerCase().includes('foreign')) && (r.response?.toLowerCase() === 'yes' || r.response?.toLowerCase() === 'partially'));
-
-      if (pepsExposure || foreignExposure) {
-        narrative += `The firm's exposure to politically exposed persons and/or foreign clients requires enhanced due diligence procedures. `;
-      }
-    } else {
-      narrative += `The firm serves predominantly low-risk domestic clients with transparent ownership structures and verifiable sources of funds. `;
-    }
-
-    narrative += `The ${rating} risk rating requires proportionate client acceptance, due diligence, and ongoing monitoring procedures.`;
-
-    return narrative;
-  };
-
-  const generateGeographicNarrative = (rating) => {
-    // Extract Module 1D responses (Geographic risk for banks and financial institutions)
-    const module1DResponses = responses.filter(r => r.question_code?.startsWith('1D.'));
-
-    if (module1DResponses.length === 0) {
-      return `Geographic inherent risk is assessed as ${rating}. No significant geographic or jurisdictional risk exposures were identified.`;
-    }
-
-    const geographicRiskFactors = module1DResponses.filter(r => r.response?.toLowerCase() === 'yes' || r.response?.toLowerCase() === 'partially');
-
-    let narrative = `Geographic inherent risk is assessed as ${rating}. `;
-
-    if (geographicRiskFactors.length > 0) {
-      const factors = geographicRiskFactors.slice(0, 4).map(r => {
-        const text = r.question_text || '';
-        return text.replace(/^Does the (firm|institution) (engage in |deal with |rely on |provide services )?/i, '').replace(/\?$/, '');
-      }).join('; ');
-
-      narrative += `The assessment identified the following geographic and cross-border risk factors: ${factors}. These exposures involve jurisdictions with varying AML/CFT regulatory standards, potential sanctions risks, or regions with weak enforcement and high informality. `;
-
-      const sanctionedJurisdictions = module1DResponses.find(r => (r.question_text?.toLowerCase().includes('sanction') || r.question_text?.toLowerCase().includes('fatf')) && (r.response?.toLowerCase() === 'yes' || r.response?.toLowerCase() === 'partially'));
-      const crossBorder = module1DResponses.find(r => r.question_text?.toLowerCase().includes('cross-border') && (r.response?.toLowerCase() === 'yes' || r.response?.toLowerCase() === 'partially'));
-
-      if (sanctionedJurisdictions) {
-        narrative += `The firm's exposure to sanctioned or FATF-monitored jurisdictions requires enhanced screening, compliance procedures, and source-of-funds verification. `;
-      } else if (crossBorder) {
-        narrative += `Cross-border activities require enhanced due diligence and monitoring of correspondent relationships. `;
-      }
-    } else {
-      narrative += `The firm operates primarily within domestic jurisdiction with limited cross-border exposure, minimizing geographic and jurisdictional risk factors. `;
-    }
-
-    narrative += `The ${rating} risk rating requires appropriate geographic risk assessment and jurisdiction-specific controls.`;
-
-    return narrative;
-  };
-
-  const generateTransactionNarrative = (rating) => {
-    // Extract Module 1C responses (Transaction & Structural risk for banks and financial institutions)
-    const module1CResponses = responses.filter(r => r.question_code?.startsWith('1C.'));
-
-    if (module1CResponses.length === 0) {
-      return `Transaction and delivery channel inherent risk is assessed as ${rating}. No specific transaction or structural risk factors were documented.`;
-    }
-
-    const transactionRiskFactors = module1CResponses.filter(r => r.response?.toLowerCase() === 'yes' || r.response?.toLowerCase() === 'partially');
-
-    let narrative = `Transaction and delivery channel inherent risk is assessed as ${rating}. `;
-
-    if (transactionRiskFactors.length > 0) {
-      const factors = transactionRiskFactors.slice(0, 4).map(r => {
-        const text = r.question_text || '';
-        return text.replace(/^Does the (firm|institution) (facilitate |encounter |assist in )?/i, '').replace(/\?$/, '');
-      }).join('; ');
-
-      narrative += `The assessment identified the following transaction and structural risk characteristics: ${factors}. These factors involve transaction complexity, value, velocity, unusual payment patterns, or beneficial ownership arrangements that may obscure the source, ownership, or ultimate purpose of funds. `;
-
-      const largeValueTransactions = module1CResponses.find(r => r.question_text?.toLowerCase().includes('large-value') && (r.response?.toLowerCase() === 'yes' || r.response?.toLowerCase() === 'partially'));
-      const complexStructures = module1CResponses.find(r => (r.question_text?.toLowerCase().includes('complex') || r.question_text?.toLowerCase().includes('third-party')) && (r.response?.toLowerCase() === 'yes' || r.response?.toLowerCase() === 'partially'));
-      const rapidMovement = module1CResponses.find(r => r.question_text?.toLowerCase().includes('rapid movement') && (r.response?.toLowerCase() === 'yes' || r.response?.toLowerCase() === 'partially'));
-
-      if (largeValueTransactions || rapidMovement) {
-        narrative += `The presence of large-value or rapidly moving transactions requires enhanced transaction monitoring and source-of-funds verification. `;
-      } else if (complexStructures) {
-        narrative += `Complex beneficial ownership arrangements require enhanced scrutiny and beneficial ownership verification procedures. `;
-      }
-    } else {
-      narrative += `The firm's transaction profile is characterized by straightforward, transparent transactions with clear commercial rationale and verifiable counterparties. `;
-    }
-
-    narrative += `The ${rating} risk rating requires appropriate transaction monitoring, record-keeping, and customer due diligence measures.`;
-
-    return narrative;
-  };
-
-  const generateTechnicalComplianceNarrative = (rating) => {
-    // Extract Module 2 responses (Technical Compliance)
-    const module2Responses = responses.filter(r => r.question_code?.startsWith('2'));
-
-    if (module2Responses.length === 0) {
-      return `The technical compliance assessment indicates that the institution is ${rating}, based on the presence and documentation of AML/CFT/CPF governance arrangements, customer due diligence procedures, transaction monitoring and reporting processes, sanctions controls, record-keeping, and staff training.`;
-    }
-
-    const fullyCompliant = module2Responses.filter(r => r.response === 'Fully implemented & documented');
-    const partiallyCompliant = module2Responses.filter(r => r.response === 'Partially implemented');
-    const nonCompliant = module2Responses.filter(r => r.response === 'Not in place');
-    const total = module2Responses.length;
-
-    let narrative = `The technical compliance assessment indicates that the institution is ${rating}.\n\n`;
-
-    // Summary statistics
-    narrative += `ASSESSMENT SUMMARY:\n`;
-    narrative += `• ${fullyCompliant.length} of ${total} controls fully implemented (${Math.round(fullyCompliant.length/total*100)}%)\n`;
-    narrative += `• ${partiallyCompliant.length} partially implemented (${Math.round(partiallyCompliant.length/total*100)}%)\n`;
-    narrative += `• ${nonCompliant.length} not in place (${Math.round(nonCompliant.length/total*100)}%)\n\n`;
-
-    // Show top 5 critical gaps
-    if (nonCompliant.length > 0) {
-      narrative += `CRITICAL GAPS (Not in Place):\n`;
-      const topGaps = nonCompliant.slice(0, 5);
-      topGaps.forEach((r, index) => {
-        const cleanText = r.question_text?.replace(/\?$/, '') || '';
-        narrative += `${index + 1}. ${cleanText}\n`;
-      });
-      if (nonCompliant.length > 5) {
-        narrative += `...and ${nonCompliant.length - 5} additional critical gaps.\n`;
-      }
-      narrative += `\n`;
-    }
-
-    // Show top 5 partial implementations
-    if (partiallyCompliant.length > 0) {
-      narrative += `PARTIAL IMPLEMENTATIONS (Requiring Strengthening):\n`;
-      const topPartial = partiallyCompliant.slice(0, 5);
-      topPartial.forEach((r, index) => {
-        const cleanText = r.question_text?.replace(/\?$/, '') || '';
-        narrative += `${index + 1}. ${cleanText}\n`;
-      });
-      if (partiallyCompliant.length > 5) {
-        narrative += `...and ${partiallyCompliant.length - 5} additional areas requiring strengthening.\n`;
-      }
-      narrative += `\n`;
-    }
-
-    // Concise overall assessment
-    narrative += `OVERALL ASSESSMENT:\n`;
-    if (fullyCompliant.length >= total * 0.75) {
-      narrative += `The firm has established comprehensive AML/CFT/CPF controls. Address remaining deficiencies to achieve full compliance.`;
-    } else if (fullyCompliant.length >= total * 0.5) {
-      narrative += `Foundational controls exist but require significant strengthening. Priority: address critical gaps and complete partial implementations.`;
-    } else {
-      narrative += `Substantial control development required. Immediate action needed: establish comprehensive compliance program and remediate critical gaps.`;
-    }
-
-    return narrative;
-  };
-
-  const generateActionPlan = () => {
-    const module2Responses = responses.filter(r => r.question_code?.startsWith('2'));
-    const module3Responses = responses.filter(r => r.question_code?.startsWith('3'));
-
-    const criticalGaps = module2Responses.filter(r => r.response === 'Not in place');
-    const partialImplementations = module2Responses.filter(r => r.response === 'Partially implemented');
-    const ineffectiveAreas = module3Responses.filter(r => r.response === 'Ineffective');
-    const weakAreas = module3Responses.filter(r => r.response === 'Weak');
-
-    const actionItems = [];
-
-    criticalGaps.forEach(gap => {
-      const questionText = gap.question_text || '';
-      let action = '';
-      let category = 'General Compliance';
-      let timeline = 'Immediate (0-3 months)';
-
-      if (questionText.includes('compliance officer')) {
-        action = 'Appoint a designated AML/CFT Compliance Officer with defined responsibilities, authority, and reporting lines to senior management.';
-        category = 'Governance & Leadership';
-      } else if (questionText.includes('risk assessment')) {
-        action = 'Conduct and document a comprehensive ML/TF/PF risk assessment covering all business activities, client types, and service delivery channels.';
-        category = 'Risk Assessment';
-      } else if (questionText.includes('policies') || questionText.includes('approved')) {
-        action = 'Develop and obtain senior management approval for comprehensive AML/CFT/CPF policies and procedures.';
-        category = 'Governance & Leadership';
-      } else if (questionText.includes('customer due diligence') || questionText.includes('CDD') || questionText.includes('identification')) {
-        action = 'Establish and document comprehensive Customer Due Diligence (CDD) procedures including client identification and verification requirements.';
-        category = 'Customer Due Diligence';
-      } else if (questionText.includes('beneficial ownership')) {
-        action = 'Implement procedures to identify and verify beneficial ownership for all legal entity clients.';
-        category = 'Customer Due Diligence';
-      } else if (questionText.includes('PEP')) {
-        action = 'Develop PEP identification and enhanced due diligence procedures with senior management approval requirements.';
-        category = 'Customer Due Diligence';
-      } else if (questionText.includes('enhanced due diligence') || questionText.includes('EDD')) {
-        action = 'Document and implement risk-based Enhanced Due Diligence (EDD) procedures for high-risk clients and transactions.';
-        category = 'Customer Due Diligence';
-      } else if (questionText.includes('source of funds') || questionText.includes('source-of-wealth')) {
-        action = 'Establish procedures for verifying source of funds and source of wealth, particularly for high-risk matters.';
-        category = 'Customer Due Diligence';
-      } else if (questionText.includes('ongoing monitoring')) {
-        action = 'Implement ongoing transaction monitoring procedures to detect unusual or suspicious activity.';
-        category = 'Transaction Monitoring';
-      } else if (questionText.includes('STR') || questionText.includes('suspicious')) {
-        action = 'Develop and document STR reporting procedures including identification criteria, escalation process, and reporting timelines.';
-        category = 'Reporting & Compliance';
-      } else if (questionText.includes('internal reporting')) {
-        action = 'Establish internal reporting mechanisms for staff to escalate suspicious activity to the Compliance Officer.';
-        category = 'Reporting & Compliance';
-      } else if (questionText.includes('tipping-off')) {
-        action = 'Document tipping-off prohibitions and ensure all staff understand confidentiality requirements.';
-        category = 'Reporting & Compliance';
-      } else if (questionText.includes('sanctions screening')) {
-        action = 'Implement sanctions screening procedures for all clients against UN, OFAC, and relevant sanctions lists.';
-        category = 'Sanctions Compliance';
-      } else if (questionText.includes('asset-freezing')) {
-        action = 'Establish procedures for immediate asset freezing when sanctions matches are identified.';
-        category = 'Sanctions Compliance';
-      } else if (questionText.includes('record retention') || questionText.includes('records')) {
-        action = 'Implement record retention procedures ensuring all AML/CFT records are retained for at least 10 years as required by law.';
-        category = 'Record Keeping';
-      } else if (questionText.includes('training')) {
-        action = 'Develop and deliver comprehensive AML/CFT training program including induction training and annual refresher courses.';
-        category = 'Training & Awareness';
-      } else if (questionText.includes('vetting')) {
-        action = 'Implement staff vetting procedures for all employees with access to client information or AML/CFT responsibilities.';
-        category = 'Human Resources';
-      } else if (questionText.includes('risk-rated') || questionText.includes('risk rating')) {
-        action = 'Implement client risk rating methodology and assign risk ratings (Low/Medium/High) to all active clients.';
-        category = 'Risk Assessment';
-      } else {
-        action = questionText.replace(/\?$/, '') + ' - Implement required controls and documentation.';
-        category = 'General Compliance';
-      }
-
-      actionItems.push({ action, category, timeline, priority: 'Critical', source: 'Module 2 - Not in Place' });
-    });
-
-    partialImplementations.forEach(partial => {
-      const questionText = partial.question_text || '';
-      let action = 'Review and strengthen: ' + questionText.replace(/\?$/, '').toLowerCase();
-      let category = 'General Compliance';
-      let timeline = 'Short-term (3-6 months)';
-
-      if (questionText.includes('risk assessment')) {
-        category = 'Risk Assessment';
-      } else if (questionText.includes('CDD') || questionText.includes('identification') || questionText.includes('beneficial ownership') || questionText.includes('PEP')) {
-        category = 'Customer Due Diligence';
-      } else if (questionText.includes('training')) {
-        category = 'Training & Awareness';
-      } else if (questionText.includes('record')) {
-        category = 'Record Keeping';
-      } else if (questionText.includes('monitoring')) {
-        category = 'Transaction Monitoring';
-      }
-
-      actionItems.push({ action, category, timeline, priority: 'High', source: 'Module 2 - Partial' });
-    });
-
-    ineffectiveAreas.forEach(ineffective => {
-      const questionText = ineffective.question_text || '';
-      let action = 'Urgently improve operational effectiveness: ' + questionText.replace(/\?$/, '').toLowerCase();
-      let category = 'Operational Effectiveness';
-      let timeline = 'Immediate (0-3 months)';
-
-      if (questionText.includes('risk assessment')) {
-        category = 'Risk Assessment';
-      } else if (questionText.includes('monitoring') || questionText.includes('transaction')) {
-        category = 'Transaction Monitoring';
-      } else if (questionText.includes('STR') || questionText.includes('suspicious')) {
-        category = 'Reporting & Compliance';
-      } else if (questionText.includes('sanctions')) {
-        category = 'Sanctions Compliance';
-      } else if (questionText.includes('management')) {
-        category = 'Governance & Leadership';
-      }
-
-      actionItems.push({ action, category, timeline, priority: 'Critical', source: 'Module 3 - Ineffective' });
-    });
-
-    weakAreas.forEach(weak => {
-      const questionText = weak.question_text || '';
-      let action = 'Strengthen operational performance: ' + questionText.replace(/\?$/, '').toLowerCase();
-      let category = 'Operational Effectiveness';
-      let timeline = 'Short-term (3-6 months)';
-
-      if (questionText.includes('risk assessment')) {
-        category = 'Risk Assessment';
-      } else if (questionText.includes('monitoring') || questionText.includes('transaction')) {
-        category = 'Transaction Monitoring';
-      } else if (questionText.includes('STR') || questionText.includes('suspicious')) {
-        category = 'Reporting & Compliance';
-      }
-
-      actionItems.push({ action, category, timeline, priority: 'Medium', source: 'Module 3 - Weak' });
-    });
-
-    const groupedActions = {};
-    actionItems.forEach(item => {
-      if (!groupedActions[item.category]) {
-        groupedActions[item.category] = [];
-      }
-      groupedActions[item.category].push(item);
-    });
-
-    Object.keys(groupedActions).forEach(category => {
-      groupedActions[category].sort((a, b) => {
-        const priorityOrder = { 'Critical': 0, 'High': 1, 'Medium': 2 };
-        return priorityOrder[a.priority] - priorityOrder[b.priority];
-      });
-    });
-
-    return { groupedActions, totalActions: actionItems.length };
-  };
-
-  const generateEffectivenessNarrative = (rating) => {
-    // Extract Module 3 responses (Effectiveness)
-    const module3Responses = responses.filter(r => r.question_code?.startsWith('3'));
-
-    if (module3Responses.length === 0) {
-      return `The effectiveness assessment indicates that AML/CFT/CPF controls are ${rating}, based on observed outcomes relating to risk identification, transaction monitoring performance, STR quality and timeliness, sanctions implementation, management oversight, and remediation of weaknesses.`;
-    }
-
-    const effective = module3Responses.filter(r => r.response === 'Effective');
-    const weak = module3Responses.filter(r => r.response === 'Weak');
-    const ineffective = module3Responses.filter(r => r.response === 'Ineffective');
-    const total = module3Responses.length;
-
-    let narrative = `The effectiveness assessment indicates that AML/CFT/CPF controls are ${rating}.\n\n`;
-
-    // Summary statistics
-    narrative += `EFFECTIVENESS SUMMARY:\n`;
-    narrative += `• ${effective.length} of ${total} criteria demonstrate effective implementation (${Math.round(effective.length/total*100)}%)\n`;
-    narrative += `• ${weak.length} show weak performance (${Math.round(weak.length/total*100)}%)\n`;
-    narrative += `• ${ineffective.length} are ineffective (${Math.round(ineffective.length/total*100)}%)\n\n`;
-
-    // Show top 5 ineffective areas
-    if (ineffective.length > 0) {
-      narrative += `INEFFECTIVE AREAS (Requiring Immediate Attention):\n`;
-      const topIneffective = ineffective.slice(0, 5);
-      topIneffective.forEach((r, index) => {
-        const cleanText = r.question_text?.replace(/\?$/, '') || '';
-        narrative += `${index + 1}. ${cleanText}\n`;
-      });
-      if (ineffective.length > 5) {
-        narrative += `...and ${ineffective.length - 5} additional ineffective areas.\n`;
-      }
-      narrative += `\n`;
-    }
-
-    // Show top 5 weak areas
-    if (weak.length > 0) {
-      narrative += `WEAK PERFORMANCE (Requiring Strengthening):\n`;
-      const topWeak = weak.slice(0, 5);
-      topWeak.forEach((r, index) => {
-        const cleanText = r.question_text?.replace(/\?$/, '') || '';
-        narrative += `${index + 1}. ${cleanText}\n`;
-      });
-      if (weak.length > 5) {
-        narrative += `...and ${weak.length - 5} additional weak areas.\n`;
-      }
-      narrative += `\n`;
-    }
-
-    // Concise overall assessment
-    narrative += `OVERALL ASSESSMENT:\n`;
-    if (effective.length >= total * 0.75) {
-      narrative += `Controls are demonstrably effective. Address weaknesses through targeted enhancements to procedures and monitoring.`;
-    } else if (effective.length >= total * 0.5) {
-      narrative += `Moderate effectiveness but requires strengthening. Priority: enhance operational oversight, staff training, and quality assurance.`;
-    } else {
-      narrative += `Significant deficiencies - policies not consistently applied. Immediate action: improve operational performance and supervision.`;
-    }
-
-    return narrative;
-  };
-
-  const generateMaturityNarrative = (rating) => {
-    // Extract Module 4 responses (Control Maturity)
-    const module4Responses = responses.filter(r => r.question_code?.startsWith('4'));
-
-    if (module4Responses.length === 0) {
-      return `The institutional maturity assessment indicates that the AML/CFT compliance program is at the ${rating} stage. This evaluation measures the sophistication, integration, and evolution of the institution's risk management processes, including automation, data analytics, process optimization, and continuous improvement capabilities.`;
-    }
-
-    const optimized = module4Responses.filter(r => r.response === 'Optimized' || r.response === 'Level 5 - Optimized');
-    const managed = module4Responses.filter(r => r.response === 'Managed' || r.response === 'Level 4 - Managed');
-    const defined = module4Responses.filter(r => r.response === 'Defined' || r.response === 'Level 3 - Defined');
-    const developing = module4Responses.filter(r => r.response === 'Developing' || r.response === 'Level 2 - Developing');
-    const initial = module4Responses.filter(r => r.response === 'Initial' || r.response === 'Level 1 - Initial');
-    const total = module4Responses.length;
-
-    let narrative = `The institutional maturity assessment indicates that the AML/CFT compliance program is at the ${rating} stage.\n\n`;
-
-    narrative += `MATURITY ASSESSMENT SUMMARY:\n`;
-    narrative += `• ${optimized.length} of ${total} controls at Optimized level (${Math.round(optimized.length/total*100)}%)\n`;
-    narrative += `• ${managed.length} at Managed level (${Math.round(managed.length/total*100)}%)\n`;
-    narrative += `• ${defined.length} at Defined level (${Math.round(defined.length/total*100)}%)\n`;
-    narrative += `• ${developing.length} at Developing level (${Math.round(developing.length/total*100)}%)\n`;
-    narrative += `• ${initial.length} at Initial level (${Math.round(initial.length/total*100)}%)\n\n`;
-
-    narrative += `MATURITY CHARACTERISTICS:\n`;
-    if (rating === 'Optimized') {
-      narrative += `The institution demonstrates advanced AML/CFT capabilities with continuous improvement mechanisms, predictive analytics, and proactive risk management. Controls are highly automated, integrated across business functions, and regularly optimized based on performance data.`;
-    } else if (rating === 'Managed') {
-      narrative += `The institution has established quantitative controls with performance monitoring and measurement. Processes are well-documented, consistently followed, and supported by management information systems. There is evidence of data-driven decision making and periodic process improvements.`;
-    } else if (rating === 'Defined') {
-      narrative += `The institution has documented and standardized AML/CFT processes that are consistently followed across the organization. Controls are understood by staff, but monitoring and continuous improvement mechanisms are limited. Process automation and integration opportunities exist.`;
-    } else if (rating === 'Developing') {
-      narrative += `Basic AML/CFT processes exist but are inconsistently applied. Documentation is incomplete, and procedures vary by department or individual. There is limited automation, and controls rely heavily on manual intervention. Systematic monitoring and measurement are absent.`;
-    } else {
-      narrative += `AML/CFT processes are ad-hoc and reactive. Controls lack documentation and standardization. The institution responds to issues as they arise without systematic procedures. Significant investment in process development, documentation, and training is required.`;
-    }
-
-    narrative += `\n\n`;
-    narrative += `DEVELOPMENT PRIORITIES:\n`;
-    if (initial.length + developing.length > total * 0.5) {
-      narrative += `Priority focus: Establish documented procedures, standardize processes across the organization, invest in staff training and technology infrastructure.`;
-    } else if (defined.length > total * 0.4) {
-      narrative += `Priority focus: Implement performance monitoring systems, establish quality assurance mechanisms, and begin automation of routine processes.`;
-    } else {
-      narrative += `Priority focus: Enhance data analytics capabilities, optimize existing processes, and develop predictive risk models.`;
-    }
-
-    return narrative;
-  };
 
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
@@ -869,7 +396,7 @@ export default function FIUComplianceReport({ assessment, sectionScores, respons
             spacing: { after: 100 }
           }),
           new Paragraph({
-            text: generateCustomerNarrative(inherentRisks.customer.rating),
+            text: generateCustomerRiskNarrative(inherentRisks.customer.rating, responses),
             alignment: AlignmentType.JUSTIFIED,
             spacing: { after: 200 }
           }),
@@ -902,7 +429,7 @@ export default function FIUComplianceReport({ assessment, sectionScores, respons
             spacing: { after: 100 }
           }),
           new Paragraph({
-            text: generateProductNarrative(inherentRisks.product.rating),
+            text: generateProductRiskNarrative(inherentRisks.product.rating, responses),
             alignment: AlignmentType.JUSTIFIED,
             spacing: { after: 200 }
           }),
@@ -935,7 +462,7 @@ export default function FIUComplianceReport({ assessment, sectionScores, respons
             spacing: { after: 100 }
           }),
           new Paragraph({
-            text: generateGeographicNarrative(inherentRisks.geographic.rating),
+            text: generateGeographicRiskNarrative(inherentRisks.geographic.rating, responses),
             alignment: AlignmentType.JUSTIFIED,
             spacing: { after: 200 }
           }),
@@ -968,7 +495,7 @@ export default function FIUComplianceReport({ assessment, sectionScores, respons
             spacing: { after: 100 }
           }),
           new Paragraph({
-            text: generateTransactionNarrative(inherentRisks.transaction.rating),
+            text: generateTransactionRiskNarrative(inherentRisks.transaction.rating, responses),
             alignment: AlignmentType.JUSTIFIED,
             spacing: { after: 200 }
           }),
@@ -1057,7 +584,7 @@ export default function FIUComplianceReport({ assessment, sectionScores, respons
             spacing: { after: 100 }
           }),
           new Paragraph({
-            text: generateTechnicalComplianceNarrative(tcRating),
+            text: generateTechnicalComplianceNarrative(tcRating, responses),
             alignment: AlignmentType.JUSTIFIED,
             spacing: { after: 200 }
           }),
@@ -1090,7 +617,7 @@ export default function FIUComplianceReport({ assessment, sectionScores, respons
             spacing: { after: 100 }
           }),
           new Paragraph({
-            text: generateEffectivenessNarrative(effRating),
+            text: generateEffectivenessNarrative(effRating, responses),
             alignment: AlignmentType.JUSTIFIED,
             spacing: { after: 200 }
           }),
@@ -1479,7 +1006,7 @@ export default function FIUComplianceReport({ assessment, sectionScores, respons
             Assesses exposure arising from customer types, ownership structures, political exposure, sectoral risk, and customer behaviour.
           </p>
           <p style={styles.boldText}>Narrative (Auto-generated from Module 1A responses)</p>
-          <p style={styles.justifiedText}>{generateCustomerNarrative(inherentRisks.customer.rating)}</p>
+          <p style={styles.justifiedText}>{generateCustomerRiskNarrative(inherentRisks.customer.rating, responses)}</p>
           <p style={styles.boldText}>Customer Inherent Risk Rating: {inherentRisks.customer.rating.toUpperCase()}</p>
 
           <h4 style={styles.subSubheading}>2.4.2 Product / Service Inherent Risk</h4>
@@ -1488,7 +1015,7 @@ export default function FIUComplianceReport({ assessment, sectionScores, respons
             Assesses exposure arising from the nature and complexity of products and services offered.
           </p>
           <p style={styles.boldText}>Narrative (Auto-generated from Module 1B responses)</p>
-          <p style={styles.justifiedText}>{generateProductNarrative(inherentRisks.product.rating)}</p>
+          <p style={styles.justifiedText}>{generateProductRiskNarrative(inherentRisks.product.rating, responses)}</p>
           <p style={styles.boldText}>Product / Service Inherent Risk Rating: {inherentRisks.product.rating.toUpperCase()}</p>
 
           <h4 style={styles.subSubheading}>2.4.3 Geographic Inherent Risk</h4>
@@ -1497,7 +1024,7 @@ export default function FIUComplianceReport({ assessment, sectionScores, respons
             Assesses exposure arising from cross-border activities and links to higher-risk jurisdictions.
           </p>
           <p style={styles.boldText}>Narrative (Auto-generated from Module 1C responses)</p>
-          <p style={styles.justifiedText}>{generateGeographicNarrative(inherentRisks.geographic.rating)}</p>
+          <p style={styles.justifiedText}>{generateGeographicRiskNarrative(inherentRisks.geographic.rating, responses)}</p>
           <p style={styles.boldText}>Geographic Inherent Risk Rating: {inherentRisks.geographic.rating.toUpperCase()}</p>
 
           <h4 style={styles.subSubheading}>2.4.4 Transaction & Delivery Channel Inherent Risk</h4>
@@ -1506,7 +1033,7 @@ export default function FIUComplianceReport({ assessment, sectionScores, respons
             Assesses exposure arising from transaction size, volume, patterns, and delivery channels.
           </p>
           <p style={styles.boldText}>Narrative (Auto-generated from Module 1D responses)</p>
-          <p style={styles.justifiedText}>{generateTransactionNarrative(inherentRisks.transaction.rating)}</p>
+          <p style={styles.justifiedText}>{generateTransactionRiskNarrative(inherentRisks.transaction.rating, responses)}</p>
           <p style={styles.boldText}>Transaction & Delivery Channel Inherent Risk Rating: {inherentRisks.transaction.rating.toUpperCase()}</p>
 
           <h4 style={styles.subSubheading}>2.4.5 Overall Inherent ML/TF/PF Risk</h4>
@@ -1544,7 +1071,7 @@ export default function FIUComplianceReport({ assessment, sectionScores, respons
           </p>
           <h4 style={styles.subSubheading}>2.5.1 Technical Compliance Assessment Results</h4>
           <p style={styles.boldText}>Narrative (Auto-generated from Module 2 responses)</p>
-          <p style={styles.justifiedText}>{generateTechnicalComplianceNarrative(tcRating)}</p>
+          <p style={styles.justifiedText}>{generateTechnicalComplianceNarrative(tcRating, responses)}</p>
           <p style={styles.boldText}>Overall Technical Compliance Rating: {tcRating.toUpperCase()}</p>
 
           <h3 style={styles.subheading}>2.6 Effectiveness Assessment</h3>
@@ -1553,7 +1080,7 @@ export default function FIUComplianceReport({ assessment, sectionScores, respons
           </p>
           <h4 style={styles.subSubheading}>2.6.1 Effectiveness Assessment Results</h4>
           <p style={styles.boldText}>Narrative (Auto-generated from Module 3 responses)</p>
-          <p style={styles.justifiedText}>{generateEffectivenessNarrative(effRating)}</p>
+          <p style={styles.justifiedText}>{generateEffectivenessNarrative(effRating, responses)}</p>
           <p style={styles.boldText}>Overall Effectiveness Rating: {effRating.toUpperCase()}</p>
 
           <h2 style={styles.sectionHeading}>3. RESIDUAL ML/TF/PF RISK ASSESSMENT</h2>
