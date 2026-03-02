@@ -325,3 +325,157 @@ export function formatFileSize(bytes) {
   const i = Math.floor(Math.log(bytes) / Math.log(k));
   return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
 }
+
+const ALLOWED_FILE_TYPES = {
+  'application/pdf': ['.pdf'],
+  'image/jpeg': ['.jpg', '.jpeg'],
+  'image/png': ['.png'],
+  'application/msword': ['.doc'],
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
+  'application/vnd.ms-excel': ['.xls'],
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx']
+};
+
+const MAX_FILE_SIZE = 25 * 1024 * 1024;
+
+const DANGEROUS_EXTENSIONS = [
+  '.exe', '.bat', '.cmd', '.com', '.scr', '.vbs', '.js', '.jar',
+  '.msi', '.app', '.deb', '.rpm', '.sh', '.ps1', '.psm1', '.dll',
+  '.so', '.dylib', '.apk', '.ipa', '.dmg'
+];
+
+const FILE_SIGNATURES = {
+  'pdf': { hex: '25504446', offset: 0 },
+  'jpg': { hex: 'FFD8FF', offset: 0 },
+  'png': { hex: '89504E47', offset: 0 },
+  'docx': { hex: '504B0304', offset: 0 },
+  'xlsx': { hex: '504B0304', offset: 0 }
+};
+
+/**
+ * Validate file before upload
+ * @param {File} file - File to validate
+ * @returns {Promise<Object>} Validation result with success flag and message
+ */
+export async function validateFile(file) {
+  if (!file) {
+    return { success: false, message: 'No file provided' };
+  }
+
+  const fileName = file.name.toLowerCase();
+  const fileExtension = fileName.substring(fileName.lastIndexOf('.'));
+
+  if (DANGEROUS_EXTENSIONS.includes(fileExtension)) {
+    return {
+      success: false,
+      message: `File type ${fileExtension} is not allowed for security reasons`
+    };
+  }
+
+  if (file.size > MAX_FILE_SIZE) {
+    return {
+      success: false,
+      message: `File size exceeds maximum allowed size of ${formatFileSize(MAX_FILE_SIZE)}`
+    };
+  }
+
+  const allowedMimeTypes = Object.keys(ALLOWED_FILE_TYPES);
+  if (!allowedMimeTypes.includes(file.type)) {
+    return {
+      success: false,
+      message: `File type ${file.type || 'unknown'} is not allowed. Allowed types: PDF, DOCX, XLSX, JPG, PNG`
+    };
+  }
+
+  const allowedExtensions = ALLOWED_FILE_TYPES[file.type];
+  if (!allowedExtensions.some(ext => fileName.endsWith(ext))) {
+    return {
+      success: false,
+      message: `File extension does not match MIME type. Expected: ${allowedExtensions.join(', ')}`
+    };
+  }
+
+  try {
+    const signatureValid = await validateFileSignature(file);
+    if (!signatureValid) {
+      return {
+        success: false,
+        message: 'File appears to be corrupted or disguised. File signature does not match extension.'
+      };
+    }
+  } catch (error) {
+    console.error('Error validating file signature:', error);
+  }
+
+  return { success: true, message: 'File validation passed' };
+}
+
+/**
+ * Validate file signature (magic bytes) to prevent file disguising
+ * @param {File} file - File to validate
+ * @returns {Promise<boolean>} True if signature matches expected type
+ */
+async function validateFileSignature(file) {
+  const extension = file.name.toLowerCase().split('.').pop();
+
+  if (!FILE_SIGNATURES[extension] && extension !== 'doc' && extension !== 'xls') {
+    return true;
+  }
+
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onloadend = (e) => {
+      if (e.target.readyState === FileReader.DONE) {
+        const arr = new Uint8Array(e.target.result);
+        const header = Array.from(arr.slice(0, 8))
+          .map(byte => byte.toString(16).padStart(2, '0'))
+          .join('')
+          .toUpperCase();
+
+        if (extension === 'pdf' && header.startsWith('25504446')) {
+          resolve(true);
+        } else if ((extension === 'jpg' || extension === 'jpeg') && header.startsWith('FFD8FF')) {
+          resolve(true);
+        } else if (extension === 'png' && header.startsWith('89504E47')) {
+          resolve(true);
+        } else if ((extension === 'docx' || extension === 'xlsx') && header.startsWith('504B0304')) {
+          resolve(true);
+        } else if (extension === 'doc' && header.startsWith('D0CF11E0')) {
+          resolve(true);
+        } else if (extension === 'xls' && header.startsWith('D0CF11E0')) {
+          resolve(true);
+        } else {
+          resolve(false);
+        }
+      } else {
+        resolve(true);
+      }
+    };
+    reader.onerror = () => resolve(true);
+    reader.readAsArrayBuffer(file.slice(0, 8));
+  });
+}
+
+/**
+ * Calculate SHA-256 hash of file for integrity verification
+ * @param {File} file - File to hash
+ * @returns {Promise<string>} SHA-256 hash as hex string
+ */
+export async function calculateFileHash(file) {
+  const buffer = await file.arrayBuffer();
+  const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  return hashHex;
+}
+
+/**
+ * Verify file integrity by comparing hash
+ * @param {File} file - File to verify
+ * @param {string} expectedHash - Expected SHA-256 hash
+ * @returns {Promise<boolean>} True if hashes match
+ */
+export async function verifyFileIntegrity(file, expectedHash) {
+  const actualHash = await calculateFileHash(file);
+  return actualHash === expectedHash;
+}
