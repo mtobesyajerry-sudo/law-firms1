@@ -181,10 +181,15 @@ SELECT * FROM identify_expired_records();
 ```
 
 **What It Does:**
-- Identifies records > 7 years old
+- Identifies records > 10 years old (Tanzania AML Act requirement)
 - Flags for manual review
 - Supports legal hold exceptions
 - Automated retention policy enforcement
+
+**Legal Requirement:**
+- Tanzania Anti-Money Laundering Act (Cap.423) Section 16(1): **10 years**
+- Bank of Tanzania regulations: **10 years**
+- FIU Guidelines: **10 years from end of business relationship**
 
 **Database Fields Added:**
 - `kyc_clients.deleted_at` - soft delete timestamp
@@ -195,7 +200,7 @@ SELECT * FROM identify_expired_records();
 - ✅ GDPR Article 17 compliance
 - ✅ GDPR Article 20 compliance
 - ✅ Tanzania Data Protection Act compliance
-- ✅ 7-year retention policy enforcement
+- ✅ **10-year retention policy enforcement (Tanzania AML Act Cap.423)**
 - ✅ Audit trail preservation
 
 ---
@@ -312,8 +317,8 @@ const fileHash = await calculateFileHash(file);
 
 ## 🔒 REGULATORY COMPLIANCE STATUS
 
-### Tanzania Bank of Tanzania (BOT)
-- ✅ 7-year data retention
+### Tanzania Bank of Tanzania (BOT) & FIU
+- ✅ **10-year data retention (AML Act Cap.423 Section 16(1))**
 - ✅ Document security controls
 - ✅ Audit trail maintenance
 - ✅ Encryption of sensitive data

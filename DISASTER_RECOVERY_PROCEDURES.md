@@ -282,13 +282,13 @@
 - **Daily backups:** 7 days retention
 - **Weekly backups:** 30 days retention (manual snapshots)
 - **Monthly backups:** 1 year retention (compliance)
-- **Annual backups:** 7 years retention (legal requirement)
+- **Annual backups:** 10 years retention (Tanzania AML Act Cap.423 requirement)
 
 ### Document Files
 - **Active files:** No expiration (until client relationship ends)
 - **Deleted files:** 30 days in trash
-- **Archived files:** 7 years (compliance requirement)
-- **After 7 years:** Eligible for permanent deletion (with legal review)
+- **Archived files:** 10 years (Tanzania AML Act Cap.423 requirement)
+- **After 10 years:** Eligible for permanent deletion (with legal review and FIU compliance)
 
 ---
 
@@ -328,14 +328,15 @@ After any recovery operation:
 ## COMPLIANCE NOTES
 
 ### Regulatory Requirements
-- **BOT/FIU Tanzania:** 7-year data retention
+- **Tanzania AML Act (Cap.423) Section 16(1):** 10-year data retention
+- **BOT/FIU Tanzania:** 10-year record retention from end of business relationship
 - **GDPR Article 32:** Regular backup testing required
 - **Tanzania Data Protection Act:** Breach notification within 72 hours
 
 ### Audit Trail
 - All recovery operations logged in `audit_logs` table
 - Backup test results stored in `/admin/backup-tests/`
-- Incident reports maintained for 7 years
+- Incident reports maintained for 10 years (AML Act requirement)
 
 ---
 
