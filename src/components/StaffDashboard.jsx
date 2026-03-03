@@ -357,6 +357,7 @@ export default function StaffDashboard() {
                 return (
                   <div
                     key={matter.id}
+                    onClick={() => navigate(`/matter/${matter.id}`)}
                     style={{
                       padding: '14px',
                       background: '#f9fafb',
