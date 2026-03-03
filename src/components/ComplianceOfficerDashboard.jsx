@@ -75,10 +75,14 @@ export default function ComplianceOfficerDashboard() {
     try {
       setLoading(true);
 
-      const { data: clients } = await supabase
+      const { data: clients, error: clientsError } = await supabase
         .from('kyc_clients')
-        .select('id, risk_level, is_pep, next_review_due')
+        .select('id, current_risk_rating, pep_status, next_review_date')
         .eq('organization_id', profile.organization_id);
+
+      if (clientsError) {
+        console.error('Error loading clients:', clientsError);
+      }
 
       const { data: matters } = await supabase
         .from('matters')
@@ -114,13 +118,13 @@ export default function ComplianceOfficerDashboard() {
 
       const today = new Date().toISOString().split('T')[0];
       const overdueReviews = clients?.filter(c =>
-        c.next_review_due && c.next_review_due < today
+        c.next_review_date && c.next_review_date < today
       ).length || 0;
 
       setStats({
         totalClients: clients?.length || 0,
-        highRiskClients: clients?.filter(c => c.risk_level === 'high' || c.risk_level === 'very_high').length || 0,
-        pepClients: clients?.filter(c => c.is_pep).length || 0,
+        highRiskClients: clients?.filter(c => c.current_risk_rating === 'High' || c.current_risk_rating === 'Very High').length || 0,
+        pepClients: clients?.filter(c => c.pep_status === true).length || 0,
         totalMatters: matters?.length || 0,
         activeMatters: matters?.filter(m => m.status === 'open' || m.status === 'active').length || 0,
         pendingAlerts: (matterAlerts?.length || 0) + (alerts?.length || 0),
