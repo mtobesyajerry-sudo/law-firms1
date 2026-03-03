@@ -23,6 +23,7 @@ export default function StaffDashboard() {
   const [myClients, setMyClients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeView, setActiveView] = useState('overview');
+  const [clientFilter, setClientFilter] = useState('all');
   const { user, profile } = useAuth();
   const navigate = useNavigate();
 
@@ -79,7 +80,7 @@ export default function StaffDashboard() {
 
       const { data: allClients } = await supabase
         .from('kyc_clients')
-        .select('id, current_risk_rating, current_dd_level, next_review_date, pep_status')
+        .select('id, current_risk_rating, current_dd_level, next_review_date, last_review_date, pep_status')
         .eq('organization_id', profile.organization_id)
         .eq('relationship_manager_id', user.id);
 
@@ -90,9 +91,13 @@ export default function StaffDashboard() {
         .eq('resolution_status', 'pending');
 
       const today = new Date().toISOString().split('T')[0];
-      const overdueReviews = allClients?.filter(c =>
-        c.next_review_date && c.next_review_date < today
-      ).length || 0;
+      // A review is overdue if next_review_date is in the past AND the last_review_date is before next_review_date (meaning the review hasn't been completed yet)
+      const overdueReviews = allClients?.filter(c => {
+        if (!c.next_review_date || c.next_review_date >= today) return false;
+        // If no last_review_date exists, or last_review_date is before next_review_date, the review is still pending
+        if (!c.last_review_date) return true;
+        return new Date(c.last_review_date) < new Date(c.next_review_date);
+      }).length || 0;
 
       setMyMatters(matters || []);
       setMyClients(clients || []);
@@ -164,6 +169,7 @@ export default function StaffDashboard() {
         <button
           onClick={() => {
             setActiveView('overview');
+            setClientFilter('all');
             loadDashboardData();
           }}
           style={dashboardStyles.buttonSecondary}
@@ -171,7 +177,7 @@ export default function StaffDashboard() {
           ← Back
         </button>
         <div style={{ marginTop: '20px' }}>
-          <KYCClientManagement />
+          <KYCClientManagement initialFilter={clientFilter} />
         </div>
       </div>
     );
@@ -298,20 +304,30 @@ export default function StaffDashboard() {
           value={stats.myClients}
           icon="👥"
           color="#8b5cf6"
-          onClick={() => setActiveView('clients')}
+          onClick={() => {
+            setClientFilter('all');
+            setActiveView('clients');
+          }}
         />
         <StatCard
           title="High Risk"
           value={stats.highRiskClients}
           icon="⚠️"
           color="#ef4444"
-          onClick={() => setActiveView('clients')}
+          onClick={() => {
+            setClientFilter('high_risk');
+            setActiveView('clients');
+          }}
         />
         <StatCard
           title="EDD Required"
           value={stats.eddRequired}
           icon="🔍"
           color="#ec4899"
+          onClick={() => {
+            setClientFilter('enhanced_dd');
+            setActiveView('clients');
+          }}
         />
         <StatCard
           title="Overdue Reviews"

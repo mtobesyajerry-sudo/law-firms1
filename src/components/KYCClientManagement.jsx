@@ -19,11 +19,11 @@ import {
   dueDiligenceLevels
 } from '../data/kycData';
 
-export default function KYCClientManagement() {
+export default function KYCClientManagement({ initialFilter = 'all' }) {
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showNewClientModal, setShowNewClientModal] = useState(false);
-  const [activeTab, setActiveTab] = useState('all');
+  const [activeTab, setActiveTab] = useState(initialFilter);
   const { user, profile } = useAuth();
   const navigate = useNavigate();
   const isReadOnly = profile?.role === 'management';
