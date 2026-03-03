@@ -414,7 +414,7 @@ export default function Auth() {
             }}>
               <div style={{
                 fontSize: '14px',
-                color: '#0a1929',
+                color: '#4a90e2',
                 textAlign: 'center',
                 fontWeight: '600'
               }}>
