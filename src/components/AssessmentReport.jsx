@@ -860,8 +860,8 @@ export default function AssessmentReport() {
               </p>
             </div>
 
-            {/* Red Flags Section - if any critical control gaps */}
-            {(assessment.module_2_score >= 2.5 || assessment.module_3_score >= 2.5) && (
+            {/* Red Flags Section - if any critical control gaps (>2.5 indicates partially compliant or worse) */}
+            {(assessment.module_2_score > 2.5 || assessment.module_3_score > 2.5) && (
               <div style={{
                 ...styles.maturityInfoBox,
                 marginBottom: '20px',
@@ -882,18 +882,18 @@ export default function AssessmentReport() {
                   The assessment has identified critical deficiencies in the AML/CFT control framework:
                 </p>
                 <ul style={{margin: 0, paddingLeft: '20px', fontSize: '14px', color: '#991b1b', lineHeight: '1.6'}}>
-                  {assessment.module_2_score >= 2.5 && (
+                  {assessment.module_2_score > 2.5 && (
                     <li style={{marginBottom: '8px'}}>
                       <strong>Control Implementation:</strong> Risk score of {assessment.module_2_score.toFixed(2)}/5.0 indicates significant control gaps. Critical policies, procedures, or documentation are missing or inadequate.
                     </li>
                   )}
-                  {assessment.module_3_score >= 2.5 && (
+                  {assessment.module_3_score > 2.5 && (
                     <li style={{marginBottom: '8px'}}>
                       <strong>Operational Effectiveness:</strong> Risk score of {assessment.module_3_score.toFixed(2)}/5.0 indicates controls are not operating as intended or achieving their risk mitigation objectives.
                     </li>
                   )}
                   <li style={{marginBottom: '8px'}}>
-                    <strong>Enhanced Due Diligence Required:</strong> Due to these HIGH risk scores (≥ 2.5), Enhanced Due Diligence procedures and senior management sign-off are required.
+                    <strong>Enhanced Due Diligence Required:</strong> Due to these HIGH risk scores (&gt; 2.5), Enhanced Due Diligence procedures and senior management sign-off are required.
                   </li>
                 </ul>
                 <p style={{margin: '12px 0 0 0', fontSize: '14px', fontWeight: '600', color: '#991b1b'}}>
