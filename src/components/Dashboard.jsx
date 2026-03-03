@@ -390,6 +390,13 @@ export default function Dashboard() {
       <div style={styles.container}>
         <header style={styles.header}>
           <div>
+            <div style={styles.logoContainer}>
+              <img
+                src="/Iuris_Peritis_logo_(edit).png"
+                alt="Iuris Peritis"
+                style={styles.logo}
+              />
+            </div>
             <h1 style={styles.title}>Law Firm AML Compliance System</h1>
             <p style={styles.subtitle}>Client Dashboard</p>
           </div>
@@ -1193,6 +1200,15 @@ const styles = {
     alignItems: 'center',
     boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
     borderBottom: '3px solid #d4af37',
+  },
+  logoContainer: {
+    display: 'flex',
+    justifyContent: 'flex-start',
+    marginBottom: '16px',
+  },
+  logo: {
+    maxWidth: '200px',
+    height: 'auto',
   },
   title: {
     margin: 0,

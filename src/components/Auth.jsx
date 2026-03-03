@@ -332,6 +332,13 @@ export default function Auth() {
     <div style={styles.container}>
       <div style={mode === 'register' ? styles.cardLarge : styles.card}>
         <div style={styles.header}>
+          <div style={styles.logoContainer}>
+            <img
+              src="/Iuris_Peritis_logo_(edit).png"
+              alt="Iuris Peritis"
+              style={styles.logo}
+            />
+          </div>
           <h1 style={styles.title}>Law Firm AML Compliance System</h1>
           <p style={styles.subtitle}>Comprehensive AML/CFT Compliance Management for Legal Professionals</p>
         </div>
@@ -737,6 +744,15 @@ const styles = {
     marginBottom: '24px',
     borderBottom: '2px solid #d4af37',
     paddingBottom: '20px',
+  },
+  logoContainer: {
+    display: 'flex',
+    justifyContent: 'center',
+    marginBottom: '20px',
+  },
+  logo: {
+    maxWidth: '280px',
+    height: 'auto',
   },
   title: {
     fontSize: '28px',
