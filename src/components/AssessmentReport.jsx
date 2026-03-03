@@ -622,7 +622,7 @@ export default function AssessmentReport() {
                   <strong style={{color: '#f59e0b'}}>Module 3: Effectiveness (1-5 scale)</strong> - AUTO-CALCULATED from institutional control assessments measuring how well controls operate in practice (higher = less effective)
                 </span>
                 <span style={styles.maturityInfoItem}>
-                  <strong style={{color: '#0891b2'}}>Module 4: Control Maturity (1-5 scale)</strong> - Assesses the maturity level of AML/CFT controls across 9 key domains (1=Initial/Ad hoc, 5=Optimised/Continuously Improved)
+                  <strong style={{color: '#0891b2'}}>Module 4: Institutional Maturity (1-5 scale)</strong> - AUTO-CALCULATED from detailed control assessments across 9 AML/CFT domains with 20 evidence-based controls (1=Initial/Ad hoc, 5=Optimised/Continuously Improved)
                 </span>
                 <span style={styles.maturityInfoItem}>
                   <strong style={{color: '#dc2626'}}>Residual Risk Formula:</strong> Inherent Risk × (1 - Overall Control Effectiveness)
@@ -709,12 +709,12 @@ export default function AssessmentReport() {
               {assessment.module_4_score && (
                 <div style={styles.summaryCard} className="print-card">
                   <div style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px'}}>
-                    <h3 style={{...styles.summaryLabel, marginBottom: 0}}>Module 4 - Control Maturity</h3>
+                    <h3 style={{...styles.summaryLabel, marginBottom: 0}}>Module 4 - Institutional Maturity</h3>
                   </div>
                   <p style={{...styles.summaryValue, fontSize: '32px', fontWeight: '700', color: '#0891b2'}}>
                     {assessment.module_4_score.toFixed(2)}
                   </p>
-                  <p style={{...styles.scoreText, marginTop: '8px'}}>Scale: 1.0 (Initial) - 5.0 (Optimised)</p>
+                  <p style={{...styles.scoreText, marginTop: '8px'}}>AUTO-CALCULATED from 20 controls across 9 domains</p>
                   {assessment.module_4_rating && (
                     <span style={{
                       display: 'inline-block',

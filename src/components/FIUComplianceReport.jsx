@@ -880,7 +880,7 @@ export default function FIUComplianceReport({ assessment, sectionScores, respons
             spacing: { before: 400, after: 200 }
           }),
           new Paragraph({
-            text: 'This section evaluates the sophistication and maturity of the institution\'s AML/CFT compliance program. It assesses the level of process standardization, automation, integration, performance monitoring, and continuous improvement. The maturity model ranges from Initial (Level 1) to Optimized (Level 5).',
+            text: 'This comprehensive section evaluates the sophistication and maturity of the institution\'s AML/CFT compliance program through detailed assessment of 20 key controls across 9 critical domains: Governance & Risk Assessment, Enterprise Risk Assessment, CDD/KYC, Transaction Monitoring, Sanctions Screening, Suspicious Activity Reporting, Internal Controls & Compliance, Audit & QA, and Training & Awareness. The maturity score is AUTO-CALCULATED from control assessments and ranges from Initial (Level 1) to Optimised (Level 5).',
             alignment: AlignmentType.JUSTIFIED,
             spacing: { after: 200 }
           }),
@@ -890,7 +890,7 @@ export default function FIUComplianceReport({ assessment, sectionScores, respons
             spacing: { before: 200, after: 200 }
           }),
           new Paragraph({
-            text: 'Narrative (Auto-generated from Module 4 responses)',
+            text: 'Narrative (Based on detailed institutional maturity control assessments)',
             bold: true,
             spacing: { after: 100 }
           }),

@@ -147,7 +147,7 @@ export default function DetailedAssessmentReport({ assessment, sectionScores = [
               <h3 style={styles.summaryTitle}>Key Findings</h3>
               <div style={styles.findingsList}>
                 <div style={styles.findingItem}>
-                  <strong>Assessment Scope:</strong> Comprehensive four-module evaluation covering {keyFindings?.total_criteria || getAllQuestions().length} assessment criteria across inherent risk exposure (Module 1), control implementation (Module 2), control effectiveness (Module 3), and institutional maturity (Module 4).
+                  <strong>Assessment Scope:</strong> Comprehensive four-module evaluation with {keyFindings?.total_criteria || getAllQuestions().length} questionnaire criteria plus 20 institutional maturity controls across inherent risk exposure (Module 1), control implementation (Module 2), control effectiveness (Module 3), and institutional maturity (Module 4 - derived from detailed control assessments across 9 AML/CFT domains).
                 </div>
                 <div style={styles.findingItem}>
                   <strong>Inherent Risk Profile (Module 1):</strong> {keyFindings
@@ -169,7 +169,7 @@ export default function DetailedAssessmentReport({ assessment, sectionScores = [
                 </div>
                 <div style={styles.findingItem}>
                   <strong>Institutional Maturity (Module 4):</strong> {keyFindings
-                    ? `Overall maturity level assessed as "${keyFindings.computed_maturity_rating}" (${(assessment.module_4_score || 0).toFixed(1)}/5.0). Distribution: ${keyFindings.m4_initial_count} Initial, ${keyFindings.m4_developing_count} Developing, ${keyFindings.m4_defined_count} Defined, ${keyFindings.m4_managed_count} Managed, ${keyFindings.m4_optimised_count} Optimised.`
+                    ? `Overall maturity level assessed as "${keyFindings.computed_maturity_rating}" (${(assessment.module_4_score || 0).toFixed(2)}/5.0) based on 20 control assessments. Distribution across maturity spectrum: ${keyFindings.m4_initial_count} Initial, ${keyFindings.m4_developing_count} Developing, ${keyFindings.m4_defined_count} Defined, ${keyFindings.m4_managed_count} Managed, ${keyFindings.m4_optimised_count} Optimised.`
                     : 'Loading...'
                   }
                 </div>
@@ -203,7 +203,7 @@ export default function DetailedAssessmentReport({ assessment, sectionScores = [
             <div style={styles.maturityAnalysisBox}>
               <h3 style={styles.summaryTitle}>AML/CFT Institutional Maturity Assessment (Module 4)</h3>
               <p style={styles.paragraph}>
-                This assessment evaluates the maturity level of the organization's AML/CFT control framework across key domains including governance, risk assessment, CDD/KYC, transaction monitoring, sanctions screening, and reporting processes.
+                This comprehensive assessment evaluates the maturity level of the organization's AML/CFT control framework through detailed analysis of 20 key controls across 9 critical domains: Governance & Risk Assessment (GOV), Enterprise Risk Assessment (ERA), CDD/KYC (CDD), Transaction Monitoring (TM), Sanctions Screening (SAN), Suspicious Activity Reporting (SAR), Internal Controls & Compliance (ICC), Audit & QA (AUD), and Training & Awareness (TRN). Module 4 score is AUTO-CALCULATED as the average maturity across all assessed controls.
               </p>
 
               <div style={styles.maturityScoreCard}>
