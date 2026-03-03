@@ -335,7 +335,7 @@ export default function Auth() {
           <div style={styles.logoContainer}>
             <img
               src="/Iuris_Peritis_logo_(edit).png"
-              alt="Iuris Peritis"
+              alt="Logo"
               style={styles.logo}
             />
           </div>

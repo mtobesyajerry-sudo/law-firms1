@@ -393,7 +393,7 @@ export default function Dashboard() {
             <div style={styles.logoContainer}>
               <img
                 src="/Iuris_Peritis_logo_(edit).png"
-                alt="Iuris Peritis"
+                alt="Logo"
                 style={styles.logo}
               />
             </div>
@@ -1148,7 +1148,7 @@ export default function Dashboard() {
 
       <footer style={styles.footer}>
         <div style={styles.footerLeft}>
-          © 2026 IurisPeritis. All Rights Reserved.
+          © 2026 All Rights Reserved.
         </div>
         <div style={styles.footerRight}>
           <a
