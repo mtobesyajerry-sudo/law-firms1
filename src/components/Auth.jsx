@@ -416,7 +416,8 @@ export default function Auth() {
                 fontSize: '14px',
                 color: '#4a90e2',
                 textAlign: 'center',
-                fontWeight: '600'
+                fontWeight: '600',
+                fontStyle: 'italic'
               }}>
                 Don't have an account yet? Please Register to have access to the System.
               </div>
