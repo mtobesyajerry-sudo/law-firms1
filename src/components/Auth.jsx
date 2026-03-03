@@ -408,7 +408,7 @@ export default function Auth() {
             <div style={{
               marginTop: '24px',
               padding: '16px',
-              background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)',
+              background: 'transparent',
               borderRadius: '10px',
               border: '2px solid #d4af37'
             }}>
