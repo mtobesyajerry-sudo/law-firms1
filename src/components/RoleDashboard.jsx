@@ -4,7 +4,6 @@ import Dashboard from './Dashboard';
 import LawyerDashboard from './LawyerDashboard';
 import ComplianceOfficerDashboard from './ComplianceOfficerDashboard';
 import LoadingSpinner from './LoadingSpinner';
-import LogoComponent from './LogoComponent';
 
 export default function RoleDashboard() {
   const { profile, organization, signOut } = useAuth();
@@ -56,7 +55,13 @@ export default function RoleDashboard() {
     <div style={styles.wrapper}>
       <header style={styles.header}>
         <div>
-          <LogoComponent style={{ marginBottom: '16px' }} darkBackground={true} />
+          <div style={styles.logoContainer}>
+            <img
+              src="/Iuris_Peritis_logo_(edit).png"
+              alt="Iuris Peritis"
+              style={styles.logo}
+            />
+          </div>
           <h1 style={styles.title}>{organization?.name || 'Organization'}</h1>
           <p style={styles.subtitle}>AML/CFT Compliance System</p>
           {profile?.first_name && (

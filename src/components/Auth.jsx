@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../supabaseClient';
 import { institutionCategories } from '../data/assessmentData';
-import LogoComponent from './LogoComponent';
 
 export default function Auth() {
   const [mode, setMode] = useState('login');
@@ -333,7 +332,13 @@ export default function Auth() {
     <div style={styles.container}>
       <div style={mode === 'register' ? styles.cardLarge : styles.card}>
         <div style={styles.header}>
-          <LogoComponent style={{ marginBottom: '20px' }} darkBackground={false} />
+          <div style={styles.logoContainer}>
+            <img
+              src="/Iuris_Peritis_logo_(edit).png"
+              alt="Iuris Peritis"
+              style={styles.logo}
+            />
+          </div>
           <h1 style={styles.title}>Law Firm AML Compliance System</h1>
           <p style={styles.subtitle}>Comprehensive AML/CFT Compliance Management for Legal Professionals</p>
         </div>

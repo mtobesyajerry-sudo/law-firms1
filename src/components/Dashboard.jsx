@@ -8,7 +8,6 @@ import KYCClientManagement from './KYCClientManagement';
 import STRAlertDashboard from './STRAlertDashboard';
 import integrationService from '../services/integrationService';
 import LoadingSpinner from './LoadingSpinner';
-import LogoComponent from './LogoComponent';
 
 function ClientRiskProfilesSection({ organizationId }) {
   const [clients, setClients] = useState([]);
@@ -391,7 +390,13 @@ export default function Dashboard() {
       <div style={styles.container}>
         <header style={styles.header}>
           <div>
-            <LogoComponent style={{ marginBottom: '16px' }} darkBackground={true} />
+            <div style={styles.logoContainer}>
+              <img
+                src="/Iuris_Peritis_logo_(edit).png"
+                alt="Iuris Peritis"
+                style={styles.logo}
+              />
+            </div>
             <h1 style={styles.title}>Law Firm AML Compliance System</h1>
             <p style={styles.subtitle}>Client Dashboard</p>
           </div>
