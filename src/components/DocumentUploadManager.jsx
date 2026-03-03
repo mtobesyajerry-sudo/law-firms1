@@ -695,7 +695,7 @@ export default function DocumentUploadManager({
                                 onChange={(e) => handleFileUpload(e, req.document_type.id, req.document_type.name, req.document_type.category)}
                                 style={{ display: 'none' }}
                                 disabled={uploading && uploadingDocId === req.document_type.id}
-                                accept=".pdf,.jpg,.jpeg,.png,.gif,.doc,.docx,.xls,.xlsx,.txt,.zip"
+                                accept=".pdf,.jpg,.jpeg,.png,.gif,.doc,.docx,.xls,.xlsx,.txt"
                               />
                               {(uploading && uploadingDocId === req.document_type.id) ? 'Uploading...' : '+ Upload Document'}
                             </label>

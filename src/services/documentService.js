@@ -2,7 +2,7 @@ import { supabase } from '../supabaseClient';
 import CryptoJS from 'crypto-js';
 
 const STORAGE_BUCKET = 'secure-documents';
-const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB (reduced from 50MB for security)
 const ALLOWED_MIME_TYPES = [
   'application/pdf',
   'image/jpeg',
@@ -13,9 +13,7 @@ const ALLOWED_MIME_TYPES = [
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   'application/vnd.ms-excel',
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-  'text/plain',
-  'application/zip',
-  'application/x-zip-compressed'
+  'text/plain'
 ];
 
 export class DocumentService {
@@ -82,7 +80,30 @@ export class DocumentService {
         throw new Error('User not authenticated');
       }
 
-      const checksum = await this.calculateChecksum(file);
+      // Server-side validation via Edge Function
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('mimeType', file.type);
+
+      const { data: session } = await supabase.auth.getSession();
+      const validationResponse = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/validate-file-upload`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${session?.session?.access_token || ''}`
+          },
+          body: formData
+        }
+      );
+
+      const serverValidation = await validationResponse.json();
+      if (!serverValidation.valid) {
+        throw new Error('Server-side validation failed: ' + serverValidation.errors.join(', '));
+      }
+
+      // Use server-calculated hash instead of client-side
+      const checksum = serverValidation.fileHash || await this.calculateChecksum(file);
 
       const { data: documentType } = await supabase
         .from('document_types')
@@ -459,6 +480,17 @@ export class DocumentService {
     try {
       const { data: { user } } = await supabase.auth.getUser();
 
+      // Attempt to get real client IP from headers (Vercel/Cloudflare)
+      let clientIP = 'unknown';
+      try {
+        const response = await fetch('https://api.ipify.org?format=json');
+        const data = await response.json();
+        clientIP = data.ip || 'unknown';
+      } catch (e) {
+        // Fallback to unknown if IP detection fails
+        clientIP = 'unknown';
+      }
+
       await supabase.from('document_access_logs').insert({
         user_id: user?.id,
         document_id: documentId,
@@ -467,7 +499,7 @@ export class DocumentService {
         access_type: accessType,
         client_id: clientId,
         assessment_id: assessmentId,
-        ip_address: 'client-ip'
+        ip_address: clientIP
       });
     } catch (error) {
       console.error('Error logging document access:', error);
