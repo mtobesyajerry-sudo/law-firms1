@@ -58,7 +58,7 @@ export default function RoleDashboard() {
           <div style={styles.logoContainer}>
             <img
               src="/Iuris_Peritis_logo_(edit).png"
-              alt="Logo"
+              alt=""
               style={styles.logo}
             />
           </div>
