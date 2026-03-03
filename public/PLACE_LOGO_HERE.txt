@@ -1,0 +1,17 @@
+IMPORTANT: Logo File Required
+
+The system is configured to display the Iuris Peritis logo, but the actual image file is missing.
+
+ACTION REQUIRED:
+1. Save your logo image as: Iuris_Peritis_logo_(edit).png
+2. Place it in this directory (/public/)
+3. The logo will then display on:
+   - Login page
+   - All dashboard headers
+
+CURRENT STATUS:
+- Code changes: ✅ Complete
+- Logo file: ❌ Missing (placeholder text file exists)
+- Build: ✅ Successful
+
+The logo image you uploaded in the chat needs to be manually saved to this location.
