@@ -148,14 +148,36 @@ export default function DocumentUploadManager({
     setSuccess('');
 
     try {
-      const MAX_FILE_SIZE = 50 * 1024 * 1024;
+      const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB limit
       if (file.size > MAX_FILE_SIZE) {
-        throw new Error('File size exceeds 50MB limit');
+        throw new Error('File size exceeds 10MB limit');
       }
 
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         throw new Error('User not authenticated');
+      }
+
+      // Server-side validation via Edge Function
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('mimeType', file.type);
+
+      const { data: session } = await supabase.auth.getSession();
+      const validationResponse = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/validate-file-upload`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${session?.session?.access_token || ''}`
+          },
+          body: formData
+        }
+      );
+
+      const serverValidation = await validationResponse.json();
+      if (!serverValidation.valid) {
+        throw new Error('Security validation failed: ' + serverValidation.errors.join(', '));
       }
 
       const fileExt = file.name.split('.').pop();
@@ -166,7 +188,8 @@ export default function DocumentUploadManager({
         .from('client-documents')
         .upload(filePath, file, {
           cacheControl: '3600',
-          upsert: false
+          upsert: false,
+          contentType: file.type
         });
 
       if (uploadError) {
@@ -188,7 +211,12 @@ export default function DocumentUploadManager({
         verification_status: 'pending',
         is_mandatory: true,
         is_current: true,
-        uploaded_by: user.id
+        uploaded_by: user.id,
+        metadata: {
+          checksum: serverValidation.fileHash,
+          validated_at: new Date().toISOString(),
+          validation_warnings: serverValidation.warnings || []
+        }
       };
 
       const { error: dbError } = await supabase
@@ -196,6 +224,7 @@ export default function DocumentUploadManager({
         .insert(documentRecord);
 
       if (dbError) {
+        await supabase.storage.from('client-documents').remove([filePath]);
         throw dbError;
       }
 
