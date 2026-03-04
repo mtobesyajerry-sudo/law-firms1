@@ -1773,17 +1773,17 @@ A: BRELA API integration is in development. Currently, you can upload BRELA cert
 ### Contact Information
 
 **Sales & Demos:**
-- Email: sales@legalguard.co.tz (example)
+- Email: sales@iurisperitis.co.tz (example)
 - Phone: +255 XXX XXX XXX
-- Website: www.legalguard.co.tz (example)
+- Website: www.iurisperitis.co.tz (example)
 
 **Technical Support:**
-- Email: support@legalguard.co.tz
+- Email: support@iurisperitis.co.tz
 - Phone: +255 XXX XXX XXX
 - Hours: Mon-Fri 8AM-6PM EAT
 
 **Compliance Inquiries:**
-- Email: compliance@legalguard.co.tz
+- Email: compliance@iurisperitis.co.tz
 - MLRO Hotline: +255 XXX XXX XXX
 
 ---
@@ -1863,7 +1863,7 @@ Don't lose competitive advantage to compliant firms.
 
 **Document Version:** 1.0
 **Date:** March 4, 2026
-**Prepared by:** LegalGuard Development Team
+**Prepared by:** Iuris Peritis Development Team
 **Status:** Active Marketing Material
 **Next Review:** Quarterly
 
