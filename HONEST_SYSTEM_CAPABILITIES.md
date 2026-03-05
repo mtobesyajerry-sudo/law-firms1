@@ -54,7 +54,11 @@ This system is NOT suitable for firms that:
 
 ## PART 1: WHAT THE SYSTEM ACTUALLY DOES
 
-### 1. Institutional Risk Assessment (Core Feature)
+---
+
+## CORE FEATURES
+
+### 1. Institutional Risk Assessment
 
 **What It Does:**
 - Provides a comprehensive questionnaire framework aligned with FATF recommendations
@@ -128,135 +132,7 @@ This system is NOT suitable for firms that:
 
 ---
 
-### 3. Document Management
-
-**What It Does:**
-- Accepts file uploads (PDF, DOCX, XLSX, JPG, PNG)
-- Validates file types and sizes (10MB maximum)
-- Checks file signatures to prevent malicious uploads
-- Calculates SHA-256 checksums for integrity verification
-- Stores files securely in Supabase storage
-- Tracks document metadata (type, category, upload date, uploader)
-- Maintains audit log of who accessed which document
-- Organizes documents by client and category
-- Tracks document expiry dates
-- Flags mandatory vs. optional documents
-
-**How It Works:**
-1. User uploads file through web interface
-2. System validates file type and size on frontend
-3. Edge function validates file signature on backend
-4. System calculates file hash
-5. System checks for duplicate files
-6. File stored in encrypted cloud storage
-7. System records metadata in database
-8. All access logged with IP address and timestamp
-
-**What It Does NOT Do:**
-- Does not automatically extract data from documents (OCR)
-- Does not verify document authenticity
-- Does not check if passport/ID is genuine
-- Does not apply visible watermarks to files
-- Does not encrypt files beyond standard cloud storage encryption
-- Does not automatically categorize documents
-
-**Reality Check:** This is secure cloud storage with good metadata tracking. It ensures files are safe and tracks who accessed them, but doesn't read, verify, or process document contents.
-
----
-
-### 4. Screening Management
-
-**What It Does:**
-- Provides a database structure for storing screening lists
-- Records screening results manually entered by staff
-- Tracks match/no-match status
-- Stores screening dates and reviewer comments
-- Schedules next screening dates
-- Flags false positives
-- Tracks investigation status of matches
-
-**How It Works:**
-1. Staff manually checks client names against external sources
-2. Staff manually enters screening results into system
-3. System records the result and date
-4. System schedules next review based on configured frequency
-5. Staff manually reviews and clears matches
-
-**What It Does NOT Do:**
-- Does not download sanctions lists from UN, OFAC, EU, etc.
-- Does not automatically screen clients against databases
-- Does not connect to commercial screening services (World-Check, Dow Jones)
-- Does not update screening lists automatically
-- Does not perform fuzzy name matching
-- Does not generate screening alerts automatically
-
-**Reality Check:** This is a screening results tracker. You must perform actual screening using external tools/websites, then record your findings in this system. It's a record-keeping tool, not a screening engine.
-
----
-
-### 5. Alert and Investigation Tracking
-
-**What It Does:**
-- Records alerts (suspicious activity, high-risk behavior, red flags)
-- Tracks alert severity (Critical/High/Medium/Low)
-- Manages investigation status (New/In Progress/Escalated/Resolved)
-- Assigns alerts to staff members
-- Records investigation notes and findings
-- Tracks resolution type and outcome
-- Maintains timeline of alert lifecycle
-- Generates statistics on alert volumes
-
-**How It Works:**
-1. Staff manually creates alert when suspicious activity identified
-2. Staff assigns severity and investigation status
-3. System tracks changes and updates
-4. Staff enters investigation notes over time
-5. Staff marks alert as resolved with outcome
-6. System maintains complete audit trail
-
-**What It Does NOT Do:**
-- Does not monitor transactions automatically
-- Does not generate alerts from transaction patterns
-- Does not analyze client behavior
-- Does not detect suspicious activity
-- Does not apply machine learning or pattern recognition
-- Does not import alerts from external systems
-
-**Reality Check:** This is an investigation case management tool. Staff must identify suspicious activity manually, then use this system to track the investigation process and outcome.
-
----
-
-### 6. Risk Scoring and Assessment
-
-**What It Does:**
-- Calculates institutional risk scores from assessment responses
-- Aggregates scores across sections and modules
-- Assigns risk ratings based on configurable thresholds
-- Calculates client base risk scores from entered data
-- Combines multiple risk factors (client type, PEP status, geography, transaction type)
-- Generates risk recommendations
-- Tracks risk score history over time
-
-**How It Works:**
-1. Staff enters assessment responses or client data
-2. System applies pre-configured scoring formulas
-3. System aggregates scores using weighted averages
-4. System compares totals to threshold ranges
-5. System assigns risk rating (Low/Medium/High/Very High)
-6. System generates recommendations based on rating
-
-**What It Does NOT Do:**
-- Does not use machine learning or AI
-- Does not compare to industry benchmarks
-- Does not predict future risk
-- Does not automatically adjust weights
-- Does not incorporate external risk intelligence
-
-**Reality Check:** This is spreadsheet-like calculation applied to your entered data. The formulas are transparent and configurable, but there's no magic—just math on the data you provide.
-
----
-
-### 7. Matter/Case Management
+### 3. Matter/Case Management
 
 **What It Does:**
 - Creates and tracks legal matters (cases) for each client
@@ -298,6 +174,136 @@ This system is NOT suitable for firms that:
 
 ---
 
+## SUPPORTING FEATURES
+
+### 4. Document Management
+
+**What It Does:**
+- Accepts file uploads (PDF, DOCX, XLSX, JPG, PNG)
+- Validates file types and sizes (10MB maximum)
+- Checks file signatures to prevent malicious uploads
+- Calculates SHA-256 checksums for integrity verification
+- Stores files securely in Supabase storage
+- Tracks document metadata (type, category, upload date, uploader)
+- Maintains audit log of who accessed which document
+- Organizes documents by client and category
+- Tracks document expiry dates
+- Flags mandatory vs. optional documents
+
+**How It Works:**
+1. User uploads file through web interface
+2. System validates file type and size on frontend
+3. Edge function validates file signature on backend
+4. System calculates file hash
+5. System checks for duplicate files
+6. File stored in encrypted cloud storage
+7. System records metadata in database
+8. All access logged with IP address and timestamp
+
+**What It Does NOT Do:**
+- Does not automatically extract data from documents (OCR)
+- Does not verify document authenticity
+- Does not check if passport/ID is genuine
+- Does not apply visible watermarks to files
+- Does not encrypt files beyond standard cloud storage encryption
+- Does not automatically categorize documents
+
+**Reality Check:** This is secure cloud storage with good metadata tracking. It ensures files are safe and tracks who accessed them, but doesn't read, verify, or process document contents.
+
+---
+
+### 5. Screening Management
+
+**What It Does:**
+- Provides a database structure for storing screening lists
+- Records screening results manually entered by staff
+- Tracks match/no-match status
+- Stores screening dates and reviewer comments
+- Schedules next screening dates
+- Flags false positives
+- Tracks investigation status of matches
+
+**How It Works:**
+1. Staff manually checks client names against external sources
+2. Staff manually enters screening results into system
+3. System records the result and date
+4. System schedules next review based on configured frequency
+5. Staff manually reviews and clears matches
+
+**What It Does NOT Do:**
+- Does not download sanctions lists from UN, OFAC, EU, etc.
+- Does not automatically screen clients against databases
+- Does not connect to commercial screening services (World-Check, Dow Jones)
+- Does not update screening lists automatically
+- Does not perform fuzzy name matching
+- Does not generate screening alerts automatically
+
+**Reality Check:** This is a screening results tracker. You must perform actual screening using external tools/websites, then record your findings in this system. It's a record-keeping tool, not a screening engine.
+
+---
+
+### 6. Alert and Investigation Tracking
+
+**What It Does:**
+- Records alerts (suspicious activity, high-risk behavior, red flags)
+- Tracks alert severity (Critical/High/Medium/Low)
+- Manages investigation status (New/In Progress/Escalated/Resolved)
+- Assigns alerts to staff members
+- Records investigation notes and findings
+- Tracks resolution type and outcome
+- Maintains timeline of alert lifecycle
+- Generates statistics on alert volumes
+
+**How It Works:**
+1. Staff manually creates alert when suspicious activity identified
+2. Staff assigns severity and investigation status
+3. System tracks changes and updates
+4. Staff enters investigation notes over time
+5. Staff marks alert as resolved with outcome
+6. System maintains complete audit trail
+
+**What It Does NOT Do:**
+- Does not monitor transactions automatically
+- Does not generate alerts from transaction patterns
+- Does not analyze client behavior
+- Does not detect suspicious activity
+- Does not apply machine learning or pattern recognition
+- Does not import alerts from external systems
+
+**Reality Check:** This is an investigation case management tool. Staff must identify suspicious activity manually, then use this system to track the investigation process and outcome.
+
+---
+
+### 7. Risk Scoring and Assessment
+
+**What It Does:**
+- Calculates institutional risk scores from assessment responses
+- Aggregates scores across sections and modules
+- Assigns risk ratings based on configurable thresholds
+- Calculates client base risk scores from entered data
+- Combines multiple risk factors (client type, PEP status, geography, transaction type)
+- Generates risk recommendations
+- Tracks risk score history over time
+
+**How It Works:**
+1. Staff enters assessment responses or client data
+2. System applies pre-configured scoring formulas
+3. System aggregates scores using weighted averages
+4. System compares totals to threshold ranges
+5. System assigns risk rating (Low/Medium/High/Very High)
+6. System generates recommendations based on rating
+
+**What It Does NOT Do:**
+- Does not use machine learning or AI
+- Does not compare to industry benchmarks
+- Does not predict future risk
+- Does not automatically adjust weights
+- Does not incorporate external risk intelligence
+
+**Reality Check:** This is spreadsheet-like calculation applied to your entered data. The formulas are transparent and configurable, but there's no magic—just math on the data you provide.
+
+---
+
 ### 8. Reporting and Compliance Documentation
 
 **What It Does:**
@@ -327,7 +333,7 @@ This system is NOT suitable for firms that:
 
 ---
 
-### 8. User and Access Management
+### 9. User and Access Management
 
 **What It Does:**
 - Creates user accounts with email/password authentication
@@ -360,7 +366,7 @@ This system is NOT suitable for firms that:
 
 ---
 
-### 9. Audit Trail and Compliance Logging
+### 10. Audit Trail and Compliance Logging
 
 **What It Does:**
 - Logs every significant action in the system
