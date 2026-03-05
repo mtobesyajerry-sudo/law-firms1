@@ -18,6 +18,7 @@ This is a comprehensive **compliance data management and tracking system** desig
 - Replaces paper files and spreadsheets with organized digital records
 - Guides you through institutional risk assessments with structured questionnaires
 - Tracks client KYC information with risk scoring calculations
+- Manages legal matters (cases) with AML trigger activity flagging
 - Manages document uploads with security and audit trails
 - Records screening results, alerts, and investigations
 - Generates compliance reports from your entered data
@@ -255,7 +256,49 @@ This system is NOT suitable for firms that:
 
 ---
 
-### 7. Reporting and Compliance Documentation
+### 7. Matter/Case Management
+
+**What It Does:**
+- Creates and tracks legal matters (cases) for each client
+- Links matters to clients with relationship tracking
+- Records matter details:
+  - Matter type (M&A, Real Estate, Corporate, Litigation, Trust Administration, etc.)
+  - Matter status (Open, In Progress, On Hold, Closed)
+  - Start date and expected completion date
+  - Responsible lawyer assignment
+  - Fee arrangement and billing information
+- Tracks AML trigger activities for each matter type
+- Identifies high-risk matter types requiring enhanced due diligence
+- Records matter milestones and activities
+- Tracks billing milestones and payment schedules
+- Maintains matter-specific document storage
+- Links multiple matters to the same client
+- Tracks matter history and status changes
+
+**How It Works:**
+1. Staff creates matter and links to existing client
+2. Staff selects matter type and records details
+3. System automatically flags AML trigger activities based on matter type
+4. Staff assigns responsible lawyer
+5. Staff creates milestones and activities
+6. System tracks progress and generates alerts for overdue items
+7. All changes logged in audit trail
+8. Staff can view all matters for a client in one place
+
+**What It Does NOT Do:**
+- Does not integrate with time tracking systems
+- Does not automatically generate invoices
+- Does not connect to court filing systems
+- Does not automatically track case law or deadlines
+- Does not provide legal research capabilities
+- Does not sync with calendar applications
+- Does not send automated client updates
+
+**Reality Check:** This is a matter tracking and organization system specifically designed for AML compliance purposes. It helps you link legal work to clients and flag AML-relevant activities, but it's not a full practice management system. You still need separate tools for time tracking, billing, calendaring, and case law research.
+
+---
+
+### 8. Reporting and Compliance Documentation
 
 **What It Does:**
 - Generates institutional assessment reports with narratives
@@ -698,6 +741,26 @@ The system **detects and alerts**, but **humans decide and act**. For a law firm
 
 ---
 
+### Misconception 8: "Full Practice Management System"
+**Marketing Claim:** "Complete practice management solution for law firms"
+
+**Reality:**
+- System tracks matters (cases) for AML compliance purposes
+- Links matters to clients
+- Flags AML trigger activities by matter type
+- Tracks basic matter details and milestones
+- No time tracking or timesheet functionality ❌
+- No automated invoicing or billing system ❌
+- No calendar integration for court dates ❌
+- No document assembly or legal forms ❌
+- No legal research capabilities ❌
+- No client portal for document sharing ❌
+- No trust accounting or IOLTA management ❌
+
+**Honest Description:** "AML-focused matter tracking that links legal work to clients and flags high-risk activities, not a full practice management system"
+
+---
+
 ## PART 4: REALISTIC USE CASES
 
 ### Use Case 1: Solo Practitioner Conveyancer
@@ -707,6 +770,8 @@ The system **detects and alerts**, but **humans decide and act**. For a law firm
 **How System Helps:**
 - Replaces her paper client files with organized digital records
 - Guides her through annual institutional risk assessment
+- Tracks each conveyancing matter linked to clients
+- Automatically flags high-risk property transactions
 - Stores client ID copies, proof of address, title deeds securely
 - Calculates client risk scores based on transaction value and client type
 - Reminds her when client reviews are due
@@ -743,10 +808,12 @@ The system **detects and alerts**, but **humans decide and act**. For a law firm
 - Centralizes client data accessible to all authorized staff
 - Assigns clients to relationship managers
 - Tracks which lawyer is responsible for which client
+- Links all matters (M&A, real estate deals, corporate work) to clients
+- Automatically flags AML trigger activities (cash transactions, offshore entities, complex structures)
 - Stores thousands of documents in organized, searchable system
 - Maintains comprehensive audit trail for regulators
 - Generates firm-wide risk assessment reports
-- Tracks EDD requirements for high-risk clients
+- Tracks EDD requirements for high-risk clients and matters
 - Monitors overdue client reviews
 - Produces quarterly compliance reports for partners
 - Detects security threats like brute force attacks
@@ -754,10 +821,11 @@ The system **detects and alerts**, but **humans decide and act**. For a law firm
 
 **What Firm Still Must Do:**
 - Staff manually enters all client information
+- Staff manually creates and updates matters
 - Staff manually uploads documents
 - Compliance officer manually conducts screenings
 - MLRO manually reviews suspicious activity
-- Partners manually approve high-risk clients
+- Partners manually approve high-risk clients and matters
 - Firm manually implements remediation actions
 - Security officer monitors security dashboard
 - Admin schedules threat detection scans
