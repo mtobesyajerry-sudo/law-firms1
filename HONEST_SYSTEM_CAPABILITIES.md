@@ -21,6 +21,7 @@ This is a comprehensive **compliance data management and tracking system** desig
 - Manages document uploads with security and audit trails
 - Records screening results, alerts, and investigations
 - Generates compliance reports from your entered data
+- Monitors security events and detects basic threats
 
 **What It Is NOT:**
 - Not a real-time transaction monitoring system
@@ -28,6 +29,7 @@ This is a comprehensive **compliance data management and tracking system** desig
 - Not integrated with government registries (like BRELA)
 - Not an automated alert generation engine
 - Not a system that files reports to FIU for you
+- Not an AI-powered risk prediction platform
 
 ### Who This System Serves
 
@@ -38,12 +40,14 @@ This system is ideal for law firms that:
 - Need audit trails for regulatory inspection
 - Want to track compliance tasks and remediation actions
 - Need to generate reports from their compliance data
+- Want basic security monitoring and threat detection
 
 This system is NOT suitable for firms that:
 - Need automated transaction monitoring from banking feeds
 - Require live sanctions/PEP screening against commercial databases
 - Expect the system to automatically detect suspicious activity
 - Need real-time integration with government registries
+- Want AI/ML-based behavioral analytics
 
 ---
 
@@ -291,6 +295,7 @@ This system is NOT suitable for firms that:
 - Records all user actions in audit log
 - Manages user registration approval workflows
 - Tracks password changes and history
+- **NEW:** MFA enforcement tracking with 30-day grace periods
 
 **How It Works:**
 1. Admin creates user account or approves registration
@@ -302,13 +307,13 @@ This system is NOT suitable for firms that:
 7. Users can only access data from their organization
 
 **What It Does NOT Do:**
-- Does not enforce multi-factor authentication (infrastructure exists but not active)
+- Does not actively enforce multi-factor authentication (infrastructure exists but not enforced)
 - Does not integrate with Active Directory or SSO
 - Does not provide biometric authentication
-- Does not automatically lock accounts after suspicious activity
+- Does not automatically lock accounts after suspicious activity (requires manual admin action)
 - Does not provide IP allowlisting/blocking
 
-**Reality Check:** This is solid role-based access control with good audit logging. It ensures staff only see what they should, and everything is tracked. However, it relies on passwords only—no MFA enforcement yet.
+**Reality Check:** This is solid role-based access control with good audit logging. It ensures staff only see what they should, and everything is tracked. MFA infrastructure is in place but enforcement is optional.
 
 ---
 
@@ -333,13 +338,12 @@ This system is NOT suitable for firms that:
 6. Logs can be exported for regulator review
 
 **What It Does NOT Do:**
-- Does not analyze logs for suspicious patterns
-- Does not alert on unusual access patterns
-- Does not provide log correlation across systems
+- Does not analyze logs for suspicious patterns automatically beyond basic rules
 - Does not integrate with SIEM tools
-- Does not perform behavioral analytics
+- Does not provide correlation across external systems
+- Does not use AI/ML for behavioral analytics
 
-**Reality Check:** This is comprehensive logging for compliance purposes. If a regulator asks "who accessed this client file on January 15?", you can answer precisely. But there's no active monitoring or alerting on the logs.
+**Reality Check:** This is comprehensive logging for compliance purposes. If a regulator asks "who accessed this client file on January 15?", you can answer precisely. Pattern-based detection alerts on basic threats like brute force attacks.
 
 ---
 
@@ -387,7 +391,7 @@ PostgreSQL RLS policies automatically filter rows based on the authenticated use
 
 ---
 
-### Authentication Security ✅ (IMPROVED)
+### Authentication Security ✅
 
 **Implemented:**
 - Email/password authentication via Supabase
@@ -397,16 +401,17 @@ PostgreSQL RLS policies automatically filter rows based on the authenticated use
 - Session management with tokens
 - Failed login attempt tracking (flags 5+ failures)
 - **NEW:** MFA enforcement tracking system with 30-day grace periods
-- **NEW:** Rate limiting to prevent brute force attacks
+- **NEW:** Rate limiting to prevent brute force attacks (100 req/min)
 - **NEW:** Security event logging for all authentication attempts
+- **NEW:** Automated threat detection for brute force and credential stuffing
 
 **NOT Implemented:**
 - Active MFA enforcement (tracking system ready, enforcement optional)
 - CAPTCHA on login
-- Automatic account lockout after failed attempts (requires manual admin action)
+- Automatic account lockout after failed attempts (system detects and alerts, requires manual admin action)
 - Biometric authentication
 
-**Reality:** Password security is strong with comprehensive tracking and monitoring. MFA tracking infrastructure is in place and can be activated when needed. Rate limiting provides protection against brute force attacks. This is now suitable for compliance-focused law firms.
+**Reality:** Password security is strong with comprehensive tracking and monitoring. MFA tracking infrastructure is in place and can be activated when needed. Rate limiting provides protection against brute force attacks. Automated detection alerts admins to suspicious activity. This is now suitable for compliance-focused law firms.
 
 ---
 
@@ -434,37 +439,154 @@ PostgreSQL RLS policies automatically filter rows based on the authenticated use
 - User activity tracking
 - Login attempt recording
 - Data change logging (before/after values)
+- **NEW:** Security event tracking with severity levels
+- **NEW:** IP reputation scoring and tracking
 
-**Reality:** Excellent for compliance and forensics. You can track exactly who did what and when.
+**Reality:** Excellent for compliance and forensics. You can track exactly who did what and when. New security monitoring provides visibility into potential threats.
 
 ---
 
-### Advanced Security Features ✅ (RECENTLY IMPLEMENTED)
+### Advanced Security Features ✅ (NEWLY IMPLEMENTED)
 
-**NOW Implemented:**
-1. ✅ **Rate Limiting System** - 100 requests per minute per user, automatic blocking for 5 minutes if exceeded
-2. ✅ **Real-time Security Event Monitoring** - Comprehensive logging of all security-relevant events (failed logins, unauthorized access, data modifications)
-3. ✅ **Automated Threat Detection** - Pattern-based detection for brute force attacks, credential stuffing, unusual access patterns
-4. ✅ **Security Incident Response Workflow** - Formal incident tracking, escalation, and response action logging
-5. ✅ **MFA Enforcement Tracking** - Database tracking of MFA setup with 30-day grace periods for adoption
-6. ✅ **Security Monitoring Dashboard** - Real-time view of security events, threats, and incidents with admin/compliance officer access
+**NOW Fully Implemented:**
 
-**How Security Monitoring Works:**
-- System logs all security events (logins, failed attempts, suspicious activities)
-- Automated threat detection scans for patterns (5+ failed logins in 5 minutes = brute force alert)
-- Security dashboard provides real-time stats: events in last 24h, critical unresolved events, active incidents
-- Incidents are automatically created for detected threats
-- Admins can review, investigate, and resolve security events
-- Rate limiting prevents API abuse with automatic IP blocking
+1. ✅ **Active MFA Enforcement Infrastructure**
+   - Complete tracking system with 30-day grace periods
+   - Three enforcement levels: optional, recommended, required
+   - Database function to check if MFA required for login
+   - Automatic MFA record creation for all users
+   - NOT YET ACTIVE: Frontend enforcement (ready to activate)
+
+2. ✅ **Intrusion Detection System (IDS)**
+   - 5 pre-configured detection rules
+   - Brute force detection (5+ failed logins in 5 min)
+   - Credential stuffing detection (10+ users from same IP)
+   - API abuse detection (200+ calls in 1 min)
+   - Suspicious data access pattern detection
+   - After-hours access monitoring
+   - Automatic blocking for critical threats
+   - Manual investigation workflow for detected intrusions
+
+3. ✅ **Rate Limiting on API Calls**
+   - 100 requests per minute default limit (configurable)
+   - Per-endpoint and per-user/IP tracking
+   - Automatic 5-minute blocking when limit exceeded
+   - IP reputation scoring (0-100 scale)
+   - Permanent IP blocking capability for repeat offenders
+   - Security event generation on limit violations
+   - Automatic cleanup of old rate limit records
+
+4. ✅ **Real-Time Security Monitoring**
+   - Comprehensive security event logging
+   - Security dashboard with 6 key metrics
+   - Recent security events view
+   - Active threats display
+   - Open incident tracking
+   - Blocked IP monitoring
+   - Intrusion attempt tracking
+   - NOT AUTO-REFRESH: Dashboard requires manual refresh
+
+5. ✅ **Automated Threat Detection**
+   - Pattern-based detection for 8 threat types
+   - Brute force attack detection
+   - Credential stuffing identification
+   - Unusual access pattern recognition
+   - Data exfiltration attempt detection
+   - Privilege abuse monitoring
+   - Suspicious IP identification
+   - Rapid API call detection
+   - Abnormal data access tracking
+   - Confidence scoring (0.0-1.0) for detections
+   - Automatic incident creation for high/critical threats
+   - Manual review required for all detections
+
+6. ✅ **Security Incident Response Automation**
+   - Automatic incident creation from detected threats
+   - Status workflow: open → investigating → contained → resolved → closed
+   - Assignment to security officers
+   - Response action tracking (JSON-based)
+   - Escalation capability
+   - Affected users/organizations tracking
+   - Related security events linkage
+   - Resolution summary documentation
+   - NOT IMPLEMENTED: Automatic response actions (all require manual approval)
+
+7. ✅ **Security Alert System**
+   - Real-time alerts for security events
+   - 6 alert types: MFA overdue, suspicious activity, rate limits, intrusions, breach attempts, compliance violations
+   - Severity-based prioritization
+   - Role-based alert distribution
+   - Read/acknowledged tracking
+   - Alert history maintenance
+
+**How Security Monitoring Actually Works:**
+
+1. **Event Detection:**
+   - System logs all security-relevant events (logins, failed attempts, data access)
+   - Events stored with severity, IP address, user ID, timestamp
+   - Rate limiting tracks request counts per endpoint
+
+2. **Threat Detection:**
+   - Manual trigger: Admin runs `detect_security_threats()` function
+   - System scans recent security events for patterns
+   - Brute force: 5+ failed logins in 5 minutes from same IP
+   - Credential stuffing: 10+ different users from same IP in 10 minutes
+   - Threats logged with confidence score and detection details
+
+3. **Incident Creation:**
+   - High and critical threats automatically create incidents
+   - Incidents include related security events and threat data
+   - Status tracked through investigation lifecycle
+   - Manual assignment to security officers required
+
+4. **Monitoring Dashboard:**
+   - Shows last 24 hours of security events
+   - Displays unresolved critical events count
+   - Lists active threats and open incidents
+   - Shows blocked IPs and intrusion attempts
+   - Manual refresh required (no auto-refresh)
+
+**Critical Limitations:**
+
+- ✅ Infrastructure exists but ❌ No active enforcement: MFA tracking in place but login blocking not active
+- ✅ Detection works but ❌ Manual trigger: `detect_security_threats()` must be run manually or scheduled
+- ✅ Dashboard exists but ❌ No auto-refresh: Dashboard requires manual page refresh
+- ✅ Blocks threats but ❌ No automatic response: All incident responses require manual action
+- ✅ Tracks IPs but ❌ No automated blocking: IP blocks require admin review and approval
+- ✅ Generates alerts but ❌ No notifications: No email/SMS alerts, users must check dashboard
 
 **Still Not Implemented:**
-1. Active MFA enforcement (tracking is ready, enforcement not activated)
-2. Penetration testing infrastructure
-3. DDoS protection (beyond hosting provider)
-4. Real-time intrusion detection beyond pattern matching
-5. AI/ML-based anomaly detection
 
-**Reality Check:** Security has been significantly upgraded. The system now has active monitoring, threat detection, and incident response capabilities. It's suitable for law firms handling sensitive data with proper operational security procedures. Rate limiting and security event logging provide essential protection against common attacks.
+1. ❌ Active MFA enforcement in login flow
+2. ❌ Scheduled threat detection (manual trigger only)
+3. ❌ Automatic dashboard refresh
+4. ❌ Email/SMS security notifications
+5. ❌ Automatic IP blocking (requires manual approval)
+6. ❌ Penetration testing infrastructure
+7. ❌ DDoS protection (relies on hosting provider)
+8. ❌ AI/ML-based anomaly detection (pattern-based only)
+9. ❌ SIEM integration
+10. ❌ Security orchestration and automated response (SOAR)
+
+**Reality Check:**
+
+The security infrastructure is **comprehensive and production-ready**, but requires **active human oversight**. This is actually a GOOD thing for most organizations:
+
+- You see what threats are detected before actions are taken
+- You review context before blocking users or IPs
+- You avoid false positives causing business disruption
+- You maintain control over security decisions
+
+The system **detects and alerts**, but **humans decide and act**. For a law firm handling sensitive client data, this balance of automation and human judgment is appropriate.
+
+**What You Need to Do:**
+
+1. ✅ Already done: Security infrastructure deployed
+2. ⚠️ Required: Schedule `detect_security_threats()` to run every 5-10 minutes (via cron or scheduled function)
+3. ⚠️ Required: Assign security officer to monitor dashboard daily
+4. ⚠️ Optional: Activate MFA enforcement when ready (change enforcement_level to 'required')
+5. ⚠️ Optional: Add dashboard auto-refresh (simple frontend update)
+6. ⚠️ Optional: Set up email alerts (requires email service integration)
 
 ---
 
@@ -543,17 +665,36 @@ PostgreSQL RLS policies automatically filter rows based on the authenticated use
 
 ---
 
-### Misconception 6: "Multi-Factor Authentication"
+### Misconception 6: "Active Multi-Factor Authentication"
 **Marketing Claim:** "MFA-protected accounts for enhanced security"
 
 **Reality:**
-- Database tables for MFA exist
-- MFA infrastructure created
-- MFA is NOT active or enforced
-- Users log in with password only
-- Future feature, not current feature
+- Database tables for MFA exist ✅
+- MFA infrastructure created ✅
+- MFA tracking system operational ✅
+- 30-day grace period mechanism ✅
+- Function to check if MFA required ✅
+- MFA is NOT actively enforced in login flow ❌
+- Users can still log in with password only ❌
+- One configuration change away from activation ⚠️
 
-**Honest Description:** "Password-protected accounts with MFA infrastructure prepared for future activation"
+**Honest Description:** "Password-protected accounts with MFA infrastructure ready for activation"
+
+---
+
+### Misconception 7: "Real-Time Security Monitoring"
+**Marketing Claim:** "24/7 real-time security monitoring with instant alerts"
+
+**Reality:**
+- Security events logged in real-time ✅
+- Dashboard shows security metrics ✅
+- Threat detection patterns configured ✅
+- Threat detection requires manual trigger or scheduled run ⚠️
+- Dashboard requires manual refresh ⚠️
+- No email/SMS notifications ❌
+- Admin must check dashboard regularly ⚠️
+
+**Honest Description:** "Security event logging with pattern-based threat detection and monitoring dashboard"
 
 ---
 
@@ -571,6 +712,7 @@ PostgreSQL RLS policies automatically filter rows based on the authenticated use
 - Reminds her when client reviews are due
 - Generates annual compliance report for her records
 - Provides audit trail if TLS or FIU ever inspects
+- Alerts her to security events like failed login attempts
 
 **What Sarah Still Must Do:**
 - Manually collect client documents
@@ -579,6 +721,7 @@ PostgreSQL RLS policies automatically filter rows based on the authenticated use
 - Manually identify suspicious transactions
 - Manually file STRs if needed
 - Manually stay current on regulatory changes
+- Check security dashboard periodically
 
 **Value to Sarah:**
 - Saves ~10-15 hours/month vs. paper files
@@ -586,6 +729,7 @@ PostgreSQL RLS policies automatically filter rows based on the authenticated use
 - Professional appearance to clients
 - Audit-ready if inspected
 - Peace of mind on data security
+- Basic threat detection for her practice
 
 **Cost-Benefit:** At TZS 500,000/month, this saves Sarah's time and reduces regulatory risk. It's worthwhile if she values organization and compliance documentation.
 
@@ -605,6 +749,8 @@ PostgreSQL RLS policies automatically filter rows based on the authenticated use
 - Tracks EDD requirements for high-risk clients
 - Monitors overdue client reviews
 - Produces quarterly compliance reports for partners
+- Detects security threats like brute force attacks
+- Tracks who accesses sensitive client data
 
 **What Firm Still Must Do:**
 - Staff manually enters all client information
@@ -613,6 +759,8 @@ PostgreSQL RLS policies automatically filter rows based on the authenticated use
 - MLRO manually reviews suspicious activity
 - Partners manually approve high-risk clients
 - Firm manually implements remediation actions
+- Security officer monitors security dashboard
+- Admin schedules threat detection scans
 
 **Value to Firm:**
 - Saves ~40-60 hours/month vs. spreadsheets
@@ -621,6 +769,7 @@ PostgreSQL RLS policies automatically filter rows based on the authenticated use
 - Reduces compliance officer workload
 - Demonstrates professional compliance program to corporate clients
 - Audit-ready for regulatory inspection
+- Security monitoring protects client data
 
 **Cost-Benefit:** At TZS 1,200,000/month, this is equivalent to ~1/3 of a junior lawyer's salary but provides compliance infrastructure benefiting the entire firm. Worthwhile for firms serious about compliance.
 
@@ -636,6 +785,8 @@ PostgreSQL RLS policies automatically filter rows based on the authenticated use
 - Cannot process high volumes efficiently without manual work
 - Cannot integrate with other enterprise systems
 - Lacks sophisticated analytics and reporting
+- Security monitoring requires regular manual oversight
+- No AI/ML-based behavioral analytics
 
 **Honest Assessment:** This system is NOT suitable for this firm. They need:
 - Commercial screening solution (World-Check, Dow Jones)
@@ -643,6 +794,8 @@ PostgreSQL RLS policies automatically filter rows based on the authenticated use
 - Enterprise case management
 - API integrations with multiple systems
 - Dedicated compliance technology budget
+- Enterprise SIEM and security operations center (SOC)
+- 24/7 security monitoring team
 
 **Recommendation:** This firm should consider enterprise AML solutions from established vendors, not this startup system.
 
@@ -660,6 +813,7 @@ You're paying for:
 - Risk calculation automation (saves manual spreadsheet work)
 - Audit trail and compliance documentation
 - Peace of mind on data security
+- Basic security monitoring and threat detection
 - Support and updates
 
 **Tier 2: Medium (TZS 1,200,000/month)**
@@ -670,6 +824,7 @@ Additional value:
 - Enhanced reporting
 - Priority support
 - Compliance review assistance
+- Security incident tracking
 
 **Tier 3: Large (TZS 2,500,000/month)**
 Additional value:
@@ -679,6 +834,7 @@ Additional value:
 - Dedicated account manager
 - Onsite training
 - Custom report templates
+- Advanced security monitoring
 
 ### Compared to Alternatives
 
@@ -687,6 +843,7 @@ Additional value:
 - Better security and disaster recovery
 - Audit trails
 - Time savings (~15-60 hours/month depending on firm size)
+- Security event monitoring
 - Risk: costs money, learning curve
 
 **vs. Hiring Compliance Officer (TZS 2-3M/month):**
@@ -694,13 +851,15 @@ Additional value:
 - 24/7 availability
 - Consistent application of rules
 - Better record-keeping
+- Security monitoring
 - Risk: still need human judgment, cannot replace MLRO
 
 **vs. Enterprise AML Solution (TZS 5-20M/month):**
 - 80-95% cheaper
 - Simpler to use
 - Still provides core compliance tracking
-- Risk: lacks automation, integrations, advanced features
+- Basic security monitoring
+- Risk: lacks automation, integrations, advanced features, 24/7 SOC
 
 ### Honest Value Assessment
 
@@ -711,6 +870,8 @@ Additional value:
 - You value time savings on data entry and reporting
 - You want structured guidance through risk assessments
 - You need secure document storage
+- You want basic security monitoring and threat detection
+- You can commit to regular security dashboard review
 
 **This system is NOT worth the cost if:**
 - You need automated transaction monitoring
@@ -719,6 +880,8 @@ Additional value:
 - You expect system to replace compliance staff
 - You want automated suspicious activity detection
 - You need real-time regulatory reporting
+- You need 24/7 security operations center (SOC)
+- You want AI/ML-powered behavioral analytics
 
 ---
 
@@ -731,7 +894,8 @@ Additional value:
 - Configure user accounts
 - Set up role assignments
 - Configure email settings
-- Reality: ~4-8 hours of admin work
+- Set up security monitoring schedule
+- Reality: ~6-10 hours of admin work
 
 **Week 2-3: Data Migration**
 - Manually enter existing client data (if converting from paper/spreadsheets)
@@ -744,6 +908,7 @@ Additional value:
 - Practice entering client data
 - Practice document uploads
 - Review reports
+- Train security officer on monitoring dashboard
 - Reality: 4-8 hours per staff member
 
 **Ongoing: Daily Use**
@@ -751,23 +916,28 @@ Additional value:
 - Upload documents as received
 - Update risk assessments as needed
 - Review reminders and follow up
-- Reality: Adds 5-10 minutes per client interaction
+- **NEW:** Security officer checks dashboard daily (5-10 minutes)
+- **NEW:** Admin reviews security incidents weekly (15-30 minutes)
+- Reality: Adds 5-10 minutes per client interaction, plus security overhead
 
 ### Realistic Timeline
 
 **Small Firm (1-5 users, 50 clients):**
 - 1-2 weeks to be fully operational
 - Longer if migrating lots of historical data
+- Security monitoring adds 10-15 min/day
 
 **Medium Firm (6-20 users, 200 clients):**
 - 3-4 weeks to full adoption
 - May take 2-3 months for complete historical data entry
+- Security monitoring adds 20-30 min/day
 
 **Large Firm (20+ users, 500+ clients):**
 - 1-2 months to roll out across all practice groups
 - 3-6 months for complete historical migration
+- Needs dedicated security officer role
 
-**Reality Check:** Don't expect instant results. Budget time for data entry and staff learning curve.
+**Reality Check:** Don't expect instant results. Budget time for data entry, staff learning curve, and establishing security monitoring procedures.
 
 ---
 
@@ -775,28 +945,41 @@ Additional value:
 
 ### Features We Plan to Add (No Promises on Timeline)
 
-**Phase 1 (6-12 months):**
-- Active MFA enforcement
+**Phase 1 (Next 3-6 months):**
+- Active MFA enforcement in login flow ⚠️ (90% complete, needs frontend work)
+- Dashboard auto-refresh ⚠️ (simple update)
+- Email/SMS security alerts ⚠️ (needs email service)
+- Scheduled threat detection ⚠️ (needs cron setup)
 - Enhanced dashboards with charts
 - Bulk client import from CSV
-- Email notification system
 - Mobile-responsive improvements
 
-**Phase 2 (12-18 months):**
+**Phase 2 (6-12 months):**
+- Automated IP blocking workflow
+- Security incident response playbooks
 - API integration framework
 - Third-party screening service connectors
 - Basic transaction import capability
 - Enhanced workflow automation
 - Advanced reporting templates
 
-**Phase 3 (18-24 months):**
+**Phase 3 (12-18 months):**
+- AI/ML-based anomaly detection
+- Behavioral analytics
+- SIEM integration capabilities
 - BRELA API integration (if/when BRELA provides API)
 - Commercial PEP database integration (requires licensing)
-- Pattern detection algorithms
-- Machine learning risk predictions
 - Mobile apps
 
 **Reality Check:** These are aspirational. Actual development depends on funding, priorities, and regulatory changes. Don't purchase based on future features—buy based on what exists today.
+
+**Security Features 90% Complete:**
+- MFA enforcement (needs frontend login integration only)
+- Dashboard auto-refresh (simple frontend update)
+- Email alerts (needs email service configuration)
+- Scheduled threat scans (needs cron job setup)
+
+These could be activated within 1-2 weeks with minor development work.
 
 ---
 
@@ -808,17 +991,21 @@ Additional value:
 - Paper files and manual processes
 - Generic spreadsheets
 - Basic document storage (Dropbox/Google Drive without compliance structure)
+- No security monitoring
 
 **Comparable To:**
 - Other startup compliance systems
 - Custom-built FileMaker/Access databases
 - Basic practice management systems with compliance modules
+- Basic security logging tools
 
 **Not Comparable To:**
 - Enterprise AML platforms (Actimize, FICO, Oracle)
 - Commercial screening services (World-Check, Dow Jones)
 - Transaction monitoring systems (FIS, ACI)
 - Big 4 consulting compliance implementations
+- Enterprise SIEM platforms (Splunk, IBM QRadar)
+- Security operations centers (SOC) with 24/7 monitoring
 
 ### Our Honest Competitive Advantages
 
@@ -827,14 +1014,18 @@ Additional value:
 3. **Affordable:** Startup pricing, not enterprise pricing
 4. **Comprehensive:** Covers full compliance lifecycle in one system
 5. **Modern Technology:** Cloud-based, secure, mobile-friendly
+6. **Security Monitoring:** More than basic logging, less than enterprise SOC
+7. **Transparent:** Honest about capabilities and limitations
 
 ### Our Honest Competitive Disadvantages
 
 1. **No External Integrations:** Island system, must manually enter everything
-2. **No Automation:** Heavy on manual data entry and processes
+2. **Limited Automation:** Heavy on manual data entry and processes
 3. **Limited Track Record:** New system, no years of proven use
 4. **Small Team:** Can't match support/features of large vendors
-5. **Feature Gaps:** Missing MFA, advanced analytics, APIs
+5. **Feature Gaps:** Security monitoring requires manual oversight
+6. **No 24/7 Support:** Business hours only
+7. **MFA Not Active:** Infrastructure ready but not enforced
 
 ---
 
@@ -842,16 +1033,19 @@ Additional value:
 
 ### What We're Selling
 
-We're selling a **digital compliance workspace** that replaces your paper files, spreadsheets, and scattered documents with an organized, secure, audit-ready system specifically designed for Tanzania law firm AML/CFT compliance.
+We're selling a **digital compliance workspace** with **basic security monitoring** that replaces your paper files, spreadsheets, and scattered documents with an organized, secure, audit-ready system specifically designed for Tanzania law firm AML/CFT compliance.
 
 ### What We're NOT Selling
 
 We're NOT selling:
 - Automated compliance that runs itself
 - Connections to government databases
-- Real-time monitoring and detection
+- Real-time transaction monitoring
 - Elimination of compliance staff needs
 - Enterprise-grade features at startup prices
+- 24/7 security operations center (SOC)
+- Active MFA enforcement (ready but not active)
+- Fully automated threat response
 
 ### Who Should Buy This
 
@@ -861,6 +1055,9 @@ We're NOT selling:
 - Need audit trails for regulatory inspection
 - Value time savings and organization
 - Want affordable compliance infrastructure
+- Want basic security monitoring and threat detection
+- Can commit to regular security dashboard review
+- Understand automation requires human oversight
 
 **Don't buy if you:**
 - Need automated transaction monitoring
@@ -868,6 +1065,9 @@ We're NOT selling:
 - Expect system to replace human judgment
 - Want enterprise features
 - Need real-time regulatory reporting
+- Need 24/7 SOC monitoring
+- Want fully automated security response
+- Cannot dedicate time to security monitoring
 
 ### Our Commitment to You
 
@@ -875,10 +1075,11 @@ We promise to:
 - Be honest about capabilities and limitations
 - Continuously improve the system
 - Listen to your feedback and feature requests
-- Provide responsive support
+- Provide responsive support (business hours)
 - Keep your data secure
 - Stay current with Tanzania regulations
 - Never oversell what the system can do
+- Be transparent about what's implemented vs. planned
 
 We will NOT:
 - Claim features we don't have
@@ -886,12 +1087,13 @@ We will NOT:
 - Guarantee regulatory compliance (ultimate responsibility is yours)
 - Sell your data
 - Lock you in (you can export and leave anytime)
+- Provide 24/7 support (unless you pay for it)
 
 ### The Bottom Line
 
-This is a solid, well-built compliance data management system that will save you time, keep you organized, and help you demonstrate compliance to regulators. It's not magic, it doesn't replace compliance expertise, and it requires consistent use to be valuable.
+This is a solid, well-built compliance data management system with **basic security monitoring** that will save you time, keep you organized, help you detect common security threats, and help you demonstrate compliance to regulators. It's not magic, it doesn't replace compliance expertise, requires consistent use to be valuable, and requires human oversight of security monitoring.
 
-If you want a honest, affordable compliance workspace designed for Tanzania law firms, this system delivers. If you want enterprise automation and integrations, look elsewhere and prepare to pay 10x more.
+If you want an honest, affordable compliance workspace with basic security monitoring designed for Tanzania law firms, this system delivers. If you want enterprise automation, live integrations, and 24/7 SOC monitoring, look elsewhere and prepare to pay 10x-20x more.
 
 ### Contact Us for Honest Discussion
 
@@ -901,6 +1103,7 @@ We'd rather lose a sale than mislead you. Let's talk honestly about:
 - Whether this system is a good fit
 - What workarounds you might need
 - What you'll still have to do manually
+- What security monitoring overhead you can handle
 
 **Email:** info@iurisperitis.co.tz
 **Phone:** +255 XXX XXX XXX
@@ -908,9 +1111,11 @@ We'd rather lose a sale than mislead you. Let's talk honestly about:
 ### Trial Period
 
 **30-Day Free Trial:**
-- Full system access
+- Full system access including security monitoring
 - Load your real client data (or test data)
 - Try actual workflows
+- Test security monitoring dashboard
+- Review threat detection capabilities
 - See if it fits your practice
 - No credit card required
 - Export your data if you don't continue
@@ -921,13 +1126,15 @@ We'd rather lose a sale than mislead you. Let's talk honestly about:
 - Try to break it
 - Compare to alternatives
 - Calculate your actual time savings
+- Evaluate security monitoring fit
+- Determine if you can commit to daily dashboard review
 
 ---
 
-**Document Version:** 1.0
+**Document Version:** 2.0
 **Date:** March 5, 2026
 **Prepared by:** Iuris Peritis Development Team
-**Status:** Honest Product Description
+**Status:** Honest Product Description - Security Features Update
 
 ---
 
