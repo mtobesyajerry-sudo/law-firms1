@@ -152,7 +152,7 @@ const styles = {
     justifyContent: 'flex-start',
   },
   logo: {
-    maxWidth: '180px',
+    maxWidth: '110px',
     height: 'auto',
   },
   title: {

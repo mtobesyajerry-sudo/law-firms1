@@ -751,7 +751,7 @@ const styles = {
     marginBottom: '20px',
   },
   logo: {
-    maxWidth: '280px',
+    maxWidth: '150px',
     height: 'auto',
   },
   title: {

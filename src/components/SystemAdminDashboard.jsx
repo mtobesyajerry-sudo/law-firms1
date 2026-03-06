@@ -255,7 +255,7 @@ export default function SystemAdminDashboard() {
           <img
             src="/Iuris_Peritis_New_Logo.png"
             alt="Iuris Peritis Logo"
-            style={{ maxWidth: '160px', height: 'auto' }}
+            style={{ maxWidth: '110px', height: 'auto' }}
           />
           <div>
             <div style={{ fontSize: '14px', fontWeight: '600', color: '#d4af37', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '1px' }}>

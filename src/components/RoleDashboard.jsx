@@ -116,7 +116,7 @@ const styles = {
     marginBottom: '16px',
   },
   logo: {
-    maxWidth: '200px',
+    maxWidth: '120px',
     height: 'auto',
   },
   title: {
