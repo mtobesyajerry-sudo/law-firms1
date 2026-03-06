@@ -392,8 +392,8 @@ export default function Dashboard() {
           <div>
             <div style={styles.logoContainer}>
               <img
-                src="/Iuris_Peritis_logo_(edit).png"
-                alt=""
+                src="/Iuris_Peritis_New_Logo.png"
+                alt="Iuris Peritis Logo"
                 style={styles.logo}
               />
             </div>

@@ -54,21 +54,23 @@ export default function RoleDashboard() {
   return (
     <div style={styles.wrapper}>
       <header style={styles.header}>
-        <div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
           <div style={styles.logoContainer}>
             <img
-              src="/Iuris_Peritis_logo_(edit).png"
-              alt=""
+              src="/Iuris_Peritis_New_Logo.png"
+              alt="Iuris Peritis Logo"
               style={styles.logo}
             />
           </div>
-          <h1 style={styles.title}>{organization?.name || 'Organization'}</h1>
-          <p style={styles.subtitle}>AML/CFT Compliance System</p>
-          {profile?.first_name && (
-            <p style={{ color: '#d4af37', fontSize: '16px', margin: '8px 0 0 0', fontWeight: '600' }}>
-              Welcome, {profile.first_name}
-            </p>
-          )}
+          <div>
+            <h1 style={styles.title}>{organization?.name || 'Organization'}</h1>
+            <p style={styles.subtitle}>AML/CFT Compliance System</p>
+            {profile?.first_name && (
+              <p style={{ color: '#d4af37', fontSize: '16px', margin: '8px 0 0 0', fontWeight: '600' }}>
+                Welcome, {profile.first_name}
+              </p>
+            )}
+          </div>
         </div>
         <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
           <button
