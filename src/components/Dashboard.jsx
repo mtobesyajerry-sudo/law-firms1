@@ -392,8 +392,8 @@ export default function Dashboard() {
           <div>
             <div style={styles.logoContainer}>
               <img
-                src="/Iuris_Peritis_New_Logo_(website).png"
-                alt="Iuris Peritis Logo"
+                src="/Iuris_Peritis_logo_(edit).png"
+                alt=""
                 style={styles.logo}
               />
             </div>
@@ -1207,7 +1207,7 @@ const styles = {
     marginBottom: '16px',
   },
   logo: {
-    maxWidth: '120px',
+    maxWidth: '200px',
     height: 'auto',
   },
   title: {

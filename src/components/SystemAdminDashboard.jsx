@@ -251,32 +251,25 @@ export default function SystemAdminDashboard() {
   return (
     <div style={styles.container}>
       <header style={styles.header}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
-          <img
-            src="/Iuris_Peritis_New_Logo_(website).png"
-            alt="Iuris Peritis Logo"
-            style={{ maxWidth: '110px', height: 'auto' }}
-          />
-          <div>
-            <div style={{ fontSize: '14px', fontWeight: '600', color: '#d4af37', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '1px' }}>
-              SYSTEM ADMINISTRATOR
+        <div>
+          <div style={{ fontSize: '14px', fontWeight: '600', color: '#d4af37', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '1px' }}>
+            SYSTEM ADMINISTRATOR
+          </div>
+          <h1 style={{ margin: '0 0 12px 0', fontSize: '36px', fontWeight: '800', color: 'white' }}>
+            {profile?.first_name ? `Welcome, ${profile.first_name}` : 'System Administration'}
+          </h1>
+          <div style={{ display: 'flex', gap: '24px', alignItems: 'center', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#10b981' }}></div>
+              <span style={{ fontSize: '14px', color: '#94a3b8' }}>Full System Access</span>
             </div>
-            <h1 style={{ margin: '0 0 12px 0', fontSize: '36px', fontWeight: '800', color: 'white' }}>
-              {profile?.first_name ? `Welcome, ${profile.first_name}` : 'System Administration'}
-            </h1>
-            <div style={{ display: 'flex', gap: '24px', alignItems: 'center', flexWrap: 'wrap' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#10b981' }}></div>
-                <span style={{ fontSize: '14px', color: '#94a3b8' }}>Full System Access</span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#3b82f6' }}></div>
-                <span style={{ fontSize: '14px', color: '#94a3b8' }}>{stats.totalOrganizations} Organizations</span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#d4af37' }}></div>
-                <span style={{ fontSize: '14px', color: '#94a3b8' }}>{stats.totalUsers} Users</span>
-              </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#3b82f6' }}></div>
+              <span style={{ fontSize: '14px', color: '#94a3b8' }}>{stats.totalOrganizations} Organizations</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#d4af37' }}></div>
+              <span style={{ fontSize: '14px', color: '#94a3b8' }}>{stats.totalUsers} Users</span>
             </div>
           </div>
         </div>

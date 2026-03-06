@@ -334,8 +334,8 @@ export default function Auth() {
         <div style={styles.header}>
           <div style={styles.logoContainer}>
             <img
-              src="/Iuris_Peritis_New_Logo_(website).png"
-              alt="Iuris Peritis Logo"
+              src="/Iuris_Peritis_logo_(edit).png"
+              alt=""
               style={styles.logo}
             />
           </div>
@@ -751,7 +751,7 @@ const styles = {
     marginBottom: '20px',
   },
   logo: {
-    maxWidth: '150px',
+    maxWidth: '280px',
     height: 'auto',
   },
   title: {
