@@ -253,7 +253,7 @@ export default function SystemAdminDashboard() {
       <header style={styles.header}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
           <img
-            src="/Iuris_Peritis_New_Logo.png"
+            src="/Iuris_Peritis_New_Logo_(website).png"
             alt="Iuris Peritis Logo"
             style={{ maxWidth: '110px', height: 'auto' }}
           />

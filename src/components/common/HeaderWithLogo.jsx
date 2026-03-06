@@ -44,7 +44,7 @@ export default function HeaderWithLogo({ title, subtitle, showPasswordChange = t
         <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
           <div style={styles.logoContainer}>
             <img
-              src="/Iuris_Peritis_New_Logo.png"
+              src="/Iuris_Peritis_New_Logo_(website).png"
               alt="Iuris Peritis Logo"
               style={styles.logo}
             />
