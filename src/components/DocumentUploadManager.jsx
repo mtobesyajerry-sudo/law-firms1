@@ -576,6 +576,8 @@ export default function DocumentUploadManager({
               return (indexA === -1 ? 999 : indexA) - (indexB === -1 ? 999 : indexB);
             })
             .map(([category, requirements]) => {
+            // Count only documents that are both in requirements AND verified
+            const requiredDocTypeIds = new Set(requirements.map(r => r.document_type.id));
             const categoryCompleted = requirements.filter(r => {
               const status = getDocumentStatus(r.document_type.id);
               return status.status === 'verified';
