@@ -89,13 +89,39 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Get authorization token
+    // Get authorization token and verify user
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       return new Response(
         JSON.stringify({
           valid: false,
           errors: ["Missing authorization header"],
+          warnings: [],
+        }),
+        {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    // Initialize Supabase client with the user's JWT
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+    const token = authHeader.replace("Bearer ", "");
+    const supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
+      global: {
+        headers: { Authorization: authHeader },
+      },
+    });
+
+    // Verify the user is authenticated
+    const { data: { user }, error: authError } = await supabaseClient.auth.getUser(token);
+    if (authError || !user) {
+      return new Response(
+        JSON.stringify({
+          valid: false,
+          errors: ["Invalid or expired authentication token"],
           warnings: [],
         }),
         {
@@ -160,12 +186,11 @@ Deno.serve(async (req: Request) => {
     // 5. Check for duplicate files (optional - adds warning only)
     if (result.fileHash) {
       try {
-        const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-        const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-        const supabase = createClient(supabaseUrl, supabaseKey);
+        const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+        const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
         // Check if file with same hash exists
-        const { data: existingDocs, error: dbError } = await supabase
+        const { data: existingDocs, error: dbError } = await supabaseAdmin
           .from("client_documents")
           .select("id, file_name")
           .eq("file_hash", result.fileHash)
