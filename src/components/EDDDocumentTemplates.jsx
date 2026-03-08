@@ -61,6 +61,29 @@ const EDDDocumentTemplates = ({ clientId, clientName, client, onClose, onUpdate,
     isFetchingRef.current = true;
     setLoading(true);
     try {
+      // First get the document type IDs for the EDD codes
+      const { data: docTypes, error: typeError } = await supabase
+        .from('document_types')
+        .select('id')
+        .in('code', [
+          'pep_declaration',
+          'edd_questionnaire',
+          'public_records_search',
+          'senior_approval',
+          'monitoring_checklist',
+          'pep_assessment',
+          'economic_rationale',
+          'country_risk_assessment'
+        ]);
+
+      if (typeError) {
+        console.error('Error fetching document type IDs:', typeError);
+        return;
+      }
+
+      const docTypeIds = docTypes.map(dt => dt.id);
+
+      // Now fetch documents with those IDs
       const { data, error } = await supabase
         .from('client_documents')
         .select(`
@@ -72,16 +95,7 @@ const EDDDocumentTemplates = ({ clientId, clientName, client, onClose, onUpdate,
           )
         `)
         .eq('client_id', clientId)
-        .in('document_types.code', [
-          'pep_declaration',
-          'edd_questionnaire',
-          'public_records_search',
-          'senior_approval',
-          'monitoring_checklist',
-          'pep_assessment',
-          'economic_rationale',
-          'country_risk_assessment'
-        ])
+        .in('document_type_id', docTypeIds)
         .order('uploaded_at', { ascending: false });
 
       if (error) {
