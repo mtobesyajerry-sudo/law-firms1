@@ -177,7 +177,10 @@ export default function DocumentUploadManager({
 
       const serverValidation = await validationResponse.json();
       if (!serverValidation.valid) {
-        throw new Error('Security validation failed: ' + serverValidation.errors.join(', '));
+        const errorMessage = serverValidation.errors && Array.isArray(serverValidation.errors)
+          ? serverValidation.errors.join(', ')
+          : serverValidation.error || 'Unknown validation error';
+        throw new Error('Security validation failed: ' + errorMessage);
       }
 
       const fileExt = file.name.split('.').pop();
