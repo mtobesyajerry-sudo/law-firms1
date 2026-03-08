@@ -99,7 +99,10 @@ export class DocumentService {
 
       const serverValidation = await validationResponse.json();
       if (!serverValidation.valid) {
-        throw new Error('Server-side validation failed: ' + serverValidation.errors.join(', '));
+        const errorMessage = serverValidation.errors && Array.isArray(serverValidation.errors)
+          ? serverValidation.errors.join(', ')
+          : serverValidation.error || 'Unknown validation error';
+        throw new Error('Server-side validation failed: ' + errorMessage);
       }
 
       // Use server-calculated hash instead of client-side

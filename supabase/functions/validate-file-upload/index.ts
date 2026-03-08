@@ -77,7 +77,11 @@ Deno.serve(async (req: Request) => {
     // Only accept POST requests
     if (req.method !== "POST") {
       return new Response(
-        JSON.stringify({ error: "Method not allowed" }),
+        JSON.stringify({
+          valid: false,
+          errors: ["Method not allowed"],
+          warnings: [],
+        }),
         {
           status: 405,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -89,7 +93,11 @@ Deno.serve(async (req: Request) => {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       return new Response(
-        JSON.stringify({ error: "Missing authorization header" }),
+        JSON.stringify({
+          valid: false,
+          errors: ["Missing authorization header"],
+          warnings: [],
+        }),
         {
           status: 401,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -104,7 +112,11 @@ Deno.serve(async (req: Request) => {
 
     if (!file) {
       return new Response(
-        JSON.stringify({ error: "No file provided" }),
+        JSON.stringify({
+          valid: false,
+          errors: ["No file provided"],
+          warnings: [],
+        }),
         {
           status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
