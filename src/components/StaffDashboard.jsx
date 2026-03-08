@@ -24,7 +24,7 @@ export default function StaffDashboard() {
   const [loading, setLoading] = useState(true);
   const [activeView, setActiveView] = useState('overview');
   const [clientFilter, setClientFilter] = useState('all');
-  const { user, profile } = useAuth();
+  const { user, profile, signOut } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -215,18 +215,51 @@ export default function StaffDashboard() {
               Client management, KYC operations, and matter handling
             </p>
           </div>
-          <button
-            onClick={() => navigate(-1)}
-            style={dashboardStyles.backButton}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = 'rgba(212, 175, 55, 0.1)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = 'transparent';
-            }}
-          >
-            ← Back
-          </button>
+          <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+            <button
+              onClick={() => navigate(-1)}
+              style={dashboardStyles.backButton}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'rgba(212, 175, 55, 0.1)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'transparent';
+              }}
+            >
+              ← Back
+            </button>
+            <button
+              onClick={async () => {
+                if (confirm('Are you sure you want to sign out?')) {
+                  await signOut();
+                  navigate('/');
+                }
+              }}
+              style={{
+                padding: '12px 24px',
+                background: '#d4af37',
+                color: '#0a1929',
+                border: '2px solid #d4af37',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontSize: '14px',
+                fontWeight: '600',
+                transition: 'all 0.3s ease'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = '#c19b2e';
+                e.currentTarget.style.borderColor = '#c19b2e';
+                e.currentTarget.style.transform = 'translateY(-2px)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = '#d4af37';
+                e.currentTarget.style.borderColor = '#d4af37';
+                e.currentTarget.style.transform = 'translateY(0)';
+              }}
+            >
+              Sign Out
+            </button>
+          </div>
         </div>
       </div>
 
