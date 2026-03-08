@@ -34,6 +34,26 @@ export default function ClientManagementDashboard() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
 
+  const getDashboardRoute = () => {
+    if (!profile?.role) return '/client/dashboard';
+    switch (profile.role) {
+      case 'staff':
+      case 'lawyer':
+        return '/dashboard/staff';
+      case 'management':
+      case 'senior_partner':
+      case 'partner':
+        return '/dashboard/management';
+      case 'compliance_officer':
+      case 'mlro':
+        return '/dashboard/compliance';
+      case 'admin':
+        return '/admin/dashboard';
+      default:
+        return '/client/dashboard';
+    }
+  };
+
   const [kycClients, setKycClients] = useState([]);
   const [matters, setMatters] = useState([]);
   const [assessments, setAssessments] = useState([]);
@@ -579,7 +599,7 @@ export default function ClientManagementDashboard() {
             )}
           </div>
           <button
-            onClick={() => navigate('/client/dashboard')}
+            onClick={() => navigate(getDashboardRoute())}
             style={{
               padding: '12px 24px',
               background: 'transparent',

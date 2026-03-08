@@ -32,6 +32,26 @@ export default function ComplianceOfficerDashboard() {
   const { profile } = useAuth();
   const navigate = useNavigate();
 
+  const getDashboardRoute = () => {
+    if (!profile?.role) return '/client/dashboard';
+    switch (profile.role) {
+      case 'staff':
+      case 'lawyer':
+        return '/dashboard/staff';
+      case 'management':
+      case 'senior_partner':
+      case 'partner':
+        return '/dashboard/management';
+      case 'compliance_officer':
+      case 'mlro':
+        return '/dashboard/compliance';
+      case 'admin':
+        return '/admin/dashboard';
+      default:
+        return '/client/dashboard';
+    }
+  };
+
   useEffect(() => {
     if (profile?.organization_id) {
       loadDashboardData();
@@ -458,7 +478,7 @@ export default function ComplianceOfficerDashboard() {
             </p>
           </div>
           <button
-            onClick={() => navigate('/client/dashboard')}
+            onClick={() => navigate(getDashboardRoute())}
             style={dashboardStyles.backButton}
             onMouseEnter={(e) => {
               e.currentTarget.style.background = 'rgba(212, 175, 55, 0.1)';

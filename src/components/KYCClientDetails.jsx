@@ -388,6 +388,26 @@ export default function KYCClientDetails() {
   // Read-only access for management and compliance_officer roles
   const isReadOnly = profile?.role === 'management' || profile?.role === 'compliance_officer';
 
+  const getDashboardRoute = () => {
+    if (!profile?.role) return '/client/dashboard';
+    switch (profile.role) {
+      case 'staff':
+      case 'lawyer':
+        return '/dashboard/staff';
+      case 'management':
+      case 'senior_partner':
+      case 'partner':
+        return '/dashboard/management';
+      case 'compliance_officer':
+      case 'mlro':
+        return '/dashboard/compliance';
+      case 'admin':
+        return '/admin/dashboard';
+      default:
+        return '/client/dashboard';
+    }
+  };
+
   const loadClient = async () => {
     if (!profile?.organization_id) {
       return;
@@ -404,7 +424,7 @@ export default function KYCClientDetails() {
 
       if (!data || data.organization_id !== profile.organization_id) {
         alert('Client not found or access denied');
-        navigate('/client/dashboard');
+        navigate(getDashboardRoute());
         return;
       }
 
@@ -477,7 +497,7 @@ export default function KYCClientDetails() {
     } catch (error) {
       console.error('Error loading client:', error);
       alert('Failed to load client details');
-      navigate('/client/dashboard');
+      navigate(getDashboardRoute());
     } finally {
       setLoading(false);
     }
@@ -537,7 +557,7 @@ export default function KYCClientDetails() {
       {/* Corporate Header */}
       <header style={styles.header}>
         <div style={styles.headerContent}>
-          <button onClick={() => navigate('/client/dashboard')} style={styles.backButton}>
+          <button onClick={() => navigate(getDashboardRoute())} style={styles.backButton}>
             ← Back
           </button>
           <div style={styles.headerTitleSection}>

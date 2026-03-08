@@ -34,10 +34,29 @@ export default function AssessmentReport() {
   });
 
   const navigateToDashboard = () => {
-    if (profile?.role === 'admin') {
-      navigate('/admin/dashboard');
-    } else {
+    if (!profile?.role) {
       navigate('/client/dashboard');
+      return;
+    }
+    switch (profile.role) {
+      case 'staff':
+      case 'lawyer':
+        navigate('/dashboard/staff');
+        break;
+      case 'management':
+      case 'senior_partner':
+      case 'partner':
+        navigate('/dashboard/management');
+        break;
+      case 'compliance_officer':
+      case 'mlro':
+        navigate('/dashboard/compliance');
+        break;
+      case 'admin':
+        navigate('/admin/dashboard');
+        break;
+      default:
+        navigate('/client/dashboard');
     }
   };
 
