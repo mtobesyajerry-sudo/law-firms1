@@ -95,46 +95,54 @@ export default function ComplianceOfficerDashboard() {
     try {
       setLoading(true);
 
-      const { data: clients, error: clientsError } = await supabase
-        .from('kyc_clients')
-        .select('id, current_risk_rating, pep_status, next_review_date')
-        .eq('organization_id', profile.organization_id);
+      // Run all queries in parallel for much faster loading
+      const [clientsRes, mattersRes, matterAlertsRes, strsRes, redFlagsRes, conflictsRes] = await Promise.all([
+        supabase
+          .from('kyc_clients')
+          .select('id, current_risk_rating, pep_status, next_review_date')
+          .eq('organization_id', profile.organization_id),
 
-      if (clientsError) {
-        console.error('Error loading clients:', clientsError);
+        supabase
+          .from('matters')
+          .select('id, status')
+          .eq('organization_id', profile.organization_id),
+
+        supabase
+          .from('matter_aml_alerts')
+          .select('*')
+          .eq('organization_id', profile.organization_id),
+
+        supabase
+          .from('str_drafts')
+          .select('id, draft_status')
+          .eq('organization_id', profile.organization_id)
+          .in('draft_status', ['draft', 'pending_mlro_review']),
+
+        supabase
+          .from('client_red_flag_incidents')
+          .select('id, investigation_status')
+          .eq('organization_id', profile.organization_id)
+          .in('investigation_status', ['identified', 'under_investigation']),
+
+        supabase
+          .from('conflict_checks')
+          .select('id, resolution_status')
+          .eq('organization_id', profile.organization_id)
+          .eq('resolution_status', 'pending')
+      ]);
+
+      const clients = clientsRes.data;
+      const matters = mattersRes.data;
+      const matterAlerts = matterAlertsRes.data;
+      const strs = strsRes.data;
+      const redFlags = redFlagsRes.data;
+      const conflicts = conflictsRes.data;
+
+      if (clientsRes.error) {
+        console.error('Error loading clients:', clientsRes.error);
       }
 
-      const { data: matters } = await supabase
-        .from('matters')
-        .select('id, status')
-        .eq('organization_id', profile.organization_id);
-
-      // Query matter AML alerts
-      const { data: matterAlerts } = await supabase
-        .from('matter_aml_alerts')
-        .select('*')
-        .eq('organization_id', profile.organization_id);
-
-      // Transaction alerts (financial transaction monitoring)
       const alerts = [];
-
-      const { data: strs } = await supabase
-        .from('str_drafts')
-        .select('id, draft_status')
-        .eq('organization_id', profile.organization_id)
-        .in('draft_status', ['draft', 'pending_mlro_review']);
-
-      const { data: redFlags } = await supabase
-        .from('client_red_flag_incidents')
-        .select('id, investigation_status')
-        .eq('organization_id', profile.organization_id)
-        .in('investigation_status', ['identified', 'under_investigation']);
-
-      const { data: conflicts } = await supabase
-        .from('conflict_checks')
-        .select('id, resolution_status')
-        .eq('organization_id', profile.organization_id)
-        .eq('resolution_status', 'pending');
 
       const today = new Date().toISOString().split('T')[0];
       const overdueReviews = clients?.filter(c =>
@@ -169,29 +177,33 @@ export default function ComplianceOfficerDashboard() {
 
       setRecentActivity(activity || []);
 
-      const { data: users } = await supabase
-        .from('user_profiles')
-        .select('*')
-        .eq('organization_id', profile.organization_id)
-        .order('created_at', { ascending: false });
+      // Load remaining data in parallel
+      const [usersRes, assessmentDataRes, clientsDataRes] = await Promise.all([
+        supabase
+          .from('user_profiles')
+          .select('id, full_name, email, role, is_active, created_at')
+          .eq('organization_id', profile.organization_id)
+          .order('created_at', { ascending: false })
+          .limit(100),
 
-      setOrganizationUsers(users || []);
+        supabase
+          .from('assessments')
+          .select('id, entity_category, overall_risk_rating, status, created_at')
+          .eq('organization_id', profile.organization_id)
+          .order('created_at', { ascending: false })
+          .limit(100),
 
-      const { data: assessmentData } = await supabase
-        .from('assessments')
-        .select('*')
-        .eq('organization_id', profile.organization_id)
-        .order('created_at', { ascending: false });
+        supabase
+          .from('kyc_clients')
+          .select('id, client_name, current_risk_rating, pep_status, screening_status, created_at')
+          .eq('organization_id', profile.organization_id)
+          .order('created_at', { ascending: false })
+          .limit(200)
+      ]);
 
-      setAssessments(assessmentData || []);
-
-      const { data: clientsData } = await supabase
-        .from('kyc_clients')
-        .select('*')
-        .eq('organization_id', profile.organization_id)
-        .order('created_at', { ascending: false });
-
-      setKycClients(clientsData || []);
+      setOrganizationUsers(usersRes.data || []);
+      setAssessments(assessmentDataRes.data || []);
+      setKycClients(clientsDataRes.data || []);
     } catch (error) {
       console.error('Error loading dashboard data:', error);
     } finally {

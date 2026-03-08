@@ -90,63 +90,69 @@ export default function ClientManagementDashboard() {
     }
 
     try {
-      // Query transaction_alerts separately to handle 404 gracefully
+      // Query all data in parallel including optional tables
       let alertsRes = { data: [], error: null };
-      try {
-        alertsRes = await supabase
+      let matterAlertsRes = { data: [], error: null };
+
+      const optionalQueries = await Promise.allSettled([
+        supabase
           .from('transaction_alerts')
-          .select('*')
+          .select('id, alert_type, risk_score, investigation_status')
           .eq('organization_id', organization.id)
           .in('investigation_status', ['new', 'assigned', 'under_investigation'])
-          .order('created_at', { ascending: false });
-      } catch (alertError) {
-        console.log('Transaction alerts table not yet available:', alertError);
-      }
-
-      // Query matter AML alerts
-      let matterAlertsRes = { data: [], error: null };
-      try {
-        matterAlertsRes = await supabase
+          .order('created_at', { ascending: false })
+          .limit(50),
+        supabase
           .from('matter_aml_alerts')
-          .select('*')
-          .eq('organization_id', organization.id);
-      } catch (alertError) {
-        console.log('Matter alerts view not yet available:', alertError);
+          .select('id, matter_name, alert_status')
+          .eq('organization_id', organization.id)
+          .limit(50)
+      ]);
+
+      if (optionalQueries[0].status === 'fulfilled') {
+        alertsRes = optionalQueries[0].value;
+      }
+      if (optionalQueries[1].status === 'fulfilled') {
+        matterAlertsRes = optionalQueries[1].value;
       }
 
       const [clientsRes, mattersRes, assessmentsRes, roleRequestsRes, newUserRequestsRes, approvalsRes, usersRes] = await Promise.all([
         supabase
           .from('kyc_clients')
-          .select('*')
+          .select('id, client_name, current_risk_rating, pep_status, created_at, screening_status')
           .eq('organization_id', organization.id)
           .order('created_at', { ascending: false }),
         supabase
           .from('matters')
-          .select('*')
+          .select('id, matter_name, status, created_at')
           .eq('organization_id', organization.id)
           .order('created_at', { ascending: false }),
         supabase
           .from('assessments')
-          .select('*')
+          .select('id, entity_category, overall_risk_rating, status, created_at')
           .eq('organization_id', organization.id)
           .order('created_at', { ascending: false }),
         supabase
           .from('role_upgrade_requests')
-          .select('*, user_profiles!role_upgrade_requests_user_id_fkey(full_name, email, role)')
-          .eq('organization_id', organization.id)
-          .order('created_at', { ascending: false }),
-        supabase
-          .from('new_user_requests')
-          .select('*')
-          .order('created_at', { ascending: false }),
-        supabase
-          .from('new_user_request_approvals')
-          .select('*'),
-        supabase
-          .from('user_profiles')
-          .select('*')
+          .select('id, status, created_at, user_profiles!role_upgrade_requests_user_id_fkey(full_name, email, role)')
           .eq('organization_id', organization.id)
           .order('created_at', { ascending: false })
+          .limit(100),
+        supabase
+          .from('new_user_requests')
+          .select('id, full_name, email, status, created_at')
+          .order('created_at', { ascending: false })
+          .limit(100),
+        supabase
+          .from('new_user_request_approvals')
+          .select('request_id, approver_id, approval_status')
+          .limit(200),
+        supabase
+          .from('user_profiles')
+          .select('id, full_name, email, role, is_active, created_at')
+          .eq('organization_id', organization.id)
+          .order('created_at', { ascending: false })
+          .limit(100)
       ]);
 
       const clients = clientsRes.data || [];

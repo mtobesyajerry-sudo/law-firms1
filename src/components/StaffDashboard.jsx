@@ -57,58 +57,67 @@ export default function StaffDashboard() {
     try {
       setLoading(true);
 
-      const { data: matters } = await supabase
-        .from('matters')
-        .select(`
-          *,
-          client_matter_relationships (
-            kyc_clients (
-              id,
-              client_name,
-              current_risk_rating
+      // Run all queries in parallel for much faster loading
+      const [mattersRes, allMattersRes, clientsRes, allClientsRes, conflictsRes] = await Promise.all([
+        supabase
+          .from('matters')
+          .select(`
+            *,
+            client_matter_relationships (
+              kyc_clients (
+                id,
+                client_name,
+                current_risk_rating
+              )
             )
-          )
-        `)
-        .eq('organization_id', profile.organization_id)
-        .eq('responsible_lawyer_id', user.id)
-        .order('created_at', { ascending: false })
-        .limit(5);
+          `)
+          .eq('organization_id', profile.organization_id)
+          .eq('responsible_lawyer_id', user.id)
+          .order('created_at', { ascending: false })
+          .limit(5),
 
-      const { data: allMatters } = await supabase
-        .from('matters')
-        .select('id, status')
-        .eq('organization_id', profile.organization_id)
-        .eq('responsible_lawyer_id', user.id);
+        supabase
+          .from('matters')
+          .select('id, status')
+          .eq('organization_id', profile.organization_id)
+          .eq('responsible_lawyer_id', user.id),
 
-      const { data: clients } = await supabase
-        .from('kyc_clients')
-        .select(`
-          *,
-          client_matter_relationships (
-            matter_id,
-            matters (
-              id,
-              status,
-              matter_name
+        supabase
+          .from('kyc_clients')
+          .select(`
+            *,
+            client_matter_relationships (
+              matter_id,
+              matters (
+                id,
+                status,
+                matter_name
+              )
             )
-          )
-        `)
-        .eq('organization_id', profile.organization_id)
-        .eq('relationship_manager_id', user.id)
-        .order('created_at', { ascending: false })
-        .limit(5);
+          `)
+          .eq('organization_id', profile.organization_id)
+          .eq('relationship_manager_id', user.id)
+          .order('created_at', { ascending: false })
+          .limit(5),
 
-      const { data: allClients } = await supabase
-        .from('kyc_clients')
-        .select('id, current_risk_rating, current_dd_level, next_review_date, last_review_date, pep_status')
-        .eq('organization_id', profile.organization_id)
-        .eq('relationship_manager_id', user.id);
+        supabase
+          .from('kyc_clients')
+          .select('id, current_risk_rating, current_dd_level, next_review_date, last_review_date, pep_status')
+          .eq('organization_id', profile.organization_id)
+          .eq('relationship_manager_id', user.id),
 
-      const { data: conflicts } = await supabase
-        .from('conflict_checks')
-        .select('id')
-        .eq('organization_id', profile.organization_id)
-        .eq('resolution_status', 'pending');
+        supabase
+          .from('conflict_checks')
+          .select('id')
+          .eq('organization_id', profile.organization_id)
+          .eq('resolution_status', 'pending')
+      ]);
+
+      const matters = mattersRes.data;
+      const allMatters = allMattersRes.data;
+      const clients = clientsRes.data;
+      const allClients = allClientsRes.data;
+      const conflicts = conflictsRes.data;
 
       const today = new Date().toISOString().split('T')[0];
       // A review is overdue if next_review_date is in the past AND the last_review_date is before next_review_date (meaning the review hasn't been completed yet)
