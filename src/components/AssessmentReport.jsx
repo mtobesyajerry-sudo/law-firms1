@@ -1246,7 +1246,7 @@ const styles = {
     transition: 'all 0.3s ease',
   },
   backButton: {
-    display: 'flex',
+    display: 'inline-flex',
     alignItems: 'center',
     background: 'transparent',
     color: 'white',
@@ -1257,6 +1257,8 @@ const styles = {
     padding: '12px 24px',
     borderRadius: '8px',
     transition: 'all 0.3s ease',
+    alignSelf: 'flex-start',
+    whiteSpace: 'nowrap',
   },
   title: {
     margin: 0,
