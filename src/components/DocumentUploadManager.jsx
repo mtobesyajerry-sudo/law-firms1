@@ -429,6 +429,12 @@ export default function DocumentUploadManager({
     return status.status === 'verified';
   }).length;
 
+  // Count only uploaded documents that match current DD level requirements
+  const requiredDocTypeIds = new Set(requiredDocuments.map(r => r.document_type.id));
+  const relevantUploadedCount = uploadedDocuments.filter(doc =>
+    requiredDocTypeIds.has(doc.document_type_id)
+  ).length;
+
   const completionPercentage = totalRequired > 0
     ? Math.round((completedRequired / totalRequired) * 100)
     : 0;
@@ -535,7 +541,7 @@ export default function DocumentUploadManager({
             flex: 1,
             textAlign: 'center'
           }}>
-            <div style={{ fontSize: '24px', fontWeight: '700', color: '#1e40af' }}>{uploadedDocuments.length}</div>
+            <div style={{ fontSize: '24px', fontWeight: '700', color: '#1e40af' }}>{relevantUploadedCount}</div>
             <div style={{ color: '#6b7280', marginTop: '2px' }}>Uploaded</div>
           </div>
         </div>
