@@ -458,7 +458,7 @@ export default function ComplianceOfficerDashboard() {
             </p>
           </div>
           <button
-            onClick={() => navigate(-1)}
+            onClick={() => navigate('/client/dashboard')}
             style={dashboardStyles.backButton}
             onMouseEnter={(e) => {
               e.currentTarget.style.background = 'rgba(212, 175, 55, 0.1)';

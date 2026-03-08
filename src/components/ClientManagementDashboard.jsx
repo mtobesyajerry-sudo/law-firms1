@@ -579,7 +579,7 @@ export default function ClientManagementDashboard() {
             )}
           </div>
           <button
-            onClick={() => navigate('/dashboard')}
+            onClick={() => navigate('/client/dashboard')}
             style={{
               padding: '12px 24px',
               background: 'transparent',
