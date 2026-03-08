@@ -282,6 +282,84 @@ export default function StaffDashboard() {
         </div>
       )}
 
+      {stats.overdueReviews > 0 && (
+        <div style={{
+          background: 'white',
+          borderRadius: '12px',
+          padding: '24px',
+          border: '2px solid #ef4444',
+          boxShadow: '0 4px 16px rgba(239,68,68,0.15)',
+          marginBottom: '24px'
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+            <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '700', color: '#0a1929', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ fontSize: '24px' }}>⏰</span>
+              Overdue Client Reviews ({stats.overdueReviews})
+            </h3>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {myClients
+              .filter(c => {
+                if (!c.next_review_date) return false;
+                const today = new Date().toISOString().split('T')[0];
+                if (c.next_review_date >= today) return false;
+                if (!c.last_review_date) return true;
+                return new Date(c.last_review_date) < new Date(c.next_review_date);
+              })
+              .slice(0, 5)
+              .map((client) => {
+                const daysOverdue = Math.floor(
+                  (new Date() - new Date(client.next_review_date)) / (1000 * 60 * 60 * 24)
+                );
+                return (
+                  <div
+                    key={client.id}
+                    onClick={() => navigate(`/client/kyc/${client.id}`)}
+                    style={{
+                      padding: '14px',
+                      background: '#fef2f2',
+                      borderRadius: '8px',
+                      border: '2px solid #ef4444',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = '#fee2e2';
+                      e.currentTarget.style.borderColor = '#dc2626';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = '#fef2f2';
+                      e.currentTarget.style.borderColor = '#ef4444';
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '6px' }}>
+                      <span style={{ fontSize: '14px', fontWeight: '600', color: '#0a1929' }}>
+                        {client.client_name}
+                      </span>
+                      <span style={{
+                        padding: '3px 10px',
+                        borderRadius: '6px',
+                        fontSize: '11px',
+                        fontWeight: '600',
+                        background: '#dc2626',
+                        color: 'white'
+                      }}>
+                        {daysOverdue} DAY{daysOverdue !== 1 ? 'S' : ''} OVERDUE
+                      </span>
+                    </div>
+                    <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '8px' }}>
+                      Risk: {client.current_risk_rating} • DD Level: {(client.current_dd_level || 'standard').toUpperCase()}
+                    </div>
+                    <div style={{ fontSize: '12px', color: '#991b1b', fontWeight: '500' }}>
+                      Due Date: {new Date(client.next_review_date).toLocaleDateString()} • Click to conduct review
+                    </div>
+                  </div>
+                );
+              })}
+          </div>
+        </div>
+      )}
+
       <div style={{ marginBottom: '24px' }}>
         <h2 style={{ margin: '0 0 16px 0', fontSize: '18px', fontWeight: '700', color: '#0a1929', display: 'flex', alignItems: 'center', gap: '8px' }}>
           <span style={{ fontSize: '24px' }}>📊</span>

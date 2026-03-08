@@ -8,6 +8,7 @@ import EDDDocumentTemplates from './EDDDocumentTemplates';
 import ClientDeclarationForm from './ClientDeclarationForm';
 import DocumentUploadManager from './DocumentUploadManager';
 import LoadingSpinner from './LoadingSpinner';
+import ClientReviewForm from './ClientReviewForm';
 import {
   getRiskColor,
   dueDiligenceLevels,
@@ -382,6 +383,8 @@ export default function KYCClientDetails() {
   const [screeningResults, setScreeningResults] = useState([]);
   const [transactions, setTransactions] = useState([]);
   const [transactionAlerts, setTransactionAlerts] = useState([]);
+  const [showReviewForm, setShowReviewForm] = useState(false);
+  const [clientReviews, setClientReviews] = useState([]);
   // Read-only access for management and compliance_officer roles
   const isReadOnly = profile?.role === 'management' || profile?.role === 'compliance_officer';
 
@@ -460,6 +463,17 @@ export default function KYCClientDetails() {
         console.error('Error loading transaction alerts:', alertsError);
       }
       setTransactionAlerts(alerts || []);
+
+      const { data: reviews, error: reviewsError } = await supabase
+        .from('client_reviews')
+        .select('*')
+        .eq('client_id', clientId)
+        .order('review_date', { ascending: false });
+
+      if (reviewsError) {
+        console.error('Error loading reviews:', reviewsError);
+      }
+      setClientReviews(reviews || []);
     } catch (error) {
       console.error('Error loading client:', error);
       alert('Failed to load client details');
@@ -993,6 +1007,48 @@ export default function KYCClientDetails() {
                     <span style={styles.cardIcon}>🔄</span>
                     Continuous Monitoring
                   </h3>
+
+                  {isReviewOverdue(client.next_review_date) && !isReadOnly && (
+                    <div style={{
+                      backgroundColor: '#fee2e2',
+                      border: '1px solid #ef4444',
+                      borderRadius: '8px',
+                      padding: '12px 16px',
+                      marginBottom: '16px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <span style={{ fontSize: '20px' }}>⚠️</span>
+                        <div>
+                          <div style={{ fontWeight: '600', color: '#991b1b', fontSize: '13px', marginBottom: '2px' }}>
+                            Review Overdue
+                          </div>
+                          <div style={{ color: '#7f1d1d', fontSize: '12px' }}>
+                            This client requires an immediate review
+                          </div>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => setShowReviewForm(true)}
+                        style={{
+                          padding: '8px 16px',
+                          backgroundColor: '#ef4444',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '6px',
+                          fontSize: '13px',
+                          fontWeight: '500',
+                          cursor: 'pointer',
+                          whiteSpace: 'nowrap'
+                        }}
+                      >
+                        Conduct Review
+                      </button>
+                    </div>
+                  )}
+
                   <div style={styles.infoRows}>
                     <div style={styles.infoRow}>
                       <span style={styles.infoLabel}>Review Frequency:</span>
@@ -1038,6 +1094,63 @@ export default function KYCClientDetails() {
                       </span>
                     </div>
                   </div>
+
+                  {!isReadOnly && (
+                    <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid #e5e7eb' }}>
+                      <button
+                        onClick={() => setShowReviewForm(true)}
+                        style={{
+                          padding: '10px 16px',
+                          backgroundColor: '#10b981',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '6px',
+                          fontSize: '14px',
+                          fontWeight: '500',
+                          cursor: 'pointer',
+                          width: '100%'
+                        }}
+                      >
+                        📋 Conduct Client Review
+                      </button>
+                    </div>
+                  )}
+
+                  {clientReviews.length > 0 && (
+                    <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid #e5e7eb' }}>
+                      <div style={{ fontSize: '13px', fontWeight: '600', color: '#374151', marginBottom: '12px' }}>
+                        Recent Reviews ({clientReviews.length})
+                      </div>
+                      {clientReviews.slice(0, 3).map((review) => (
+                        <div key={review.id} style={{
+                          padding: '10px 12px',
+                          backgroundColor: '#f9fafb',
+                          border: '1px solid #e5e7eb',
+                          borderRadius: '6px',
+                          marginBottom: '8px',
+                          fontSize: '12px'
+                        }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                            <span style={{ fontWeight: '600', color: '#111827' }}>
+                              {new Date(review.review_date).toLocaleDateString()}
+                            </span>
+                            <span style={{
+                              fontSize: '11px',
+                              padding: '2px 8px',
+                              borderRadius: '4px',
+                              backgroundColor: review.outcome === 'no_issues' ? '#d1fae5' : '#fef3c7',
+                              color: review.outcome === 'no_issues' ? '#065f46' : '#92400e'
+                            }}>
+                              {review.outcome.replace(/_/g, ' ').toUpperCase()}
+                            </span>
+                          </div>
+                          <div style={{ color: '#6b7280' }}>
+                            {review.review_notes ? review.review_notes.substring(0, 100) + (review.review_notes.length > 100 ? '...' : '') : 'No notes'}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -1352,6 +1465,17 @@ export default function KYCClientDetails() {
         <ClientDeclarationForm
           clientType={client.client_type}
           onClose={() => setShowDeclarationForm(false)}
+        />
+      )}
+
+      {showReviewForm && !isReadOnly && (
+        <ClientReviewForm
+          client={client}
+          onReviewComplete={() => {
+            setShowReviewForm(false);
+            loadClient();
+          }}
+          onCancel={() => setShowReviewForm(false)}
         />
       )}
     </div>
