@@ -27,24 +27,8 @@ export default function StaffDashboard() {
   const { user, profile } = useAuth();
   const navigate = useNavigate();
 
-  const getDashboardRoute = () => {
-    if (!profile?.role) return '/client/dashboard';
-    switch (profile.role) {
-      case 'staff':
-      case 'lawyer':
-        return '/dashboard/staff';
-      case 'management':
-      case 'senior_partner':
-      case 'partner':
-        return '/dashboard/management';
-      case 'compliance_officer':
-      case 'mlro':
-        return '/dashboard/compliance';
-      case 'admin':
-        return '/admin/dashboard';
-      default:
-        return '/client/dashboard';
-    }
+  const getBackRoute = () => {
+    return '/client/dashboard';
   };
 
   useEffect(() => {
@@ -245,7 +229,7 @@ export default function StaffDashboard() {
             </p>
           </div>
           <button
-            onClick={() => navigate(getDashboardRoute())}
+            onClick={() => navigate(getBackRoute())}
             style={dashboardStyles.backButton}
             onMouseEnter={(e) => {
               e.currentTarget.style.background = 'rgba(212, 175, 55, 0.1)';
@@ -734,7 +718,7 @@ export default function StaffDashboard() {
             </div>
           </button>
           <button
-            onClick={() => navigate(getDashboardRoute())}
+            onClick={() => navigate(getBackRoute())}
             style={styles.actionButton}
             onMouseEnter={(e) => {
               e.currentTarget.style.background = 'linear-gradient(135deg, #dbeafe, #bfdbfe)';
