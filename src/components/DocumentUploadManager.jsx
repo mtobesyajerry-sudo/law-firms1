@@ -164,12 +164,16 @@ export default function DocumentUploadManager({
       formData.append('mimeType', file.type);
 
       const { data: session } = await supabase.auth.getSession();
+      if (!session?.session?.access_token) {
+        throw new Error('Authentication required. Please sign in again.');
+      }
+
       const validationResponse = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/validate-file-upload`,
         {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${session?.session?.access_token || ''}`
+            'Authorization': `Bearer ${session.session.access_token}`
           },
           body: formData
         }
@@ -179,7 +183,8 @@ export default function DocumentUploadManager({
       try {
         serverValidation = await validationResponse.json();
       } catch (jsonError) {
-        throw new Error('Security validation failed: Unable to parse server response');
+        const statusText = validationResponse.statusText || 'Unknown error';
+        throw new Error(`Security validation failed (${validationResponse.status}): ${statusText}`);
       }
 
       if (!serverValidation || typeof serverValidation !== 'object') {
