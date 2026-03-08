@@ -218,7 +218,7 @@ export default function StaffDashboard() {
         </div>
       </div>
 
-      {(stats.overdueReviews > 0 || stats.conflictsPending > 0) && (
+      {stats.conflictsPending > 0 && (
         <div style={{
           background: 'linear-gradient(135deg, #fef3c7, #fde68a)',
           borderRadius: '12px',
@@ -234,48 +234,25 @@ export default function StaffDashboard() {
                 Action Required
               </h3>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '12px' }}>
-                {stats.overdueReviews > 0 && (
-                  <div style={{
-                    padding: '12px 16px',
-                    background: 'white',
-                    borderRadius: '8px',
-                    border: '1px solid #f59e0b',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '12px'
-                  }}>
-                    <span style={{ fontSize: '24px' }}>📅</span>
-                    <div>
-                      <div style={{ fontWeight: '700', color: '#92400e', fontSize: '20px' }}>
-                        {stats.overdueReviews}
-                      </div>
-                      <div style={{ fontSize: '13px', color: '#92400e' }}>
-                        Overdue Client Review{stats.overdueReviews !== 1 ? 's' : ''}
-                      </div>
+                <div style={{
+                  padding: '12px 16px',
+                  background: 'white',
+                  borderRadius: '8px',
+                  border: '1px solid #f59e0b',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px'
+                }}>
+                  <span style={{ fontSize: '24px' }}>⚖️</span>
+                  <div>
+                    <div style={{ fontWeight: '700', color: '#92400e', fontSize: '20px' }}>
+                      {stats.conflictsPending}
+                    </div>
+                    <div style={{ fontSize: '13px', color: '#92400e' }}>
+                      Pending Conflict Check{stats.conflictsPending !== 1 ? 's' : ''}
                     </div>
                   </div>
-                )}
-                {stats.conflictsPending > 0 && (
-                  <div style={{
-                    padding: '12px 16px',
-                    background: 'white',
-                    borderRadius: '8px',
-                    border: '1px solid #f59e0b',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '12px'
-                  }}>
-                    <span style={{ fontSize: '24px' }}>⚖️</span>
-                    <div>
-                      <div style={{ fontWeight: '700', color: '#92400e', fontSize: '20px' }}>
-                        {stats.conflictsPending}
-                      </div>
-                      <div style={{ fontSize: '13px', color: '#92400e' }}>
-                        Pending Conflict Check{stats.conflictsPending !== 1 ? 's' : ''}
-                      </div>
-                    </div>
-                  </div>
-                )}
+                </div>
               </div>
             </div>
           </div>
