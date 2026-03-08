@@ -72,7 +72,10 @@ export class DocumentService {
     try {
       const validation = await this.validateFile(file);
       if (!validation.valid) {
-        throw new Error(validation.errors.join(', '));
+        const errorMessage = validation.errors && Array.isArray(validation.errors) && validation.errors.length > 0
+          ? validation.errors.join(', ')
+          : validation.message || validation.error || 'File validation failed';
+        throw new Error(errorMessage);
       }
 
       const { data: { user } } = await supabase.auth.getUser();
@@ -97,11 +100,26 @@ export class DocumentService {
         }
       );
 
-      const serverValidation = await validationResponse.json();
+      let serverValidation;
+      try {
+        serverValidation = await validationResponse.json();
+      } catch (jsonError) {
+        throw new Error('Server validation failed: Unable to parse response');
+      }
+
+      if (!serverValidation || typeof serverValidation !== 'object') {
+        throw new Error('Server validation failed: Invalid response format');
+      }
+
       if (!serverValidation.valid) {
-        const errorMessage = serverValidation.errors && Array.isArray(serverValidation.errors)
-          ? serverValidation.errors.join(', ')
-          : serverValidation.error || 'Unknown validation error';
+        let errorMessage = 'Unknown validation error';
+        if (serverValidation.errors && Array.isArray(serverValidation.errors) && serverValidation.errors.length > 0) {
+          errorMessage = serverValidation.errors.join(', ');
+        } else if (serverValidation.error) {
+          errorMessage = serverValidation.error;
+        } else if (serverValidation.message) {
+          errorMessage = serverValidation.message;
+        }
         throw new Error('Server-side validation failed: ' + errorMessage);
       }
 

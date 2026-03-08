@@ -175,11 +175,26 @@ export default function DocumentUploadManager({
         }
       );
 
-      const serverValidation = await validationResponse.json();
+      let serverValidation;
+      try {
+        serverValidation = await validationResponse.json();
+      } catch (jsonError) {
+        throw new Error('Security validation failed: Unable to parse server response');
+      }
+
+      if (!serverValidation || typeof serverValidation !== 'object') {
+        throw new Error('Security validation failed: Invalid response format');
+      }
+
       if (!serverValidation.valid) {
-        const errorMessage = serverValidation.errors && Array.isArray(serverValidation.errors)
-          ? serverValidation.errors.join(', ')
-          : serverValidation.error || 'Unknown validation error';
+        let errorMessage = 'Unknown validation error';
+        if (serverValidation.errors && Array.isArray(serverValidation.errors) && serverValidation.errors.length > 0) {
+          errorMessage = serverValidation.errors.join(', ');
+        } else if (serverValidation.error) {
+          errorMessage = serverValidation.error;
+        } else if (serverValidation.message) {
+          errorMessage = serverValidation.message;
+        }
         throw new Error('Security validation failed: ' + errorMessage);
       }
 
