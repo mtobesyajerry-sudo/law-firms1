@@ -117,6 +117,18 @@ export default function StaffDashboard() {
     }
   };
 
+  const getRiskColor = (rating) => {
+    const colors = {
+      'Very High': '#dc2626',
+      'High': '#f59e0b',
+      'Substantial': '#f97316',
+      'Medium': '#10b981',
+      'Low': '#3b82f6',
+      'Very Low': '#6b7280'
+    };
+    return colors[rating] || '#6b7280';
+  };
+
   if (loading) {
     return (
       <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -775,18 +787,6 @@ function OverdueReviewsList({ organizationId, userId }) {
     const diffTime = today - review;
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     return diffDays;
-  };
-
-  const getRiskColor = (rating) => {
-    const colors = {
-      'Very High': '#dc2626',
-      'High': '#f59e0b',
-      'Substantial': '#f97316',
-      'Medium': '#10b981',
-      'Low': '#3b82f6',
-      'Very Low': '#6b7280'
-    };
-    return colors[rating] || '#6b7280';
   };
 
   return (
