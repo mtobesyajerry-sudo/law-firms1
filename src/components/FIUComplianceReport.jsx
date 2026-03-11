@@ -54,7 +54,8 @@ export default function FIUComplianceReport({ assessment, sectionScores, respons
       return 'Law Firm';
     }
 
-    if (organization.dnfbp_category) {
+    const categoryValue = organization.law_firm_type || organization.business_type;
+    if (categoryValue) {
       const categoryLabels = {
         'bank': 'Bank',
         'insurance': 'Insurance Company',
@@ -66,9 +67,14 @@ export default function FIUComplianceReport({ assessment, sectionScores, respons
         'lawyer': 'Lawyer/Legal Professional',
         'accountant': 'Accountant',
         'trust_company': 'Trust and Company Service Provider',
+        'law_firm_small': 'Small Law Firm',
+        'law_firm_medium': 'Medium Law Firm',
+        'law_firm_large': 'Large Law Firm',
+        'legal_consultancy': 'Legal Consultancy',
+        'notary_services': 'Notary Services',
         'other': 'Other DNFBP'
       };
-      return categoryLabels[organization.dnfbp_category] || organization.dnfbp_category;
+      return categoryLabels[categoryValue] || categoryValue;
     }
 
     return organization.business_type || 'N/A';

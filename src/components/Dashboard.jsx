@@ -303,7 +303,8 @@ export default function Dashboard() {
     }
 
     try {
-      const frameworkType = getFrameworkForCategory(organization.dnfbp_category);
+      const categoryValue = organization.law_firm_type || organization.business_type || 'law_firm_small';
+      const frameworkType = getFrameworkForCategory(categoryValue);
 
       const { data, error } = await supabase
         .from('assessments')
@@ -461,11 +462,11 @@ export default function Dashboard() {
                 <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#3b82f6' }}></div>
                 <span style={{ fontSize: '14px', color: '#94a3b8' }}>{organization.size} Organization</span>
               </div>
-              {organization.dnfbp_category && (
+              {(organization.law_firm_type || organization.business_type) && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#d4af37' }}></div>
                   <span style={{ fontSize: '14px', color: '#94a3b8' }}>
-                    {institutionCategories.find(cat => cat.value === organization.dnfbp_category)?.label || organization.dnfbp_category}
+                    {institutionCategories.find(cat => cat.value === (organization.law_firm_type || organization.business_type))?.label || organization.law_firm_type || organization.business_type}
                   </span>
                 </div>
               )}

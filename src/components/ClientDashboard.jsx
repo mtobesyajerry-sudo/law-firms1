@@ -346,7 +346,7 @@ export default function ClientDashboard() {
                       color: '#1e40af',
                       textTransform: 'capitalize'
                     }}>
-                      {organization.dnfbp_category?.replace('_', ' ') || '-'}
+                      {(organization.law_firm_type || organization.business_type)?.replace('_', ' ') || '-'}
                     </span>
                   </td>
                   <td style={{
