@@ -395,7 +395,7 @@ export default function STRAlertDashboard() {
                       </td>
                       <td style={styles.td}>
                         <div style={styles.clientName}>
-                          {alert.transaction_monitoring_rules?.rule_name || alert.alert_type?.replace(/_/g, ' ').toUpperCase() || 'N/A'}
+                          {alert.transaction_monitoring_rules?.rule_name || (alert.alert_type ? alert.alert_type.replace(/_/g, ' ').toUpperCase() : 'N/A')}
                         </div>
                         <div style={styles.clientId}>
                           {alert.transaction_monitoring_rules?.rule_code || ''}
