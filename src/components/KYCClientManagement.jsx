@@ -447,6 +447,7 @@ function NewClientModal({ onClose, onSuccess, organizationId, userId }) {
         purpose_of_relationship: formData.purpose_of_relationship || null,
         aml_trigger_activities: formData.aml_trigger_activities || [],
         pep_status: formData.is_pep || false,
+        pep_details: formData.is_pep ? 'PEP details to be verified during enhanced due diligence' : null,
         base_risk_score: normalizedRiskScore.toFixed(2),
         current_risk_rating: riskLevel,
         current_dd_level: dueDiligenceLevel,
