@@ -260,7 +260,7 @@ function OverviewTab({ verifications, client, onCreateNew, onViewVerification })
                       color: statusColors.text,
                       borderColor: statusColors.border
                     }}>
-                      {verification.verification_status.replace('_', ' ').toUpperCase()}
+                      {verification.verification_status?.replace('_', ' ').toUpperCase() || 'UNKNOWN'}
                     </span>
                   </div>
                   <div style={styles.recordContent}>
@@ -776,7 +776,7 @@ function HistoryTab({ verificationId }) {
           {history.map(record => (
             <div key={record.id} style={styles.historyItem}>
               <div style={styles.historyHeader}>
-                <span style={styles.historyAction}>{record.action.replace('_', ' ').toUpperCase()}</span>
+                <span style={styles.historyAction}>{record.action?.replace('_', ' ').toUpperCase() || 'UNKNOWN'}</span>
                 <span style={styles.historyDate}>
                   {new Date(record.created_at).toLocaleString()}
                 </span>

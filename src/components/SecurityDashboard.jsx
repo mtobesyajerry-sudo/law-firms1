@@ -378,7 +378,7 @@ export default function SecurityDashboard() {
                         background: getSeverityColor(alert.severity),
                         color: 'white'
                       }}>
-                        {alert.severity.toUpperCase()}
+                        {alert.severity?.toUpperCase() || 'UNKNOWN'}
                       </span>
                       <span style={styles.alertType}>{alert.alert_type}</span>
                     </div>

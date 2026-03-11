@@ -595,7 +595,7 @@ export default function KYCClientDetails() {
             <ul style={styles.triggerList}>
               {ddTriggers.triggers.map((trigger, idx) => (
                 <li key={idx} style={styles.triggerItem}>
-                  <strong>{trigger.type.toUpperCase()}:</strong> {trigger.description}
+                  <strong>{trigger.type?.toUpperCase() || 'UNKNOWN'}:</strong> {trigger.description}
                 </li>
               ))}
             </ul>
@@ -809,7 +809,7 @@ export default function KYCClientDetails() {
                     {client.onboarding_channel && (
                       <div style={styles.infoRow}>
                         <span style={styles.infoLabel}>Onboarding Channel:</span>
-                        <span style={styles.infoValue}>{client.onboarding_channel.toUpperCase()}</span>
+                        <span style={styles.infoValue}>{client.onboarding_channel?.toUpperCase()}</span>
                       </div>
                     )}
                     {client.account_opening_date && (
@@ -838,7 +838,7 @@ export default function KYCClientDetails() {
                       <div style={styles.infoRow}>
                         <span style={styles.infoLabel}>Screening Status:</span>
                         <span style={{...styles.infoValue, color: client.screening_status === 'clear' ? '#059669' : '#dc2626', fontWeight: '600'}}>
-                          {client.screening_status.toUpperCase()}
+                          {client.screening_status?.toUpperCase() || 'UNKNOWN'}
                         </span>
                       </div>
                     )}
@@ -916,7 +916,7 @@ export default function KYCClientDetails() {
                       {client.regulatory_classification && (
                         <div style={styles.infoRow}>
                           <span style={styles.infoLabel}>Regulatory Classification:</span>
-                          <span style={styles.infoValue}>{client.regulatory_classification.toUpperCase()}</span>
+                          <span style={styles.infoValue}>{client.regulatory_classification?.toUpperCase()}</span>
                         </div>
                       )}
                     </div>
@@ -1161,7 +1161,7 @@ export default function KYCClientDetails() {
                               backgroundColor: review.outcome === 'no_issues' ? '#d1fae5' : '#fef3c7',
                               color: review.outcome === 'no_issues' ? '#065f46' : '#92400e'
                             }}>
-                              {review.outcome.replace(/_/g, ' ').toUpperCase()}
+                              {review.outcome?.replace(/_/g, ' ').toUpperCase() || 'UNKNOWN'}
                             </span>
                           </div>
                           <div style={{ color: '#6b7280' }}>
@@ -1348,7 +1348,7 @@ export default function KYCClientDetails() {
                             </span>
                           </div>
                           <h4 style={{fontSize: '14px', fontWeight: '600', color: '#111827', marginBottom: '8px'}}>
-                            {alert.alert_type.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
+                            {alert.alert_type?.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ') || 'Alert'}
                           </h4>
                           <p style={{fontSize: '13px', color: '#374151', marginBottom: '8px'}}>
                             {alert.alert_description}

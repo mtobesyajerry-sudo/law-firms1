@@ -130,7 +130,7 @@ export default function SessionSwitcher() {
                 marginTop: '4px',
                 fontSize: '12px',
               }}>
-                Role: {profile.role.toUpperCase()}
+                Role: {profile.role?.toUpperCase() || 'N/A'}
               </div>
             </div>
           )}

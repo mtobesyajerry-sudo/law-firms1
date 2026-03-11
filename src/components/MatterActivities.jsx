@@ -377,7 +377,7 @@ export default function MatterActivities({ matterId, organizationId, onActivityA
                     </span>
                     <div style={styles.activityBadges}>
                       <span className={`px-3 py-1 rounded-lg text-xs font-semibold ${getPriorityColor(activity.priority)}`}>
-                        {activity.priority.toUpperCase()}
+                        {activity.priority?.toUpperCase() || 'NORMAL'}
                       </span>
                     </div>
                   </div>
