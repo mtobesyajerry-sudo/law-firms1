@@ -791,7 +791,7 @@ export default function ClientManagementDashboard() {
                                     background: request.requested_access === 'staff' ? '#e0e7ff' : '#fce7f3',
                                     color: request.requested_access === 'staff' ? '#3730a3' : '#9f1239'
                                   }}>
-                                    {request.requested_access.toUpperCase()}
+                                    {request.requested_access?.toUpperCase() || 'PENDING'}
                                   </span>
                                 </div>
 
@@ -1211,7 +1211,7 @@ export default function ClientManagementDashboard() {
                         }`,
                         marginTop: 'auto'
                       }}>
-                        {user.role?.replace('_', ' ').toUpperCase()}
+                        {user.role ? user.role.replace('_', ' ').toUpperCase() : 'N/A'}
                       </div>
 
                       <div style={{
@@ -1434,7 +1434,7 @@ export default function ClientManagementDashboard() {
                             background: client.kyc_status === 'approved' ? '#dcfce7' : '#fef3c7',
                             color: client.kyc_status === 'approved' ? '#16a34a' : '#f59e0b'
                           }}>
-                            {client.kyc_status?.replace('_', ' ').toUpperCase() || 'PENDING'}
+                            {client.kyc_status ? client.kyc_status.replace('_', ' ').toUpperCase() : 'PENDING'}
                           </div>
                         </div>
                       </div>
@@ -1561,10 +1561,10 @@ export default function ClientManagementDashboard() {
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                         <div style={{ flex: 1 }}>
                           <div style={{ fontSize: '16px', fontWeight: '600', color: '#dc2626', marginBottom: '8px' }}>
-                            {alert.alert_type?.replace('_', ' ').toUpperCase()}
+                            {alert.alert_type ? alert.alert_type.replace('_', ' ').toUpperCase() : 'ALERT'}
                           </div>
                           <div style={{ fontSize: '13px', color: '#64748b', marginBottom: '4px' }}>
-                            Severity: {alert.severity?.toUpperCase()}
+                            Severity: {alert.severity?.toUpperCase() || 'UNKNOWN'}
                           </div>
                           <div style={{ fontSize: '13px', color: '#64748b' }}>
                             Created: {new Date(alert.created_at).toLocaleDateString()}
@@ -1628,7 +1628,7 @@ export default function ClientManagementDashboard() {
               <div style={{ marginBottom: '16px', padding: '16px', background: '#fef3c7', borderRadius: '12px', border: '2px solid #fbbf24' }}>
                 <div style={{ fontSize: '14px', color: '#92400e', marginBottom: '4px' }}>Current Role</div>
                 <div style={{ fontSize: '16px', fontWeight: '600', color: '#0a1929' }}>
-                  {selectedUserForRoleChange.role?.replace('_', ' ').toUpperCase()}
+                  {selectedUserForRoleChange.role ? selectedUserForRoleChange.role.replace('_', ' ').toUpperCase() : 'N/A'}
                 </div>
               </div>
 

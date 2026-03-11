@@ -492,7 +492,7 @@ export default function ScreeningDashboard() {
                     </td>
                     <td style={dashboardStyles.tableCell}>
                       <span style={getScreeningStatusBadgeStyle(result.screening_status)}>
-                        {result.screening_status?.replace('_', ' ').toUpperCase()}
+                        {result.screening_status ? result.screening_status.replace('_', ' ').toUpperCase() : 'UNKNOWN'}
                       </span>
                     </td>
                     <td style={dashboardStyles.tableCell}>

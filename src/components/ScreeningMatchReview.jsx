@@ -377,7 +377,7 @@ export default function ScreeningMatchReview() {
                       {result.risk_level?.toUpperCase()}
                     </span>
                     <span style={getStatusBadgeStyle(result.screening_status)}>
-                      {result.screening_status?.replace('_', ' ').toUpperCase()}
+                      {result.screening_status ? result.screening_status.replace('_', ' ').toUpperCase() : 'UNKNOWN'}
                     </span>
                   </div>
                   <div style={{ fontSize: '11px', color: '#94a3b8' }}>

@@ -793,7 +793,7 @@ function ClientsList({ organizationId, navigate }) {
                 background: client.kyc_status === 'approved' ? '#dcfce7' : '#fef3c7',
                 color: client.kyc_status === 'approved' ? '#16a34a' : '#f59e0b'
               }}>
-                {client.kyc_status?.replace('_', ' ').toUpperCase() || 'PENDING'}
+                {client.kyc_status ? client.kyc_status.replace('_', ' ').toUpperCase() : 'PENDING'}
               </div>
             </div>
           </div>
