@@ -395,7 +395,7 @@ export default function STRAlertDashboard() {
                       </td>
                       <td style={styles.td}>
                         <div style={styles.clientName}>
-                          {alert.transaction_monitoring_rules?.rule_name || (alert.alert_type ? alert.alert_type.replace(/_/g, ' ').toUpperCase() : 'N/A')}
+                          {alert.transaction_monitoring_rules?.rule_name || (alert.alert_type ? String(alert.alert_type).replace(/_/g, ' ').toUpperCase() : 'N/A')}
                         </div>
                         <div style={styles.clientId}>
                           {alert.transaction_monitoring_rules?.rule_code || ''}
@@ -404,19 +404,19 @@ export default function STRAlertDashboard() {
                       <td style={styles.td}>
                         <span style={{
                           ...styles.badge,
-                          background: getSeverityColor(alert.alert_severity) + '20',
-                          color: getSeverityColor(alert.alert_severity)
+                          background: getSeverityColor(alert.alert_severity || 'medium') + '20',
+                          color: getSeverityColor(alert.alert_severity || 'medium')
                         }}>
-                          {alert.alert_severity}
+                          {alert.alert_severity || 'medium'}
                         </span>
                       </td>
                       <td style={styles.td}>
                         <span style={{
                           ...styles.badge,
-                          background: getStatusColor(alert.investigation_status) + '20',
-                          color: getStatusColor(alert.investigation_status)
+                          background: getStatusColor(alert.investigation_status || 'new') + '20',
+                          color: getStatusColor(alert.investigation_status || 'new')
                         }}>
-                          {alert.investigation_status}
+                          {alert.investigation_status || 'new'}
                         </span>
                       </td>
                       <td style={styles.td}>
