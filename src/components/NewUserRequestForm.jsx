@@ -64,6 +64,7 @@ export default function NewUserRequestForm({ onClose, onSuccess }) {
             requested_access: formData.requested_access,
             reason: formData.reason,
             status: 'pending',
+            organization_id: organization.id,
             created_by: profile.id
           }
         ])

@@ -124,12 +124,19 @@ export default function ClientManagementDashboard() {
           .limit(100),
         supabase
           .from('new_user_requests')
-          .select('id, full_name, email, status, created_at')
+          .select('id, full_name, email, status, created_at, requested_access, position, reason, organization_id')
+          .eq('organization_id', organization.id)
           .order('created_at', { ascending: false })
           .limit(100),
         supabase
           .from('new_user_request_approvals')
-          .select('request_id, approver_id, approval_status')
+          .select(`
+            request_id,
+            approver_id,
+            approval_status,
+            new_user_requests!inner(organization_id)
+          `)
+          .eq('new_user_requests.organization_id', organization.id)
           .limit(200),
         supabase
           .from('user_profiles')
