@@ -14,7 +14,7 @@ export default function RoleDashboard() {
   if (!profile) {
     return (
       <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <LoadingSpinner text="Loading profile..." />
+        <LoadingSpinner size={30} />
       </div>
     );
   }

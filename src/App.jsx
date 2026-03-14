@@ -26,12 +26,28 @@ function ProtectedRoute({ children, adminOnly = false, managementOnly = false, s
     const isInitialLoad = !sessionStorage.getItem('app_mounted');
     if (isInitialLoad) {
       sessionStorage.setItem('app_mounted', 'true');
-      return <LoadingSpinner fullscreen text="Loading..." size={50} />;
+      return (
+        <div style={{
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          minHeight: '100vh',
+          width: '100%'
+        }}>
+          <LoadingSpinner size={40} />
+        </div>
+      );
     }
-    // For subsequent loads, show inline loading
+    // For subsequent loads, show centered loading
     return (
-      <div style={{ padding: '40px', textAlign: 'center' }}>
-        <LoadingSpinner text="Loading..." size={40} />
+      <div style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        minHeight: '60vh',
+        width: '100%'
+      }}>
+        <LoadingSpinner size={30} />
       </div>
     );
   }
@@ -159,7 +175,17 @@ function RoleBasedRedirect() {
   const { profile, loading } = useAuth();
 
   if (loading) {
-    return <LoadingSpinner fullscreen text="Loading..." size={50} />;
+    return (
+      <div style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        minHeight: '100vh',
+        width: '100%'
+      }}>
+        <LoadingSpinner size={40} />
+      </div>
+    );
   }
 
   // Route users to appropriate dashboard based on role

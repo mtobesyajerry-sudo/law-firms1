@@ -201,8 +201,14 @@ export default function ComplianceOfficerDashboard() {
 
   if (loading) {
     return (
-      <div style={{ padding: '40px', textAlign: 'center' }}>
-        <LoadingSpinner text="Loading compliance dashboard..." size={30} />
+      <div style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        minHeight: '60vh',
+        width: '100%'
+      }}>
+        <LoadingSpinner size={30} />
       </div>
     );
   }
@@ -738,7 +744,17 @@ function ClientsList({ organizationId, navigate }) {
   }, [organizationId]);
 
   if (loading) {
-    return <LoadingSpinner text="Loading clients..." />;
+    return (
+      <div style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        minHeight: '300px',
+        width: '100%'
+      }}>
+        <LoadingSpinner size={30} />
+      </div>
+    );
   }
 
   return (

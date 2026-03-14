@@ -206,8 +206,14 @@ export default function MatterManagement() {
 
   if (loading) {
     return (
-      <div style={{ padding: '40px', textAlign: 'center' }}>
-        <LoadingSpinner text="Loading matters..." size={30} />
+      <div style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        minHeight: '60vh',
+        width: '100%'
+      }}>
+        <LoadingSpinner size={30} />
       </div>
     );
   }

@@ -91,8 +91,14 @@ export default function KYCClientManagement({ initialFilter = 'all' }) {
 
   if (loading) {
     return (
-      <div style={{ padding: '40px', textAlign: 'center' }}>
-        <LoadingSpinner text="Loading clients..." size={30} />
+      <div style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        minHeight: '60vh',
+        width: '100%'
+      }}>
+        <LoadingSpinner size={30} />
       </div>
     );
   }

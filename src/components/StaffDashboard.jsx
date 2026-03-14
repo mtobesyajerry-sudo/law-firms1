@@ -175,8 +175,14 @@ export default function StaffDashboard() {
 
   if (loading) {
     return (
-      <div style={{ padding: '40px', textAlign: 'center' }}>
-        <LoadingSpinner text="Loading dashboard..." size={30} />
+      <div style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        minHeight: '60vh',
+        width: '100%'
+      }}>
+        <LoadingSpinner size={30} />
       </div>
     );
   }
@@ -814,8 +820,14 @@ function OverdueReviewsList({ organizationId, userId }) {
 
   if (loading) {
     return (
-      <div style={{ padding: '40px', textAlign: 'center' }}>
-        <LoadingSpinner text="Loading overdue reviews..." size={30} />
+      <div style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        minHeight: '300px',
+        width: '100%'
+      }}>
+        <LoadingSpinner size={30} />
       </div>
     );
   }

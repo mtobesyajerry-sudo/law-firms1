@@ -61,8 +61,14 @@ export default function ClientDashboard() {
 
   if (loading) {
     return (
-      <div style={{ padding: '40px', textAlign: 'center' }}>
-        <LoadingSpinner text="Loading client dashboard..." size={30} />
+      <div style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        minHeight: '60vh',
+        width: '100%'
+      }}>
+        <LoadingSpinner size={30} />
       </div>
     );
   }
@@ -71,8 +77,8 @@ export default function ClientDashboard() {
   if (profile?.role === 'admin') {
     console.log('[ClientDashboard] Rendering redirect screen for admin user');
     return (
-      <div style={{ padding: '40px', textAlign: 'center', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <LoadingSpinner text="Redirecting to admin dashboard..." />
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <LoadingSpinner size={30} />
       </div>
     );
   }

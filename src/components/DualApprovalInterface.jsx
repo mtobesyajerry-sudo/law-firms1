@@ -343,7 +343,17 @@ export default function DualApprovalInterface({ user, organizationId }) {
   };
 
   if (loading) {
-    return <LoadingSpinner fullscreen text="Loading approval requests..." size={50} />;
+    return (
+      <div style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        minHeight: '60vh',
+        width: '100%'
+      }}>
+        <LoadingSpinner size={30} />
+      </div>
+    );
   }
 
   if (!hasManagementAccess) {

@@ -517,8 +517,8 @@ export default function ClientManagementDashboard() {
 
   if (loading) {
     return (
-      <div style={{ padding: '40px', textAlign: 'center', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <LoadingSpinner text="Loading admin dashboard..." />
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <LoadingSpinner size={30} />
       </div>
     );
   }
