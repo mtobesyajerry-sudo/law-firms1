@@ -205,7 +205,18 @@ export default function MatterManagement() {
   });
 
   if (loading) {
-    return <LoadingSpinner fullscreen text="Loading matters..." size={50} />;
+    // Only show fullscreen loading on initial app load
+    const isInitialLoad = !sessionStorage.getItem('app_mounted');
+    if (isInitialLoad) {
+      sessionStorage.setItem('app_mounted', 'true');
+      return <LoadingSpinner fullscreen text="Loading matters..." size={50} />;
+    }
+    // For subsequent loads, show inline loading
+    return (
+      <div style={{ padding: '40px', textAlign: 'center' }}>
+        <LoadingSpinner text="Loading matters..." size={40} />
+      </div>
+    );
   }
 
   if (profile?.role === 'admin') {

@@ -60,7 +60,18 @@ export default function ClientDashboard() {
   }, [profile, organization]);
 
   if (loading) {
-    return <LoadingSpinner fullscreen text="Loading client dashboard..." size={50} />;
+    // Only show fullscreen loading on initial app load
+    const isInitialLoad = !sessionStorage.getItem('app_mounted');
+    if (isInitialLoad) {
+      sessionStorage.setItem('app_mounted', 'true');
+      return <LoadingSpinner fullscreen text="Loading client dashboard..." size={50} />;
+    }
+    // For subsequent loads, show inline loading
+    return (
+      <div style={{ padding: '40px', textAlign: 'center' }}>
+        <LoadingSpinner text="Loading client dashboard..." size={40} />
+      </div>
+    );
   }
 
   // If admin user, show loading while redirecting (regardless of organization)
