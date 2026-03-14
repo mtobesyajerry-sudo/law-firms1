@@ -820,7 +820,11 @@ function OverdueReviewsList({ organizationId, userId }) {
   };
 
   if (loading) {
-    return <LoadingSpinner fullscreen text="Loading overdue reviews..." size={50} />;
+    return (
+      <div style={{ padding: '40px', textAlign: 'center' }}>
+        <LoadingSpinner text="Loading overdue reviews..." size={30} />
+      </div>
+    );
   }
 
   const getDaysOverdue = (reviewDate) => {
