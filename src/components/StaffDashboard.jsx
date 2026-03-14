@@ -59,10 +59,14 @@ export default function StaffDashboard() {
   };
 
   useEffect(() => {
-    if (profile?.organization_id && user?.id) {
+    // Only load dashboard data if we're on the overview view
+    if (profile?.organization_id && user?.id && activeView === 'overview') {
       loadDashboardData();
+    } else if (activeView !== 'overview') {
+      // Skip loading for sub-views - they load their own data
+      setLoading(false);
     }
-  }, [profile, user]);
+  }, [profile, user, activeView]);
 
   const loadDashboardData = async () => {
     try {

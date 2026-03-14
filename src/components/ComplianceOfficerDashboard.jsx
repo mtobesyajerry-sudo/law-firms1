@@ -37,10 +37,14 @@ export default function ComplianceOfficerDashboard() {
   };
 
   useEffect(() => {
-    if (profile?.organization_id) {
+    // Only load dashboard data if we're on the overview view
+    if (profile?.organization_id && activeView === 'overview') {
       loadDashboardData();
+    } else if (activeView !== 'overview') {
+      // Skip loading for sub-views - they load their own data
+      setLoading(false);
     }
-  }, [profile]);
+  }, [profile, activeView]);
 
   const createNewAssessment = async () => {
     try {
