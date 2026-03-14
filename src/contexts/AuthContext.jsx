@@ -151,8 +151,9 @@ export const AuthProvider = ({ children }) => {
           }
         }
 
-        // Don't set loading state for token refresh - just silently update
-        if (event === 'TOKEN_REFRESHED') {
+        // Handle TOKEN_REFRESHED and INITIAL_SESSION without changing loading state
+        // This prevents navigation during token refresh or page reload
+        if (event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') {
           setUser(newUser);
           if (newUser) {
             await loadUserProfile(newUser.id);

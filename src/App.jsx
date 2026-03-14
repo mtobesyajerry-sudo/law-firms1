@@ -36,7 +36,7 @@ function ProtectedRoute({ children, adminOnly = false, managementOnly = false, s
   }
 
   if (!user) {
-    return <Navigate to="/auth" />;
+    return <Navigate to="/auth" replace />;
   }
 
   if (profile && !profile.is_active) {
