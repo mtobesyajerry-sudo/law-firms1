@@ -1,23 +1,22 @@
-export default function LoadingSpinner({ size = 40, color = '#3b82f6', text = 'Loading...', fullscreen = false }) {
-  const containerStyle = fullscreen ? {
-    position: 'fixed',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
+export default function LoadingSpinner({
+  size = 36,
+  color = '#3b82f6',
+  fullPage = false,
+  minHeight = '50vh'
+}) {
+  const containerStyle = fullPage ? {
     display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-    zIndex: 9999,
-    gap: '20px'
+    alignItems: 'center',
+    minHeight: '100vh',
+    width: '100%',
+    backgroundColor: '#f7fafc'
   } : {
     display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
     justifyContent: 'center',
-    gap: '16px'
+    alignItems: 'center',
+    minHeight: minHeight,
+    width: '100%'
   };
 
   return (
@@ -27,7 +26,6 @@ export default function LoadingSpinner({ size = 40, color = '#3b82f6', text = 'L
         width: `${size}px`,
         height: `${size}px`
       }}>
-        {/* Dual rotating circles */}
         <svg
           width={size}
           height={size}
@@ -36,7 +34,6 @@ export default function LoadingSpinner({ size = 40, color = '#3b82f6', text = 'L
             animation: 'spin 1s linear infinite'
           }}
         >
-          {/* Outer circle */}
           <circle
             cx="25"
             cy="25"
@@ -50,7 +47,6 @@ export default function LoadingSpinner({ size = 40, color = '#3b82f6', text = 'L
           />
         </svg>
 
-        {/* Inner counter-rotating circle */}
         <svg
           width={size * 0.7}
           height={size * 0.7}
@@ -75,18 +71,6 @@ export default function LoadingSpinner({ size = 40, color = '#3b82f6', text = 'L
           />
         </svg>
       </div>
-
-      {text && (
-        <div style={{
-          color: color,
-          fontSize: '15px',
-          fontWeight: '600',
-          textAlign: 'center',
-          letterSpacing: '0.3px'
-        }}>
-          {text}
-        </div>
-      )}
 
       <style>
         {`

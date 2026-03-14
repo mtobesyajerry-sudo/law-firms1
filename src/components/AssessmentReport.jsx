@@ -266,11 +266,7 @@ export default function AssessmentReport() {
   };
 
   if (loading) {
-    return (
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <LoadingSpinner size={30} />
-      </div>
-    );
+    return <LoadingSpinner fullPage />;
   }
 
   if (error) {

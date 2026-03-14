@@ -174,17 +174,7 @@ export default function StaffDashboard() {
   };
 
   if (loading) {
-    return (
-      <div style={{
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        minHeight: '60vh',
-        width: '100%'
-      }}>
-        <LoadingSpinner size={30} />
-      </div>
-    );
+    return <LoadingSpinner />;
   }
 
   if (activeView === 'matters') {
@@ -819,17 +809,7 @@ function OverdueReviewsList({ organizationId, userId }) {
   };
 
   if (loading) {
-    return (
-      <div style={{
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        minHeight: '300px',
-        width: '100%'
-      }}>
-        <LoadingSpinner size={30} />
-      </div>
-    );
+    return <LoadingSpinner minHeight="300px" />;
   }
 
   const getDaysOverdue = (reviewDate) => {

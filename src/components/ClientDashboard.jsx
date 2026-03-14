@@ -60,27 +60,13 @@ export default function ClientDashboard() {
   }, [profile, organization]);
 
   if (loading) {
-    return (
-      <div style={{
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        minHeight: '60vh',
-        width: '100%'
-      }}>
-        <LoadingSpinner size={30} />
-      </div>
-    );
+    return <LoadingSpinner />;
   }
 
   // If admin user, show loading while redirecting (regardless of organization)
   if (profile?.role === 'admin') {
     console.log('[ClientDashboard] Rendering redirect screen for admin user');
-    return (
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <LoadingSpinner size={30} />
-      </div>
-    );
+    return <LoadingSpinner fullPage />;
   }
 
   // Role-based access control - strictly enforced

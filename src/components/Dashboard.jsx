@@ -39,8 +39,8 @@ function ClientRiskProfilesSection({ organizationId }) {
 
   if (loading) {
     return (
-      <div style={{ padding: '24px', background: 'white', borderRadius: '12px', border: '2px solid #d4af37', marginBottom: '24px', boxShadow: '0 4px 16px rgba(0,0,0,0.15)', display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '200px' }}>
-        <LoadingSpinner size={30} />
+      <div style={{ padding: '24px', background: 'white', borderRadius: '12px', border: '2px solid #d4af37', marginBottom: '24px', boxShadow: '0 4px 16px rgba(0,0,0,0.15)', minHeight: '200px' }}>
+        <LoadingSpinner minHeight="200px" />
       </div>
     );
   }
@@ -379,17 +379,7 @@ export default function Dashboard() {
   };
 
   if (loading) {
-    return (
-      <div style={{
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        minHeight: '60vh',
-        width: '100%'
-      }}>
-        <LoadingSpinner size={30} />
-      </div>
-    );
+    return <LoadingSpinner />;
   }
 
   if (!organization) {
