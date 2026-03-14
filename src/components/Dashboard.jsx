@@ -40,7 +40,7 @@ function ClientRiskProfilesSection({ organizationId }) {
   if (loading) {
     return (
       <div style={{ background: 'white', borderRadius: '12px', border: '2px solid #d4af37', marginBottom: '24px', boxShadow: '0 4px 16px rgba(0,0,0,0.15)' }}>
-        <LoadingSpinner minHeight="200px" />
+        <LoadingSpinner minHeight="400px" />
       </div>
     );
   }
