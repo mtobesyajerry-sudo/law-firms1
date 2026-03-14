@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
 import MatterManagement from './MatterManagement';
@@ -9,6 +9,7 @@ import LoadingSpinner from './LoadingSpinner';
 import RoleUpgradeRequestForm from './RoleUpgradeRequestForm';
 
 export default function StaffDashboard() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [showRoleUpgradeForm, setShowRoleUpgradeForm] = useState(false);
   const [stats, setStats] = useState({
     myMatters: 0,
@@ -27,8 +28,34 @@ export default function StaffDashboard() {
   const { user, profile } = useAuth();
   const navigate = useNavigate();
 
+  // Restore active view from URL on mount
+  useEffect(() => {
+    const view = searchParams.get('view');
+    const filter = searchParams.get('filter');
+    if (view && ['overview', 'matters', 'overdue-reviews', 'clients'].includes(view)) {
+      setActiveView(view);
+    }
+    if (filter) {
+      setClientFilter(filter);
+    }
+  }, []);
+
   const getBackRoute = () => {
     return '/client/dashboard';
+  };
+
+  // Helper to change view and update URL
+  const changeView = (newView, filter = null) => {
+    setActiveView(newView);
+    const params = new URLSearchParams();
+    if (newView !== 'overview') {
+      params.set('view', newView);
+    }
+    if (filter) {
+      params.set('filter', filter);
+      setClientFilter(filter);
+    }
+    setSearchParams(params);
   };
 
   useEffect(() => {
@@ -155,7 +182,7 @@ export default function StaffDashboard() {
       <div style={dashboardStyles.pageContainer}>
         <button
           onClick={() => {
-            setActiveView('overview');
+            changeView('overview');
             loadDashboardData();
           }}
           style={dashboardStyles.buttonSecondary}
@@ -174,7 +201,7 @@ export default function StaffDashboard() {
       <div style={dashboardStyles.pageContainer}>
         <button
           onClick={() => {
-            setActiveView('overview');
+            changeView('overview');
             loadDashboardData();
           }}
           style={dashboardStyles.buttonSecondary}
@@ -193,7 +220,7 @@ export default function StaffDashboard() {
       <div style={dashboardStyles.pageContainer}>
         <button
           onClick={() => {
-            setActiveView('overview');
+            changeView('overview');
             setClientFilter('all');
             loadDashboardData();
           }}
@@ -449,44 +476,35 @@ export default function StaffDashboard() {
           value={stats.myMatters}
           icon="📁"
           color="#3b82f6"
-          onClick={() => setActiveView('matters')}
+          onClick={() => changeView('matters')}
         />
         <StatCard
           title="My Clients"
           value={stats.myClients}
           icon="👥"
           color="#8b5cf6"
-          onClick={() => {
-            setClientFilter('all');
-            setActiveView('clients');
-          }}
+          onClick={() => changeView('clients', 'all')}
         />
         <StatCard
           title="High Risk"
           value={stats.highRiskClients}
           icon="⚠️"
           color="#ef4444"
-          onClick={() => {
-            setClientFilter('high_risk');
-            setActiveView('clients');
-          }}
+          onClick={() => changeView('clients', 'high_risk')}
         />
         <StatCard
           title="EDD Required"
           value={stats.eddRequired}
           icon="🔍"
           color="#ec4899"
-          onClick={() => {
-            setClientFilter('enhanced_dd');
-            setActiveView('clients');
-          }}
+          onClick={() => changeView('clients', 'enhanced_dd')}
         />
         <StatCard
           title="Overdue Reviews"
           value={stats.overdueReviews}
           icon="📅"
           color="#f59e0b"
-          onClick={() => setActiveView('overdue-reviews')}
+          onClick={() => changeView('overdue-reviews')}
         />
         </div>
       </div>
@@ -510,7 +528,7 @@ export default function StaffDashboard() {
               My Active Matters
             </h3>
             <button
-              onClick={() => setActiveView('matters')}
+              onClick={() => changeView('matters')}
               style={styles.viewAllButton}
             >
               View All →
@@ -525,7 +543,7 @@ export default function StaffDashboard() {
                 return (
                   <div
                     key={matter.id}
-                    onClick={() => setActiveView('matters')}
+                    onClick={() => changeView('matters')}
                     style={{
                       padding: '14px',
                       background: '#f9fafb',
@@ -581,7 +599,7 @@ export default function StaffDashboard() {
               My Assigned Clients
             </h3>
             <button
-              onClick={() => setActiveView('clients')}
+              onClick={() => changeView('clients')}
               style={styles.viewAllButton}
             >
               View All →
@@ -670,7 +688,7 @@ export default function StaffDashboard() {
         </h3>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px' }}>
           <button
-            onClick={() => setActiveView('matters')}
+            onClick={() => changeView('matters')}
             style={styles.actionButton}
             onMouseEnter={(e) => {
               e.currentTarget.style.background = 'linear-gradient(135deg, #dbeafe, #bfdbfe)';
@@ -694,7 +712,7 @@ export default function StaffDashboard() {
             </div>
           </button>
           <button
-            onClick={() => setActiveView('clients')}
+            onClick={() => changeView('clients')}
             style={styles.actionButton}
             onMouseEnter={(e) => {
               e.currentTarget.style.background = 'linear-gradient(135deg, #dbeafe, #bfdbfe)';
