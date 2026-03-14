@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
 import LoadingSpinner from './LoadingSpinner';
 import MatterDetailView from './MatterDetailView';
 
 export default function MatterManagement() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [matters, setMatters] = useState([]);
   const [clients, setClients] = useState([]);
   const [staffMembers, setStaffMembers] = useState([]);
@@ -13,9 +14,25 @@ export default function MatterManagement() {
   const [showNewMatterModal, setShowNewMatterModal] = useState(false);
   const [activeTab, setActiveTab] = useState('all');
   const [selectedMatter, setSelectedMatter] = useState(null);
+  const [detailTab, setDetailTab] = useState('overview');
   const { user, profile } = useAuth();
   const navigate = useNavigate();
   const isReadOnly = profile?.role === 'management' || profile?.role === 'compliance_officer' || profile?.role === 'mlro';
+
+  // Restore selected matter and tab from URL on mount
+  useEffect(() => {
+    const matterId = searchParams.get('matterId');
+    const tab = searchParams.get('tab');
+    if (tab && ['overview', 'clients', 'activities', 'milestones', 'billing', 'documents'].includes(tab)) {
+      setDetailTab(tab);
+    }
+    if (matterId && matters.length > 0) {
+      const matter = matters.find(m => m.id === matterId);
+      if (matter) {
+        setSelectedMatter(matter);
+      }
+    }
+  }, [matters]);
 
   const matterTypes = [
     { value: 'litigation', label: 'Litigation' },
@@ -36,6 +53,42 @@ export default function MatterManagement() {
     { value: 'litigation', label: 'Litigation' },
     { value: 'compliance', label: 'Compliance' }
   ];
+
+  // Helper to open matter detail and update URL
+  const openMatterDetail = (matter, tab = 'overview') => {
+    setSelectedMatter(matter);
+    setDetailTab(tab);
+    const params = new URLSearchParams(searchParams);
+    params.set('matterId', matter.id);
+    if (tab !== 'overview') {
+      params.set('tab', tab);
+    } else {
+      params.delete('tab');
+    }
+    setSearchParams(params);
+  };
+
+  // Helper to close matter detail and clear URL
+  const closeMatterDetail = () => {
+    setSelectedMatter(null);
+    setDetailTab('overview');
+    const params = new URLSearchParams(searchParams);
+    params.delete('matterId');
+    params.delete('tab');
+    setSearchParams(params);
+  };
+
+  // Helper to change tab and update URL
+  const changeDetailTab = (tab) => {
+    setDetailTab(tab);
+    const params = new URLSearchParams(searchParams);
+    if (tab !== 'overview') {
+      params.set('tab', tab);
+    } else {
+      params.delete('tab');
+    }
+    setSearchParams(params);
+  };
 
   useEffect(() => {
     if (profile) {
@@ -388,7 +441,7 @@ export default function MatterManagement() {
                       </td>
                       <td style={styles.td}>
                         <button
-                          onClick={() => setSelectedMatter(matter)}
+                          onClick={() => openMatterDetail(matter)}
                           style={styles.actionButton}
                         >
                           View Details
@@ -423,7 +476,9 @@ export default function MatterManagement() {
       {selectedMatter && (
         <MatterDetailView
           matter={selectedMatter}
-          onClose={() => setSelectedMatter(null)}
+          onClose={closeMatterDetail}
+          activeTab={detailTab}
+          onTabChange={changeDetailTab}
         />
       )}
     </div>

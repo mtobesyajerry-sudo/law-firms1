@@ -7,13 +7,28 @@ import MatterBillingMilestones from './MatterBillingMilestones';
 import DocumentUploadManager from './DocumentUploadManager';
 import LoadingSpinner from './LoadingSpinner';
 
-export default function MatterDetailView({ matter, onClose, onUpdate }) {
+export default function MatterDetailView({ matter, onClose, onUpdate, activeTab: propActiveTab, onTabChange }) {
   const { profile } = useAuth();
-  const [activeTab, setActiveTab] = useState('overview');
+  const [activeTab, setActiveTab] = useState(propActiveTab || 'overview');
   const [loading, setLoading] = useState(false);
   const [matterData, setMatterData] = useState(matter);
   const [relatedClients, setRelatedClients] = useState([]);
   const [documents, setDocuments] = useState([]);
+
+  // Sync with prop changes
+  useEffect(() => {
+    if (propActiveTab) {
+      setActiveTab(propActiveTab);
+    }
+  }, [propActiveTab]);
+
+  // Helper to change tab
+  const changeTab = (tab) => {
+    setActiveTab(tab);
+    if (onTabChange) {
+      onTabChange(tab);
+    }
+  };
 
   // Management and compliance users have read-only access
   const isReadOnly = profile?.role === 'management' || profile?.role === 'compliance_officer' || profile?.role === 'mlro';
@@ -190,37 +205,37 @@ export default function MatterDetailView({ matter, onClose, onUpdate }) {
           {/* Tabs */}
           <div style={styles.tabs}>
             <button
-              onClick={() => setActiveTab('overview')}
+              onClick={() => changeTab('overview')}
               style={{...styles.tab, ...(activeTab === 'overview' && styles.activeTab)}}
             >
               Overview
             </button>
             <button
-              onClick={() => setActiveTab('clients')}
+              onClick={() => changeTab('clients')}
               style={{...styles.tab, ...(activeTab === 'clients' && styles.activeTab)}}
             >
               Related Clients
             </button>
             <button
-              onClick={() => setActiveTab('activities')}
+              onClick={() => changeTab('activities')}
               style={{...styles.tab, ...(activeTab === 'activities' && styles.activeTab)}}
             >
               Activities
             </button>
             <button
-              onClick={() => setActiveTab('milestones')}
+              onClick={() => changeTab('milestones')}
               style={{...styles.tab, ...(activeTab === 'milestones' && styles.activeTab)}}
             >
               Court & Milestones
             </button>
             <button
-              onClick={() => setActiveTab('billing')}
+              onClick={() => changeTab('billing')}
               style={{...styles.tab, ...(activeTab === 'billing' && styles.activeTab)}}
             >
               Billing & Payments
             </button>
             <button
-              onClick={() => setActiveTab('documents')}
+              onClick={() => changeTab('documents')}
               style={{...styles.tab, ...(activeTab === 'documents' && styles.activeTab)}}
             >
               Documents ({documents.length})
