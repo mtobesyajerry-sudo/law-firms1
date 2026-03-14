@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
 import ManagementUserApproval from './ManagementUserApproval';
+import LoadingSpinner from './LoadingSpinner';
 
 export default function SystemAdminDashboard() {
   const [stats, setStats] = useState({
@@ -237,13 +238,7 @@ export default function SystemAdminDashboard() {
   };
 
   if (loading) {
-    return (
-      <div style={styles.container}>
-        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>
-          <div style={{ fontSize: '18px', color: '#64748b' }}>Loading system dashboard...</div>
-        </div>
-      </div>
-    );
+    return <LoadingSpinner fullPage />;
   }
 
   const totalPendingActions = stats.pendingRegistrations + stats.pendingRoleUpgrades + stats.pendingNewUserRequests;

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
+import LoadingSpinner from './LoadingSpinner';
 
 export default function ManagementUserApproval({ user }) {
   const [registrations, setRegistrations] = useState([]);
@@ -331,14 +332,7 @@ export default function ManagementUserApproval({ user }) {
   };
 
   if (loading) {
-    return (
-      <div style={styles.container}>
-        <div style={{ padding: '40px', textAlign: 'center' }}>
-          <div style={{ fontSize: '48px', marginBottom: '16px' }}>⏳</div>
-          <div style={{ fontSize: '16px', color: '#64748b' }}>Loading registrations...</div>
-        </div>
-      </div>
-    );
+    return <LoadingSpinner fullPage />;
   }
 
   return (
