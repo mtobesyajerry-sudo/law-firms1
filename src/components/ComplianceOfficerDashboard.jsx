@@ -196,11 +196,7 @@ export default function ComplianceOfficerDashboard() {
   };
 
   if (loading) {
-    return (
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <LoadingSpinner text="Loading compliance dashboard..." />
-      </div>
-    );
+    return <LoadingSpinner fullscreen text="Loading compliance dashboard..." size={50} />;
   }
 
   if (activeView === 'clients') {

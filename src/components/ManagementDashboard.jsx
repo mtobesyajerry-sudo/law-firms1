@@ -867,11 +867,7 @@ export default function ManagementDashboard() {
   };
 
   if (loading) {
-    return (
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <LoadingSpinner text="Loading dashboard..." />
-      </div>
-    );
+    return <LoadingSpinner fullscreen text="Loading management dashboard..." size={50} />;
   }
 
   if (loadError) {

@@ -170,11 +170,7 @@ export default function StaffDashboard() {
   };
 
   if (loading) {
-    return (
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <LoadingSpinner text="Loading lawyer dashboard..." />
-      </div>
-    );
+    return <LoadingSpinner fullscreen text="Loading dashboard..." size={50} />;
   }
 
   if (activeView === 'matters') {
@@ -809,7 +805,7 @@ function OverdueReviewsList({ organizationId, userId }) {
   };
 
   if (loading) {
-    return <LoadingSpinner text="Loading overdue reviews..." />;
+    return <LoadingSpinner fullscreen text="Loading overdue reviews..." size={50} />;
   }
 
   const getDaysOverdue = (reviewDate) => {

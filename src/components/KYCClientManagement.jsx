@@ -90,11 +90,7 @@ export default function KYCClientManagement({ initialFilter = 'all' }) {
   });
 
   if (loading) {
-    return (
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <LoadingSpinner text="Loading KYC clients..." />
-      </div>
-    );
+    return <LoadingSpinner fullscreen text="Loading clients..." size={50} />;
   }
 
   return (

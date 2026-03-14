@@ -60,11 +60,7 @@ export default function ClientDashboard() {
   }, [profile, organization]);
 
   if (loading) {
-    return (
-      <div style={{ padding: '40px', textAlign: 'center', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <LoadingSpinner text="Loading dashboard..." />
-      </div>
-    );
+    return <LoadingSpinner fullscreen text="Loading client dashboard..." size={50} />;
   }
 
   // If admin user, show loading while redirecting (regardless of organization)

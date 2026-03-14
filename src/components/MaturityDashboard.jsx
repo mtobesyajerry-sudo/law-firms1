@@ -56,11 +56,7 @@ export default function MaturityDashboard({ assessment }) {
   const inProgressPlans = remediationPlans.filter(p => p.status === 'in-progress').length;
 
   if (loading) {
-    return (
-      <div style={{ minHeight: '400px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <LoadingSpinner text="Loading maturity dashboard..." />
-      </div>
-    );
+    return <LoadingSpinner fullscreen text="Loading maturity dashboard..." size={50} />;
   }
 
   return (
