@@ -867,7 +867,7 @@ export default function ManagementDashboard() {
   };
 
   if (loading) {
-    return <LoadingSpinner />;
+    return <LoadingSpinner fullPage />;
   }
 
   if (loadError) {

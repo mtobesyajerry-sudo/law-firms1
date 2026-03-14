@@ -200,7 +200,7 @@ export default function ComplianceOfficerDashboard() {
   };
 
   if (loading) {
-    return <LoadingSpinner />;
+    return <LoadingSpinner fullPage />;
   }
 
   if (activeView === 'clients') {

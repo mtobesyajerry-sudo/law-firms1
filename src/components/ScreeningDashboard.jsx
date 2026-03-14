@@ -112,7 +112,7 @@ export default function ScreeningDashboard() {
   };
 
   if (loading) {
-    return <LoadingSpinner />;
+    return <LoadingSpinner fullPage />;
   }
 
   if (activeView === 'perform_screening' && selectedClient) {

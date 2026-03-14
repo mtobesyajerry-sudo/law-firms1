@@ -90,7 +90,7 @@ export default function KYCClientManagement({ initialFilter = 'all' }) {
   });
 
   if (loading) {
-    return <LoadingSpinner />;
+    return <LoadingSpinner fullPage />;
   }
 
   return (

@@ -174,7 +174,7 @@ export default function StaffDashboard() {
   };
 
   if (loading) {
-    return <LoadingSpinner />;
+    return <LoadingSpinner fullPage />;
   }
 
   if (activeView === 'matters') {

@@ -60,7 +60,7 @@ export default function ClientDashboard() {
   }, [profile, organization]);
 
   if (loading) {
-    return <LoadingSpinner />;
+    return <LoadingSpinner fullPage />;
   }
 
   // If admin user, show loading while redirecting (regardless of organization)

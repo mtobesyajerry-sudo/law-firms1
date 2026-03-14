@@ -56,7 +56,7 @@ export default function MaturityDashboard({ assessment }) {
   const inProgressPlans = remediationPlans.filter(p => p.status === 'in-progress').length;
 
   if (loading) {
-    return <LoadingSpinner />;
+    return <LoadingSpinner fullPage />;
   }
 
   return (

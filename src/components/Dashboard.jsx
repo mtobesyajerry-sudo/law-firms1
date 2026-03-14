@@ -379,7 +379,7 @@ export default function Dashboard() {
   };
 
   if (loading) {
-    return <LoadingSpinner />;
+    return <LoadingSpinner fullPage />;
   }
 
   if (!organization) {

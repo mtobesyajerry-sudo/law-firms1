@@ -205,7 +205,7 @@ export default function MatterManagement() {
   });
 
   if (loading) {
-    return <LoadingSpinner />;
+    return <LoadingSpinner fullPage />;
   }
 
   if (profile?.role === 'admin') {

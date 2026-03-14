@@ -343,7 +343,7 @@ export default function DualApprovalInterface({ user, organizationId }) {
   };
 
   if (loading) {
-    return <LoadingSpinner />;
+    return <LoadingSpinner fullPage />;
   }
 
   if (!hasManagementAccess) {
