@@ -29,12 +29,14 @@ export default function SecurityDashboard() {
   const [documentAccess, setDocumentAccess] = useState([]);
 
   useEffect(() => {
+    // Skip redirect check if profile hasn't loaded yet - ProtectedRoute handles auth guards
+    if (!profile) return;
     if (!isAdmin) {
       navigate('/dashboard');
       return;
     }
     loadSecurityData();
-  }, [isAdmin, navigate]);
+  }, [isAdmin, profile, navigate]);
 
   const loadSecurityData = async () => {
     try {

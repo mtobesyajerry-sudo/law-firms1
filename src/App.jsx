@@ -36,7 +36,7 @@ function ProtectedRoute({ children, adminOnly = false, managementOnly = false, s
   }
 
   if (!user) {
-    return <Navigate to="/auth" />;
+    return <Navigate to="/auth" replace />;
   }
 
   if (profile && !profile.is_active) {
@@ -202,7 +202,7 @@ function AppRoutes() {
 
   return (
     <Routes>
-      <Route path="/auth" element={user ? <Navigate to="/" /> : <Auth />} />
+      <Route path="/auth" element={user ? <Navigate to="/" replace /> : <Auth />} />
       <Route
         path="/"
         element={
@@ -319,7 +319,7 @@ function AppRoutes() {
           </ProtectedRoute>
         }
       />
-      <Route path="*" element={<Navigate to="/" />} />
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 }

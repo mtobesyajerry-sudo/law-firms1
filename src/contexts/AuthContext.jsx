@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, useMemo, useCallback } from 'react';
+import { createContext, useContext, useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { supabase } from '../supabaseClient';
 
 const AuthContext = createContext({});
@@ -17,6 +17,7 @@ export const AuthProvider = ({ children }) => {
   const [organization, setOrganization] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isEarlyClient, setIsEarlyClient] = useState(false);
+  const initializedRef = useRef(false);
 
   const checkIfEarlyClient = useCallback(async (userId) => {
     if (!userId) {
@@ -108,14 +109,15 @@ export const AuthProvider = ({ children }) => {
     // Set a timeout to prevent infinite loading
     const timeout = setTimeout(() => {
       console.warn('AuthContext: Loading timeout - forcing completion');
+      initializedRef.current = true;
       setLoading(false);
     }, 10000);
 
-    supabase.auth.getSession().then(async ({ data: { session }, error }) => {
-      console.log('AuthContext: Initial session check', { session, error });
-      if (error) {
-        console.error('AuthContext: Session error', error);
-      }
+    const initializeAuth = async (session) => {
+      // Prevent double initialization from both getSession and onAuthStateChange
+      if (initializedRef.current) return;
+      initializedRef.current = true;
+
       setUser(session?.user ?? null);
       if (session?.user) {
         await loadUserProfile(session.user.id);
@@ -123,8 +125,17 @@ export const AuthProvider = ({ children }) => {
       clearTimeout(timeout);
       setLoading(false);
       console.log('AuthContext: Initialization complete');
+    };
+
+    supabase.auth.getSession().then(async ({ data: { session }, error }) => {
+      console.log('AuthContext: Initial session check', { session, error });
+      if (error) {
+        console.error('AuthContext: Session error', error);
+      }
+      await initializeAuth(session);
     }).catch(err => {
       console.error('AuthContext: Fatal initialization error', err);
+      initializedRef.current = true;
       clearTimeout(timeout);
       setLoading(false);
     });
@@ -132,6 +143,12 @@ export const AuthProvider = ({ children }) => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       (async () => {
         const newUser = session?.user ?? null;
+
+        if (event === 'INITIAL_SESSION') {
+          // Handle initial session from onAuthStateChange (Supabase v2)
+          await initializeAuth(session);
+          return;
+        }
 
         if (event === 'SIGNED_OUT') {
           setUser(null);
@@ -142,12 +159,30 @@ export const AuthProvider = ({ children }) => {
           return;
         }
 
-        if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+        if (event === 'SIGNED_IN') {
+          // Only show loading for explicit sign-in (not page refresh)
           setUser(newUser);
           if (newUser) {
-            setLoading(true);
+            if (!initializedRef.current) {
+              // First-time sign in during initialization
+              await initializeAuth(session);
+            } else {
+              // Subsequent sign-in (e.g., after sign-out then sign-in)
+              setLoading(true);
+              await loadUserProfile(newUser.id);
+              setLoading(false);
+            }
+          }
+          return;
+        }
+
+        if (event === 'TOKEN_REFRESHED') {
+          // Silently update user and refresh profile without toggling loading state.
+          // This prevents page components from unmounting/remounting on token refresh,
+          // which was causing redirects to dashboard on page refresh.
+          setUser(newUser);
+          if (newUser) {
             await loadUserProfile(newUser.id);
-            setLoading(false);
           }
         }
       })();
