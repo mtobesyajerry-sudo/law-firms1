@@ -27,7 +27,7 @@ function ProtectedRoute({ children, adminOnly = false, managementOnly = false, s
       sessionStorage.setItem('app_mounted', 'true');
       return <LoadingSpinner fullPage />;
     }
-    return <LoadingSpinner />;
+    return <LoadingSpinner fullPage />;
   }
 
   if (!user) {
