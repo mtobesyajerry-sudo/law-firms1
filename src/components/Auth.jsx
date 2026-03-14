@@ -118,7 +118,18 @@ export default function Auth() {
           }
         }
 
-        navigate('/admin/dashboard');
+        // Navigate based on user role
+        if (profile?.role === 'admin') {
+          navigate('/admin/dashboard');
+        } else if (profile?.role === 'management' || profile?.role === 'senior_partner' || profile?.role === 'partner') {
+          navigate('/dashboard/management');
+        } else if (profile?.role === 'staff' || profile?.role === 'lawyer') {
+          navigate('/dashboard/staff');
+        } else if (profile?.role === 'compliance_officer' || profile?.role === 'mlro') {
+          navigate('/dashboard/compliance');
+        } else {
+          navigate('/client/dashboard');
+        }
       }
     } catch (err) {
       if (err.message === 'Invalid login credentials') {
