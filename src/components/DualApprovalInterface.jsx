@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
+import LoadingSpinner from './LoadingSpinner';
 
 export default function DualApprovalInterface({ user, organizationId }) {
   const [requests, setRequests] = useState([]);
@@ -342,13 +343,7 @@ export default function DualApprovalInterface({ user, organizationId }) {
   };
 
   if (loading) {
-    return (
-      <div style={styles.container}>
-        <div style={{ textAlign: 'center', padding: '40px', color: '#64748b' }}>
-          Loading...
-        </div>
-      </div>
-    );
+    return <LoadingSpinner fullscreen text="Loading approval requests..." size={50} />;
   }
 
   if (!hasManagementAccess) {

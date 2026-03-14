@@ -16,23 +16,13 @@ import KYCClientDetails from './components/KYCClientDetails';
 import STRAlertDashboard from './components/STRAlertDashboard';
 import ControlAssessmentForm from './components/ControlAssessmentForm';
 import IntegratedClientRiskView from './components/IntegratedClientRiskView';
+import LoadingSpinner from './components/LoadingSpinner';
 
 function ProtectedRoute({ children, adminOnly = false, managementOnly = false, staffOnly = false, complianceOnly = false }) {
   const { user, profile, loading, signOut, isEarlyClient } = useAuth();
 
   if (loading) {
-    return (
-      <div style={{
-        minHeight: '100vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        fontSize: '18px',
-        color: '#718096'
-      }}>
-        Loading...
-      </div>
-    );
+    return <LoadingSpinner fullscreen text="Loading..." size={50} />;
   }
 
   if (!user) {
@@ -158,18 +148,7 @@ function RoleBasedRedirect() {
   const { profile, loading } = useAuth();
 
   if (loading) {
-    return (
-      <div style={{
-        minHeight: '100vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        fontSize: '18px',
-        color: '#718096'
-      }}>
-        Loading...
-      </div>
-    );
+    return <LoadingSpinner fullscreen text="Loading..." size={50} />;
   }
 
   // Route users to appropriate dashboard based on role
