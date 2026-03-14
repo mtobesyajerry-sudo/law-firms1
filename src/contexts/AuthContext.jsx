@@ -142,12 +142,20 @@ export const AuthProvider = ({ children }) => {
           return;
         }
 
-        if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+        if (event === 'SIGNED_IN') {
           setUser(newUser);
           if (newUser) {
             setLoading(true);
             await loadUserProfile(newUser.id);
             setLoading(false);
+          }
+        }
+
+        // Don't set loading state for token refresh - just silently update
+        if (event === 'TOKEN_REFRESHED') {
+          setUser(newUser);
+          if (newUser) {
+            await loadUserProfile(newUser.id);
           }
         }
       })();

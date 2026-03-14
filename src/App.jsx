@@ -172,26 +172,16 @@ function RoleBasedRedirect() {
     );
   }
 
-  console.log('=== ROLE BASED REDIRECT ===');
-  console.log('Profile:', profile);
-  console.log('Role:', profile?.role);
-  console.log('Email:', profile?.email);
-
   // Route users to appropriate dashboard based on role
   if (profile?.role === 'admin') {
-    console.log('>>> REDIRECTING TO /admin/dashboard <<<');
     return <Navigate to="/admin/dashboard" replace />;
   } else if (profile?.role === 'management' || profile?.role === 'senior_partner' || profile?.role === 'partner') {
-    console.log('>>> REDIRECTING TO /dashboard/management <<<');
     return <Navigate to="/dashboard/management" replace />;
   } else if (profile?.role === 'staff' || profile?.role === 'lawyer') {
-    console.log('>>> REDIRECTING TO /dashboard/staff <<<');
     return <Navigate to="/dashboard/staff" replace />;
   } else if (profile?.role === 'compliance_officer' || profile?.role === 'mlro') {
-    console.log('>>> REDIRECTING TO /dashboard/compliance <<<');
     return <Navigate to="/dashboard/compliance" replace />;
   } else {
-    console.log('>>> REDIRECTING TO /client/dashboard (default) <<<');
     // Default to client dashboard
     return <Navigate to="/client/dashboard" replace />;
   }
@@ -397,60 +387,14 @@ class ErrorBoundary extends React.Component {
 }
 
 export default function App() {
-  console.log('=== App component rendering ===');
-
-  // Add a safety check to ensure the component is actually running
-  React.useEffect(() => {
-    console.log('=== App component mounted ===');
-    return () => console.log('=== App component unmounting ===');
-  }, []);
-
-  try {
-    return (
-      <ErrorBoundary>
-        <Router>
-          <AuthProvider>
-            <AppRoutes />
-          </AuthProvider>
-        </Router>
-      </ErrorBoundary>
-    );
-  } catch (error) {
-    console.error('Error rendering App:', error);
-    return (
-      <div style={{
-        minHeight: '100vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '20px',
-        background: '#f7fafc'
-      }}>
-        <div style={{
-          maxWidth: '600px',
-          background: 'white',
-          padding: '40px',
-          borderRadius: '12px',
-          boxShadow: '0 4px 16px rgba(0,0,0,0.1)',
-          textAlign: 'center'
-        }}>
-          <h1 style={{ color: '#e53e3e', marginBottom: '16px' }}>App Initialization Error</h1>
-          <p style={{ color: '#4a5568', marginBottom: '16px' }}>
-            The application failed to initialize.
-          </p>
-          <pre style={{
-            background: '#f7fafc',
-            padding: '16px',
-            borderRadius: '8px',
-            overflow: 'auto',
-            textAlign: 'left',
-            fontSize: '12px',
-            color: '#2d3748'
-          }}>
-            {error.toString()}
-          </pre>
-        </div>
-      </div>
-    );
-  }
+  return (
+    <ErrorBoundary>
+      <Router>
+        <AuthProvider>
+          <AppRoutes />
+        </AuthProvider>
+      </Router>
+    </ErrorBoundary>
+  );
 }
+
