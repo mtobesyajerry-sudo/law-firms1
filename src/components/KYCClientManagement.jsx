@@ -90,16 +90,9 @@ export default function KYCClientManagement({ initialFilter = 'all' }) {
   });
 
   if (loading) {
-    // Only show fullscreen loading on initial app load
-    const isInitialLoad = !sessionStorage.getItem('app_mounted');
-    if (isInitialLoad) {
-      sessionStorage.setItem('app_mounted', 'true');
-      return <LoadingSpinner fullscreen text="Loading clients..." size={50} />;
-    }
-    // For subsequent loads, show inline loading
     return (
       <div style={{ padding: '40px', textAlign: 'center' }}>
-        <LoadingSpinner text="Loading clients..." size={40} />
+        <LoadingSpinner text="Loading clients..." size={30} />
       </div>
     );
   }

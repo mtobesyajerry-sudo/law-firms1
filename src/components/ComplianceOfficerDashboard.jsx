@@ -200,16 +200,9 @@ export default function ComplianceOfficerDashboard() {
   };
 
   if (loading) {
-    // Only show fullscreen loading on initial app load
-    const isInitialLoad = !sessionStorage.getItem('app_mounted');
-    if (isInitialLoad) {
-      sessionStorage.setItem('app_mounted', 'true');
-      return <LoadingSpinner fullscreen text="Loading compliance dashboard..." size={50} />;
-    }
-    // For subsequent loads, show inline loading
     return (
       <div style={{ padding: '40px', textAlign: 'center' }}>
-        <LoadingSpinner text="Loading compliance dashboard..." size={40} />
+        <LoadingSpinner text="Loading compliance dashboard..." size={30} />
       </div>
     );
   }
