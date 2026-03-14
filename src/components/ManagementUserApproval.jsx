@@ -4,7 +4,6 @@ import LoadingSpinner from './LoadingSpinner';
 
 export default function ManagementUserApproval({ user }) {
   const [registrations, setRegistrations] = useState([]);
-  const [newUserRequests, setNewUserRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(null);
 
@@ -15,25 +14,16 @@ export default function ManagementUserApproval({ user }) {
   const loadRegistrations = async () => {
     try {
       setLoading(true);
+      const { data, error } = await supabase
+        .from('management_user_registrations')
+        .select('*')
+        .order('created_at', { ascending: false });
 
-      // Load both management_user_registrations and new_user_requests
-      const [regData, newUserData] = await Promise.all([
-        supabase
-          .from('management_user_registrations')
-          .select('*')
-          .order('created_at', { ascending: false }),
-        supabase
-          .from('new_user_requests')
-          .select('*, organizations(name)')
-          .order('created_at', { ascending: false })
-      ]);
-
-      if (regData.error) throw regData.error;
-      if (newUserData.error) throw newUserData.error;
+      if (error) throw error;
 
       // Group by BRELA number to show firm context
       const grouped = {};
-      (regData.data || []).forEach(reg => {
+      (data || []).forEach(reg => {
         if (!grouped[reg.brela_registration_number]) {
           grouped[reg.brela_registration_number] = {
             law_firm_name: reg.law_firm_name,
@@ -45,7 +35,6 @@ export default function ManagementUserApproval({ user }) {
       });
 
       setRegistrations(Object.values(grouped));
-      setNewUserRequests(newUserData.data || []);
     } catch (error) {
       console.error('Error loading registrations:', error);
       alert('Error loading registrations: ' + error.message);
@@ -184,118 +173,10 @@ export default function ManagementUserApproval({ user }) {
     }
   };
 
-  const approveNewUserRequest = async (request) => {
-    if (!confirm(`Approve user request for ${request.full_name}?`)) {
-      return;
-    }
-
-    setProcessing(request.id);
-    try {
-      const CryptoJS = (await import('crypto-js')).default;
-      const ENCRYPTION_KEY = 'user-registration-encryption-key-2026';
-      let decryptedPassword = '';
-
-      try {
-        decryptedPassword = CryptoJS.AES.decrypt(
-          request.encrypted_temporary_password,
-          ENCRYPTION_KEY
-        ).toString(CryptoJS.enc.Utf8);
-
-        if (!decryptedPassword || decryptedPassword.length < 8) {
-          throw new Error('Password decryption failed or password too short');
-        }
-      } catch (decryptError) {
-        console.error('Password decryption error:', decryptError);
-        alert('Error: Failed to decrypt user password. The request may be corrupted. Please ask the user to resubmit the request.');
-        setProcessing(null);
-        return;
-      }
-
-      // Create the user account using edge function
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-user`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
-          },
-          body: JSON.stringify({
-            admin_user_id: user.id,
-            email: request.email,
-            password: decryptedPassword,
-            full_name: request.full_name,
-            role: request.requested_access || 'client',
-            organization_id: request.organization_id,
-            position: request.position
-          })
-        }
-      );
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to create user');
-      }
-
-      const { user: createdUser } = await response.json();
-      const userId = createdUser?.id;
-
-      // Update request status
-      const { error: updateError } = await supabase
-        .from('new_user_requests')
-        .update({
-          status: 'completed',
-          reviewed_by: user.id,
-          reviewed_at: new Date().toISOString(),
-          created_user_id: userId
-        })
-        .eq('id', request.id);
-
-      if (updateError) throw updateError;
-
-      alert(`User ${request.full_name} approved successfully! They can now log in with their credentials.`);
-      await loadRegistrations();
-    } catch (error) {
-      console.error('Error approving user request:', error);
-      alert('Error approving user request: ' + error.message);
-    } finally {
-      setProcessing(null);
-    }
-  };
-
-  const rejectNewUserRequest = async (request) => {
-    const reason = prompt('Enter rejection reason:');
-    if (!reason) return;
-
-    setProcessing(request.id);
-    try {
-      const { error } = await supabase
-        .from('new_user_requests')
-        .update({
-          status: 'rejected',
-          reviewed_by: user.id,
-          reviewed_at: new Date().toISOString(),
-          rejection_reason: reason
-        })
-        .eq('id', request.id);
-
-      if (error) throw error;
-
-      alert('User request rejected');
-      await loadRegistrations();
-    } catch (error) {
-      console.error('Error rejecting user request:', error);
-      alert('Error rejecting user request: ' + error.message);
-    } finally {
-      setProcessing(null);
-    }
-  };
-
   const getStatusBadge = (status) => {
     const badges = {
       pending: { bg: '#fef3c7', color: '#92400e', text: 'Pending' },
       approved: { bg: '#d1fae5', color: '#065f46', text: 'Approved' },
-      completed: { bg: '#d1fae5', color: '#065f46', text: 'Completed' },
       rejected: { bg: '#fee2e2', color: '#991b1b', text: 'Rejected' }
     };
     const badge = badges[status] || badges.pending;
@@ -454,131 +335,23 @@ export default function ManagementUserApproval({ user }) {
     return <LoadingSpinner fullPage />;
   }
 
-  const totalPendingCount =
-    registrations.reduce((sum, firm) =>
-      sum + firm.registrations.filter(r => r.registration_status === 'pending').length, 0
-    ) + newUserRequests.filter(r => r.status === 'pending').length;
-
   return (
     <div style={styles.container}>
       <div style={styles.header}>
-        <h2 style={styles.title}>User Registrations & Requests</h2>
+        <h2 style={styles.title}>Management User Registrations</h2>
         <p style={styles.subtitle}>
-          Review and approve user registrations and requests. {totalPendingCount > 0 && (
-            <strong style={{ color: '#d97706' }}>
-              {totalPendingCount} pending approval{totalPendingCount !== 1 ? 's' : ''}
-            </strong>
-          )}
+          Review and approve law firm management user registrations. Each law firm can have up to 3 management users.
+          The first approved user becomes the primary contact person.
         </p>
       </div>
 
-      {/* New User Requests Section */}
-      {newUserRequests.length > 0 && (
-        <div style={{ marginBottom: '40px' }}>
-          <h3 style={{
-            fontSize: '18px',
-            fontWeight: '700',
-            color: '#0a1929',
-            marginBottom: '16px',
-            paddingBottom: '12px',
-            borderBottom: '2px solid #e2e8f0'
-          }}>
-            New User Requests ({newUserRequests.filter(r => r.status === 'pending').length} pending)
-          </h3>
-          {newUserRequests.map(request => (
-            <div key={request.id} style={styles.userCard}>
-              <div style={styles.userHeader}>
-                <div style={{ flex: 1 }}>
-                  <div style={styles.userName}>{request.full_name}</div>
-                  <div style={styles.userEmail}>{request.email}</div>
-                  <div style={styles.userDetail}>Position: {request.position || 'Not specified'}</div>
-                  <div style={styles.userDetail}>
-                    Organization: {request.organizations?.name || 'Unknown'}
-                  </div>
-                  <div style={styles.userDetail}>
-                    Requested Access: {request.requested_access || 'client'}
-                  </div>
-                  {request.reason && (
-                    <div style={{
-                      marginTop: '8px',
-                      padding: '12px',
-                      background: '#f1f5f9',
-                      borderRadius: '8px',
-                      fontSize: '13px',
-                      color: '#475569'
-                    }}>
-                      <strong>Reason:</strong> {request.reason}
-                    </div>
-                  )}
-                  <div style={styles.userDetail}>
-                    Submitted: {new Date(request.created_at).toLocaleDateString()}
-                  </div>
-                </div>
-                <div>
-                  {getStatusBadge(request.status)}
-                </div>
-              </div>
-
-              {request.status === 'pending' && (
-                <div style={styles.buttonGroup}>
-                  <button
-                    onClick={() => approveNewUserRequest(request)}
-                    disabled={processing === request.id}
-                    style={styles.approveButton}
-                    onMouseEnter={(e) => e.currentTarget.style.background = '#059669'}
-                    onMouseLeave={(e) => e.currentTarget.style.background = '#10b981'}
-                  >
-                    {processing === request.id ? 'Processing...' : 'Approve'}
-                  </button>
-                  <button
-                    onClick={() => rejectNewUserRequest(request)}
-                    disabled={processing === request.id}
-                    style={styles.rejectButton}
-                    onMouseEnter={(e) => e.currentTarget.style.background = '#b91c1c'}
-                    onMouseLeave={(e) => e.currentTarget.style.background = '#dc2626'}
-                  >
-                    Reject
-                  </button>
-                </div>
-              )}
-
-              {request.status === 'rejected' && request.rejection_reason && (
-                <div style={{
-                  marginTop: '12px',
-                  padding: '12px',
-                  background: '#fee2e2',
-                  borderRadius: '8px',
-                  fontSize: '13px',
-                  color: '#991b1b'
-                }}>
-                  <strong>Rejection Reason:</strong> {request.rejection_reason}
-                </div>
-              )}
-            </div>
-          ))}
+      {registrations.length === 0 ? (
+        <div style={styles.emptyState}>
+          <div style={styles.emptyIcon}>📋</div>
+          <div>No registration requests found</div>
         </div>
-      )}
-
-      {/* Management User Registrations Section */}
-      <div>
-        <h3 style={{
-          fontSize: '18px',
-          fontWeight: '700',
-          color: '#0a1929',
-          marginBottom: '16px',
-          paddingBottom: '12px',
-          borderBottom: '2px solid #e2e8f0'
-        }}>
-          Law Firm Management Registrations
-        </h3>
-
-        {registrations.length === 0 ? (
-          <div style={styles.emptyState}>
-            <div style={styles.emptyIcon}>📋</div>
-            <div>No registration requests found</div>
-          </div>
-        ) : (
-          registrations.map(firm => (
+      ) : (
+        registrations.map(firm => (
           <div key={firm.brela} style={styles.firmCard}>
             <div style={styles.firmHeader}>
               <div>
@@ -650,7 +423,6 @@ export default function ManagementUserApproval({ user }) {
           </div>
         ))
       )}
-      </div>
     </div>
   );
 }

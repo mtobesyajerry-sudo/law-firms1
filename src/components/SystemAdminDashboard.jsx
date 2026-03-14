@@ -43,7 +43,6 @@ export default function SystemAdminDashboard() {
         { count: activeUsers },
         { count: pendingRegs },
         { count: pendingUpgrades },
-        { count: pendingNewUsers },
         { data: orgsData },
         { data: usersData },
         { data: activityData },
@@ -56,7 +55,6 @@ export default function SystemAdminDashboard() {
         supabase.from('user_profiles').select('*', { count: 'exact', head: true }).eq('is_active', true),
         supabase.from('management_user_registrations').select('*', { count: 'exact', head: true }).eq('registration_status', 'pending'),
         supabase.from('role_upgrade_requests').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
-        supabase.from('new_user_requests').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
         supabase.from('organizations').select('*').order('created_at', { ascending: false }).limit(10),
         supabase.from('user_profiles').select('*, organizations(name)').order('created_at', { ascending: false }).limit(20),
         supabase.from('audit_logs').select('*').order('created_at', { ascending: false }).limit(50),
@@ -71,7 +69,7 @@ export default function SystemAdminDashboard() {
         activeUsers: activeUsers || 0,
         pendingRegistrations: pendingRegs || 0,
         pendingRoleUpgrades: pendingUpgrades || 0,
-        pendingNewUserRequests: pendingNewUsers || 0,
+        pendingNewUserRequests: 0,
       });
 
       // Enrich organizations with management user count
