@@ -232,7 +232,8 @@ export default function FIUComplianceReport({ assessment, sectionScores, respons
   const getResidualRisk = () => {
     if (!riskBreakdown) return { rating: 'UNKNOWN', formula: '', narrative: '' };
 
-    const finalScore = riskBreakdown.residual_risk_score || 0;
+    // Use the CALCULATED residual risk (IR × (1 - CE)) not Module 3 score
+    const finalScore = riskBreakdown.calculated_residual_risk || 0;
     const ce = riskBreakdown.control_effectiveness || 0;
     const ir = riskBreakdown.inherent_risk_score || 0;
     const m2Score = riskBreakdown.technical_compliance_score || 0;
@@ -248,21 +249,21 @@ export default function FIUComplianceReport({ assessment, sectionScores, respons
     const tcRating = getTechnicalComplianceRating();
     const effRating = getEffectivenessRating();
 
-    let narrative = `The institution's inherent ML/TF/PF risk exposure is rated at ${ir.toFixed(2)} on a 1-5 scale. `;
-    narrative += `Through implementation of AML/CFT controls, the overall control effectiveness stands at ${cePercentage}%, `;
-    narrative += `combining technical compliance (Module 2: ${tcRating}, score ${m2Score.toFixed(2)}) weighted at 60% `;
-    narrative += `and operational effectiveness (Module 3: ${effRating}, score ${m3Score.toFixed(2)}) weighted at 40%. `;
-    narrative += `This results in a control gap of ${controlGap}%, meaning ${controlGap}% of the inherent risk remains unmitigated. `;
+    let narrative = `The institution's inherent ML/TF/PF risk exposure is rated at ${ir.toFixed(2)} on a 1-5 scale (${classify_risk_rating(ir).toUpperCase()}). `;
+    narrative += `The institution's technical compliance with AML/CFT requirements is assessed as ${tcRating} (Module 2 score: ${m2Score.toFixed(2)}), `;
+    narrative += `and operational effectiveness of controls in practice is assessed as ${effRating} (Module 3 score: ${m3Score.toFixed(2)}). `;
+    narrative += `Through implementation of documented AML/CFT controls, the overall control effectiveness based on actual implementation stands at ${cePercentage}%. `;
+    narrative += `This results in a control gap of ${controlGap}%, meaning ${controlGap}% of the inherent risk remains unmitigated after all controls are applied. `;
     narrative += `The residual risk after control mitigation is ${finalScore.toFixed(2)}, classified as ${rating.toUpperCase()} risk. `;
 
     if (ce < 0.40) {
-      narrative += `The low control effectiveness (below 40%) indicates significant deficiencies in either technical compliance or operational effectiveness that require immediate attention.`;
+      narrative += `The low control effectiveness (below 40%) indicates significant deficiencies in control implementation that require immediate attention and remediation.`;
     } else if (ce < 0.60) {
       narrative += `The moderate control effectiveness (40-60%) suggests controls are partially implemented but require strengthening to adequately mitigate inherent risks.`;
     } else if (ce < 0.75) {
-      narrative += `The good control effectiveness (60-75%) indicates controls are substantially implemented and operating, though opportunities for improvement remain.`;
+      narrative += `The good control effectiveness (60-75%) indicates controls are substantially implemented and operating effectively, though opportunities for improvement remain in specific areas.`;
     } else {
-      narrative += `The strong control effectiveness (above 75%) demonstrates robust controls that are effectively mitigating the majority of inherent risks.`;
+      narrative += `The strong control effectiveness (above 75%) demonstrates robust, well-implemented controls that are effectively mitigating the majority of inherent risks.`;
     }
 
     return {
@@ -927,7 +928,7 @@ export default function FIUComplianceReport({ assessment, sectionScores, respons
             spacing: { before: 400, after: 200 }
           }),
           new Paragraph({
-            text: 'Residual risk represents the remaining ML/TF/PF risk exposure after applying all control measures and mitigations. While inherent risk reflects the institution\'s exposure before any controls (Module 1), residual risk accounts for how effectively those controls reduce the exposure (Modules 2 and 3). The calculation follows FATF risk assessment methodology, which combines the inherent risk score with control effectiveness scores to determine the net risk remaining after controls are applied. The formula is: Residual Risk = (Inherent Risk Score + Technical Compliance Score + Effectiveness Score) / 3. This approach recognizes that strong controls (low Module 2 and 3 scores) significantly reduce high inherent risks, while weak controls (high Module 2 and 3 scores) leave institutions highly exposed even with moderate inherent risks. Residual risk ratings guide resource allocation, strategic planning, and regulatory capital decisions. Institutions with HIGH or VERY HIGH residual risk require immediate remediation, enhanced monitoring, and potentially supervisory intervention. Those with MEDIUM residual risk should strengthen specific control areas. Institutions with LOW or VERY LOW residual risk demonstrate mature, effective AML/CFT frameworks appropriate to their risk profile. The residual risk rating is the most critical output of this assessment, as it represents the institution\'s true remaining ML/TF/PF vulnerability after all defenses are considered.',
+            text: 'Residual risk represents the remaining ML/TF/PF risk exposure after applying all control measures and mitigations. While inherent risk (Module 1) reflects the institution\'s exposure before considering any controls, residual risk accounts for how effectively implemented controls reduce that exposure. The calculation follows FATF risk assessment methodology using the formula: Residual Risk = Inherent Risk × (1 - Control Effectiveness). Control effectiveness is calculated from Module 2 responses, measuring the actual implementation level of required AML/CFT controls (0% = no controls, 100% = fully implemented). This approach recognizes that strong, well-implemented controls (high control effectiveness) significantly reduce inherent risks, while weak or absent controls (low control effectiveness) leave institutions highly exposed. Module 2 measures technical compliance (whether controls are documented and in place), while Module 3 measures operational effectiveness (whether controls operate consistently and achieve intended outcomes). Residual risk ratings guide resource allocation, strategic planning, and regulatory capital decisions. Institutions with HIGH or VERY HIGH residual risk require immediate remediation and enhanced monitoring. Those with MODERATE residual risk should strengthen specific control areas. Institutions with LOW or VERY LOW residual risk demonstrate effective AML/CFT frameworks appropriate to their risk profile.',
             alignment: AlignmentType.JUSTIFIED,
             spacing: { after: 200 }
           }),
@@ -949,7 +950,7 @@ export default function FIUComplianceReport({ assessment, sectionScores, respons
             spacing: { after: 200 }
           }),
           new Paragraph({
-            text: 'Where: CE (Control Effectiveness) = (Technical Compliance × 60%) + (Operational Effectiveness × 40%)',
+            text: 'Where: CE (Control Effectiveness) = Average implementation level of all Module 2 controls (0.0 - 1.0 scale)',
             italics: true,
             alignment: AlignmentType.LEFT,
             spacing: { after: 300 }
@@ -1426,12 +1427,12 @@ export default function FIUComplianceReport({ assessment, sectionScores, respons
 
           <h2 style={styles.sectionHeading}>3. RESIDUAL ML/TF/PF RISK ASSESSMENT</h2>
           <p style={styles.justifiedText}>
-            Residual risk represents the remaining ML/TF/PF risk exposure after applying all control measures and mitigations. While inherent risk reflects the institution's exposure before any controls (Module 1), residual risk accounts for how effectively those controls reduce the exposure (Modules 2 and 3). The calculation follows FATF risk assessment methodology, which combines the inherent risk score with control effectiveness scores to determine the net risk remaining after controls are applied. The formula is: Residual Risk = (Inherent Risk Score + Technical Compliance Score + Effectiveness Score) / 3. This approach recognizes that strong controls (low Module 2 and 3 scores) significantly reduce high inherent risks, while weak controls (high Module 2 and 3 scores) leave institutions highly exposed even with moderate inherent risks. Residual risk ratings guide resource allocation, strategic planning, and regulatory capital decisions. Institutions with HIGH or VERY HIGH residual risk require immediate remediation, enhanced monitoring, and potentially supervisory intervention. Those with MEDIUM residual risk should strengthen specific control areas. Institutions with LOW or VERY LOW residual risk demonstrate mature, effective AML/CFT frameworks appropriate to their risk profile. The residual risk rating is the most critical output of this assessment, as it represents the institution's true remaining ML/TF/PF vulnerability after all defenses are considered.
+            Residual risk represents the remaining ML/TF/PF risk exposure after applying all control measures and mitigations. While inherent risk (Module 1) reflects the institution's exposure before considering any controls, residual risk accounts for how effectively implemented controls reduce that exposure. The calculation follows FATF risk assessment methodology using the formula: Residual Risk = Inherent Risk × (1 - Control Effectiveness). Control effectiveness is calculated from Module 2 responses, measuring the actual implementation level of required AML/CFT controls (0% = no controls, 100% = fully implemented). This approach recognizes that strong, well-implemented controls (high control effectiveness) significantly reduce inherent risks, while weak or absent controls (low control effectiveness) leave institutions highly exposed. Module 2 measures technical compliance (whether controls are documented and in place), while Module 3 measures operational effectiveness (whether controls operate consistently and achieve intended outcomes). Residual risk ratings guide resource allocation, strategic planning, and regulatory capital decisions. Institutions with HIGH or VERY HIGH residual risk require immediate remediation and enhanced monitoring. Those with MODERATE residual risk should strengthen specific control areas. Institutions with LOW or VERY LOW residual risk demonstrate effective AML/CFT frameworks appropriate to their risk profile.
           </p>
           <p style={styles.boldText}>Overall Residual ML/TF/PF Risk: {residualRisk.rating}</p>
           <p style={styles.boldText}>FATF Risk Calculation Formula:</p>
           <p style={styles.justifiedText}>{residualRisk.formula}</p>
-          <p style={styles.italicText}>Where: CE (Control Effectiveness) = (Technical Compliance × 60%) + (Operational Effectiveness × 40%)</p>
+          <p style={styles.italicText}>Where: CE (Control Effectiveness) = Average implementation level of all Module 2 controls (0.0 - 1.0 scale)</p>
           <p style={styles.boldText}>Risk Assessment Narrative:</p>
           <p style={styles.justifiedText}>{residualRisk.narrative}</p>
 
