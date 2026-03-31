@@ -69,12 +69,12 @@ export default function SecurityDashboard() {
       supabase.from('login_history').select('success', { count: 'exact', head: true }),
       supabase.from('user_profiles').select('*', { count: 'exact', head: true }),
       supabase.from('user_sessions').select('*', { count: 'exact', head: true }).eq('is_active', true),
-      supabase.from('mfa_secrets').select('*', { count: 'exact', head: true }).eq('enabled', true),
+      supabase.from('mfa_settings').select('*', { count: 'exact', head: true }).eq('enabled', true),
       supabase.from('audit_logs').select('*', { count: 'exact', head: true }),
       supabase.from('document_access_logs').select('*', { count: 'exact', head: true }),
-      supabase.from('password_reset_tokens').select('*', { count: 'exact', head: true }),
-      supabase.from('data_retention_policies').select('*', { count: 'exact', head: true }),
-      supabase.from('suspicious_activity_alerts').select('*', { count: 'exact', head: true }).eq('resolved', false)
+      supabase.from('password_security').select('*', { count: 'exact', head: true }),
+      supabase.from('data_retention_policies').select('*', { count: 'exact', head: true }).eq('is_active', true),
+      supabase.from('suspicious_activity_alerts').select('*', { count: 'exact', head: true }).eq('status', 'open')
     ]);
 
     const { count: failedCount } = await supabase
@@ -112,7 +112,7 @@ export default function SecurityDashboard() {
     const { data, error } = await supabase
       .from('suspicious_activity_alerts')
       .select('*')
-      .eq('resolved', false)
+      .eq('status', 'open')
       .order('created_at', { ascending: false })
       .limit(20);
 
@@ -165,7 +165,7 @@ export default function SecurityDashboard() {
     const { error } = await supabase
       .from('suspicious_activity_alerts')
       .update({
-        resolved: true,
+        status: 'resolved',
         resolved_by: profile?.id,
         resolved_at: new Date().toISOString()
       })

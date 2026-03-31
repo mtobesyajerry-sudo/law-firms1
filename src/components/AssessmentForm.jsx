@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
 import LoadingSpinner from './LoadingSpinner';
+import { auditService } from '../services/auditService';
 import {
   responseOptions,
   riskRatingOptions,
@@ -510,6 +511,12 @@ export default function AssessmentForm() {
         console.error('Database error:', error);
         throw error;
       }
+
+      await auditService.logAssessmentAction('completed', id, {
+        overall_risk_rating: updatePayload.overall_risk_rating,
+        overall_risk_score: updatePayload.overall_risk_score,
+        framework_type: frameworkType
+      });
 
       console.log('Assessment completed successfully');
       navigate(`/report/${id}`);

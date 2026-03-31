@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, useMemo, useCallback } from 'react';
 import { supabase } from '../supabaseClient';
+import { loginTrackingService } from '../services/loginTrackingService';
 
 const AuthContext = createContext({});
 
@@ -186,10 +187,13 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const signOut = useCallback(async () => {
+    if (user?.id) {
+      await loginTrackingService.endSession(user.id);
+    }
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
     setProfile(null);
-  }, []);
+  }, [user]);
 
   const hasActiveSubscription = useMemo(() => {
     if (!profile) return false;

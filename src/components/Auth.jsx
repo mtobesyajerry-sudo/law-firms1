@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../supabaseClient';
 import { institutionCategories } from '../data/assessmentData';
+import { loginTrackingService } from '../services/loginTrackingService';
+import { auditService } from '../services/auditService';
 
 export default function Auth() {
   const [mode, setMode] = useState('login');
@@ -118,7 +120,14 @@ export default function Auth() {
           }
         }
 
-        // Navigate based on user role
+        await loginTrackingService.logLoginAttempt(email, true, user, null, false);
+        await loginTrackingService.createSession(user.id);
+        await auditService.logSecurityEvent(
+          'user_login_success',
+          'info',
+          `User ${email} logged in successfully`
+        );
+
         if (profile?.role === 'admin') {
           navigate('/admin/dashboard');
         } else if (profile?.role === 'management' || profile?.role === 'senior_partner' || profile?.role === 'partner') {
@@ -132,6 +141,14 @@ export default function Auth() {
         }
       }
     } catch (err) {
+      await loginTrackingService.logLoginAttempt(email, false, null, err.message, false);
+      await auditService.logSecurityEvent(
+        'user_login_failure',
+        'warning',
+        `Failed login attempt for ${email}`,
+        { reason: err.message }
+      );
+
       if (err.message === 'Invalid login credentials') {
         const { data: pendingRequest } = await supabase
           .from('management_user_registrations')
