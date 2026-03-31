@@ -456,6 +456,21 @@ export default function DetailedAssessmentReport({ assessment, sectionScores = [
               const isComplianceModule = sectionCodeLower.includes('module2') || sectionCodeLower === '2' || /\bm2\b/i.test(sectionCode);
               const isEffectivenessModule = sectionCodeLower.includes('module3') || sectionCodeLower === '3' || /\bm3\b/i.test(sectionCode);
 
+              console.log(`=== SECTION: ${sectionCode} ===`);
+              console.log('Section Code Lower:', sectionCodeLower);
+              console.log('Module Type Detection:', {
+                isInherentRiskModule,
+                isComplianceModule,
+                isEffectivenessModule
+              });
+              console.log('Response Counts:', {
+                total: sectionResponses.length,
+                yes: yesResponses.length,
+                no: noResponses.length,
+                partial: partialResponses.length
+              });
+              console.log('Five Point Score:', fivePointScore);
+
               // Calculate percentage based on module type
               let percentageScore;
 
@@ -464,6 +479,7 @@ export default function DetailedAssessmentReport({ assessment, sectionScores = [
                 // Higher score = higher risk exposure
                 const clampedScore = Math.max(1, Math.min(5, fivePointScore));
                 percentageScore = ((clampedScore - 1) / 4 * 100).toFixed(0);
+                console.log('Module 1 Calculation:', { clampedScore, percentageScore });
               } else {
                 // Module 2 & 3: Control Effectiveness - calculate from actual responses
                 // Effectiveness = (Fully Effective / Total) × 100
@@ -475,6 +491,7 @@ export default function DetailedAssessmentReport({ assessment, sectionScores = [
                 } else {
                   percentageScore = ((effectiveControls / totalResponses) * 100).toFixed(0);
                 }
+                console.log('Module 2/3 Calculation:', { totalResponses, effectiveControls, percentageScore });
               }
 
               return (
