@@ -268,6 +268,33 @@ export default function SystemAdminDashboard() {
         </div>
         <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
           <button
+            onClick={() => navigate('/policy-templates')}
+            style={{
+              padding: '10px 16px',
+              background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
+              border: '2px solid #3b82f6',
+              borderRadius: '8px',
+              color: 'white',
+              fontSize: '13px',
+              fontWeight: '600',
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+              boxShadow: '0 2px 8px rgba(59, 130, 246, 0.3)'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = 'linear-gradient(135deg, #2563eb, #1d4ed8)';
+              e.currentTarget.style.transform = 'translateY(-1px)';
+              e.currentTarget.style.boxShadow = '0 4px 12px rgba(59, 130, 246, 0.4)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = 'linear-gradient(135deg, #3b82f6, #2563eb)';
+              e.currentTarget.style.transform = 'translateY(0)';
+              e.currentTarget.style.boxShadow = '0 2px 8px rgba(59, 130, 246, 0.3)';
+            }}
+          >
+            📋 Policy Templates
+          </button>
+          <button
             onClick={signOut}
             style={{
               padding: '10px 16px',
