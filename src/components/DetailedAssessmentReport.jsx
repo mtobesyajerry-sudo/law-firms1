@@ -449,18 +449,31 @@ export default function DetailedAssessmentReport({ assessment, sectionScores = [
               const yesResponses = sectionResponses.filter(r => r?.response && (r.response.toLowerCase().includes('yes') || r.response.toLowerCase().includes('full')));
 
               const sectionCode = section?.code || '';
-              const isInherentRiskModule = sectionCode.toLowerCase().startsWith('module1') || sectionCode.startsWith('1');
-              const isComplianceModule = sectionCode.toLowerCase().startsWith('module2') || sectionCode.startsWith('2');
-              const isEffectivenessModule = sectionCode.toLowerCase().startsWith('module3') || sectionCode.startsWith('3');
+              const sectionCodeLower = sectionCode.toLowerCase();
+              const isInherentRiskModule = sectionCodeLower.includes('module1') || sectionCode.startsWith('1');
+              const isComplianceModule = sectionCodeLower.includes('module2') || sectionCode.startsWith('2');
+              const isEffectivenessModule = sectionCodeLower.includes('module3') || sectionCode.startsWith('3');
 
-              // Convert 1-5 risk score to percentage
-              // For inherent risk: higher score = higher risk exposure %
-              // For controls: higher score = lower effectiveness %, so invert
-              // CRITICAL: Clamp score between 1 and 5 to prevent invalid percentages
-              const clampedScore = Math.max(1, Math.min(5, fivePointScore));
-              const percentageScore = isInherentRiskModule
-                ? ((clampedScore - 1) / 4 * 100).toFixed(0)
-                : ((5 - clampedScore) / 4 * 100).toFixed(0);
+              // Calculate percentage based on module type
+              let percentageScore;
+
+              if (isInherentRiskModule) {
+                // Module 1: Risk Exposure Level - convert 1-5 score to percentage
+                // Higher score = higher risk exposure
+                const clampedScore = Math.max(1, Math.min(5, fivePointScore));
+                percentageScore = ((clampedScore - 1) / 4 * 100).toFixed(0);
+              } else {
+                // Module 2 & 3: Control Effectiveness - calculate from actual responses
+                // Effectiveness = (Fully Effective / Total) × 100
+                const totalResponses = sectionResponses.length;
+                const effectiveControls = yesResponses.length;
+
+                if (totalResponses === 0) {
+                  percentageScore = "0";
+                } else {
+                  percentageScore = ((effectiveControls / totalResponses) * 100).toFixed(0);
+                }
+              }
 
               return (
                 <div key={section.code} style={styles.analysisBlock}>
@@ -524,9 +537,10 @@ export default function DetailedAssessmentReport({ assessment, sectionScores = [
                     <p style={styles.analysisParagraph}>
                       {(() => {
                         const sectionCode = section?.code || '';
-                        const isInherentRisk = sectionCode.toLowerCase().startsWith('module1') || sectionCode.startsWith('1');
-                        const isCompliance = sectionCode.toLowerCase().startsWith('module2') || sectionCode.startsWith('2');
-                        const isEffectiveness = sectionCode.toLowerCase().startsWith('module3') || sectionCode.startsWith('3');
+                        const sectionCodeLower = sectionCode.toLowerCase();
+                        const isInherentRisk = sectionCodeLower.includes('module1') || sectionCode.startsWith('1');
+                        const isCompliance = sectionCodeLower.includes('module2') || sectionCode.startsWith('2');
+                        const isEffectiveness = sectionCodeLower.includes('module3') || sectionCode.startsWith('3');
 
                         if (fivePointScore < 1.5) {
                           if (isInherentRisk) {
