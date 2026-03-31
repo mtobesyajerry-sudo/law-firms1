@@ -100,6 +100,9 @@ export default function DetailedAssessmentReport({ assessment, sectionScores = [
         <div style={styles.document}>
           <div style={styles.cover}>
             <h1 style={styles.coverTitle}>AML/CFT Detailed Assessment Report</h1>
+            <div style={{fontSize: '12px', color: '#059669', marginTop: '8px', fontWeight: '600'}}>
+              ✓ Version 2.0 - Module-Specific Metrics Active
+            </div>
             <div style={styles.coverInfo}>
               <p style={styles.orgName}>{assessment.organizations?.name}</p>
               <p>{getInstitutionLabel(assessment.dnfbp_category)}</p>
