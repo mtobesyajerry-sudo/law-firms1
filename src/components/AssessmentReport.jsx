@@ -786,10 +786,12 @@ export default function AssessmentReport() {
                   <p style={{margin: '0 0 4px 0', fontSize: '12px', color: '#64748b', fontWeight: '600'}}>CONTROL EFFECTIVENESS</p>
                   <p style={{margin: 0, fontSize: '24px', fontWeight: '700', color: '#10b981'}}>
                     {(() => {
-                      const complianceEffectiveness = ((5 - assessment.module_2_score) / 4) * 100;
-                      const effectivenessScore = ((5 - assessment.module_3_score) / 4) * 100;
+                      const clampedModule2 = Math.max(1, Math.min(5, assessment.module_2_score));
+                      const clampedModule3 = Math.max(1, Math.min(5, assessment.module_3_score));
+                      const complianceEffectiveness = ((5 - clampedModule2) / 4) * 100;
+                      const effectivenessScore = ((5 - clampedModule3) / 4) * 100;
                       const overall = (complianceEffectiveness * 0.6 + effectivenessScore * 0.4);
-                      return overall.toFixed(0);
+                      return Math.min(100, Math.max(0, overall)).toFixed(0);
                     })()}%
                   </p>
                   <p style={{margin: '4px 0 0 0', fontSize: '12px', color: '#64748b'}}>
@@ -846,8 +848,11 @@ export default function AssessmentReport() {
                   else if (residualRisk >= 1.5) riskRating = 'Moderate';
 
                   // Convert 1-5 scores to effectiveness percentages (lower score = better)
-                  const complianceEffectiveness = ((5 - complianceScore) / 4 * 100).toFixed(0);
-                  const effectivenessPercent = ((5 - effectivenessScore) / 4 * 100).toFixed(0);
+                  // Clamp scores to prevent invalid percentages
+                  const clampedCompliance = Math.max(1, Math.min(5, complianceScore));
+                  const clampedEffectiveness = Math.max(1, Math.min(5, effectivenessScore));
+                  const complianceEffectiveness = Math.min(100, ((5 - clampedCompliance) / 4 * 100)).toFixed(0);
+                  const effectivenessPercent = Math.min(100, ((5 - clampedEffectiveness) / 4 * 100)).toFixed(0);
 
                   // Classify inherent risk
                   const inherentRiskLevel = inherentRisk < 1.5 ? 'low' : inherentRisk < 2.5 ? 'moderate' : inherentRisk < 3.5 ? 'high' : 'very high';

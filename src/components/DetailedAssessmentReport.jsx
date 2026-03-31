@@ -456,9 +456,11 @@ export default function DetailedAssessmentReport({ assessment, sectionScores = [
               // Convert 1-5 risk score to percentage
               // For inherent risk: higher score = higher risk exposure %
               // For controls: higher score = lower effectiveness %, so invert
+              // CRITICAL: Clamp score between 1 and 5 to prevent invalid percentages
+              const clampedScore = Math.max(1, Math.min(5, fivePointScore));
               const percentageScore = isInherentRiskModule
-                ? ((fivePointScore - 1) / 4 * 100).toFixed(0)
-                : ((5 - fivePointScore) / 4 * 100).toFixed(0);
+                ? ((clampedScore - 1) / 4 * 100).toFixed(0)
+                : ((5 - clampedScore) / 4 * 100).toFixed(0);
 
               return (
                 <div key={section.code} style={styles.analysisBlock}>
