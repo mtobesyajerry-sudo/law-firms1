@@ -6,23 +6,66 @@
  */
 
 /**
- * Generate Customer Inherent Risk Narrative (Module 1 / Section A1)
+ * Generate Customer Inherent Risk Narrative (Module 1 / Section A2 - Client Types)
  * @param {string} rating - Risk rating (Low, Moderate, High, Very High)
  * @param {Array} responses - Assessment responses array
  * @returns {string} Professional narrative
  */
 export function generateCustomerRiskNarrative(rating, responses) {
-  const a1Responses = responses.filter(r => r.question_code?.startsWith('A1.'));
+  const a1Responses = responses.filter(r => r.question_code?.startsWith('A2.'));
 
   if (a1Responses.length === 0) {
-    return `The institution's customer inherent risk profile has been assessed and determined to be ${rating}. This assessment considers the institution's customer base, ownership structures, political exposure, sectoral risk, and customer behavior patterns. No detailed service exposure data was available for this assessment.`;
+    return `The institution's customer inherent risk profile has been assessed and determined to be ${rating}. This assessment considers the institution's customer base, client types, ownership structures, political exposure, sectoral risk, and customer behavior patterns. No detailed client exposure data was available for this assessment.`;
   }
 
-  const highRiskServices = a1Responses.filter(r => r.response?.toLowerCase() === 'yes');
-  const partialRiskServices = a1Responses.filter(r => r.response?.toLowerCase() === 'partially' || r.response?.toLowerCase() === 'partial');
-  const noRiskServices = a1Responses.filter(r => r.response?.toLowerCase() === 'no');
+  const highRiskClients = a1Responses.filter(r => r.response?.toLowerCase() === 'yes');
+  const partialRiskClients = a1Responses.filter(r => r.response?.toLowerCase() === 'partially' || r.response?.toLowerCase() === 'partial');
 
-  let narrative = `The institution's customer inherent risk profile has been comprehensively assessed and determined to be ${rating}. This assessment is informed by the institution's confirmed provision of ${highRiskServices.length} higher-risk service ${highRiskServices.length === 1 ? 'category' : 'categories'}`;
+  let narrative = `The institution's customer inherent risk profile has been comprehensively assessed and determined to be ${rating}. This assessment evaluates exposure arising from client types, ownership structures, political exposure, sectoral risk factors, and customer behavior patterns.`;
+
+  narrative += `\n\n`;
+
+  if (highRiskClients.length > 0) {
+    const clientList = highRiskClients.slice(0, 7).map(r => {
+      const text = r.question_text || '';
+      return text.replace(/^Does the (firm|institution) (serve |provide services to |assist |deal with )?/i, '').replace(/\?$/, '').toLowerCase();
+    }).join('; ');
+
+    narrative += `The assessment identified ${highRiskClients.length} client profile or customer risk ${highRiskClients.length === 1 ? 'characteristic' : 'characteristics'} that ${highRiskClients.length === 1 ? 'presents' : 'present'} elevated inherent risk: ${clientList}. These client types present heightened money laundering, terrorist financing, or proliferation financing vulnerabilities due to factors such as complex ownership structures, cross-border elements, involvement in cash-intensive sectors, political exposure, geographic risk factors, or potential links to higher-risk activities.`;
+  } else {
+    narrative += `The institution serves predominantly lower-risk client segments with standard ownership structures, transparent beneficial ownership, minimal political exposure, and operations in lower-risk sectors and jurisdictions.`;
+  }
+
+  narrative += `\n\n`;
+
+  if (partialRiskClients.length > 0) {
+    narrative += `Additionally, the institution has partial or limited exposure to ${partialRiskClients.length} client ${partialRiskClients.length === 1 ? 'category' : 'categories'}, which requires case-by-case risk assessment and proportionate due diligence measures. `;
+  }
+
+  narrative += `The ${rating} customer inherent risk rating necessitates implementation of robust risk-based customer due diligence procedures, enhanced screening and monitoring mechanisms for higher-risk client segments, comprehensive source of funds and source of wealth verification, and appropriate mitigation controls commensurate with the identified risk exposures. The institution is required to maintain heightened vigilance, conduct enhanced ongoing monitoring, and ensure that adequate resources, systems, and expertise are deployed to effectively manage and mitigate these inherent customer risk factors in accordance with regulatory expectations and international best practices.`;
+
+  return narrative;
+}
+
+/**
+ * Generate Product/Service Inherent Risk Narrative (Module 1 / Section A1 - Services)
+ * @param {string} rating - Risk rating (Low, Moderate, High, Very High)
+ * @param {Array} responses - Assessment responses array
+ * @returns {string} Professional narrative
+ */
+export function generateProductRiskNarrative(rating, responses) {
+  const a2Responses = responses.filter(r => r.question_code?.startsWith('A1.'));
+
+  if (a2Responses.length === 0) {
+    return `The institution's product and service inherent risk profile has been assessed and determined to be ${rating}. This assessment evaluates exposure arising from the nature, complexity, and characteristics of products and services offered. No detailed client profile exposure data was available for this assessment.`;
+  }
+
+  const highRiskServices = a2Responses.filter(r => r.response?.toLowerCase() === 'yes');
+  const partialRiskServices = a2Responses.filter(r => r.response?.toLowerCase() === 'partially' || r.response?.toLowerCase() === 'partial');
+
+  let narrative = `The institution's product and service inherent risk profile has been comprehensively assessed and determined to be ${rating}. This assessment evaluates exposure arising from the nature, features, complexity, opacity, cross-border elements, and cash-intensity of products and services offered by the institution.`;
+
+  narrative += `\n\n`;
 
   if (highRiskServices.length > 0) {
     const serviceList = highRiskServices.slice(0, 7).map(r => {
@@ -30,15 +73,7 @@ export function generateCustomerRiskNarrative(rating, responses) {
       return text.replace(/^Does the (firm|institution) (provide |assist clients in |assist in |act as |create, operate, or manage |handle )?/i, '').replace(/\?$/, '').toLowerCase();
     }).join('; ');
 
-    narrative += `, specifically including: ${serviceList}.`;
-  } else {
-    narrative += `.`;
-  }
-
-  narrative += `\n\n`;
-
-  if (highRiskServices.length > 0) {
-    narrative += `These service offerings are designated as higher-risk under the Financial Action Task Force (FATF) Recommendations and Tanzania's Anti-Money Laundering and Counter-Terrorist Financing regulatory framework due to their inherent susceptibility to money laundering, terrorist financing, and proliferation financing risks. Such services typically involve the handling of client funds, creation or management of legal entities and arrangements, facilitation of property or asset transfers, and provision of professional intermediation that can potentially be exploited to obscure the beneficial ownership, source, or destination of illicit proceeds.`;
+    narrative += `The assessment identified ${highRiskServices.length} higher-risk service ${highRiskServices.length === 1 ? 'offering' : 'offerings'}, specifically including: ${serviceList}. These service offerings are designated as higher-risk under the Financial Action Task Force (FATF) Recommendations and Tanzania's Anti-Money Laundering and Counter-Terrorist Financing regulatory framework due to their inherent susceptibility to money laundering, terrorist financing, and proliferation financing risks. Such services typically involve the handling of client funds, creation or management of legal entities and arrangements, facilitation of property or asset transfers, and provision of professional intermediation that can potentially be exploited to obscure the beneficial ownership, source, or destination of illicit proceeds.`;
   } else {
     narrative += `The institution provides predominantly lower-risk services with minimal exposure to higher-risk service categories that present elevated money laundering or terrorist financing vulnerabilities.`;
   }
@@ -49,62 +84,7 @@ export function generateCustomerRiskNarrative(rating, responses) {
     narrative += `Additionally, the institution has partial or limited exposure to ${partialRiskServices.length} service ${partialRiskServices.length === 1 ? 'area' : 'areas'}, which requires case-by-case risk assessment and proportionate due diligence measures. `;
   }
 
-  narrative += `The ${rating} customer inherent risk rating necessitates implementation of robust risk-based customer due diligence procedures, enhanced screening and monitoring mechanisms, comprehensive source of funds and source of wealth verification, and appropriate mitigation controls commensurate with the identified risk exposures. The institution is required to maintain heightened vigilance, conduct enhanced ongoing monitoring, and ensure that adequate resources, systems, and expertise are deployed to effectively manage and mitigate these inherent customer risk factors in accordance with regulatory expectations and international best practices.`;
-
-  return narrative;
-}
-
-/**
- * Generate Product/Service Inherent Risk Narrative (Module 1 / Section A2)
- * @param {string} rating - Risk rating (Low, Moderate, High, Very High)
- * @param {Array} responses - Assessment responses array
- * @returns {string} Professional narrative
- */
-export function generateProductRiskNarrative(rating, responses) {
-  const a2Responses = responses.filter(r => r.question_code?.startsWith('A2.'));
-
-  if (a2Responses.length === 0) {
-    return `The institution's product and service inherent risk profile has been assessed and determined to be ${rating}. This assessment evaluates exposure arising from the nature, complexity, and characteristics of products and services offered. No detailed client profile exposure data was available for this assessment.`;
-  }
-
-  const riskExposures = a2Responses.filter(r => r.response?.toLowerCase() === 'yes' || r.response?.toLowerCase() === 'partially');
-  const lowRiskAreas = a2Responses.filter(r => r.response?.toLowerCase() === 'no');
-
-  let narrative = `The institution's product and service inherent risk profile has been comprehensively assessed and determined to be ${rating}. This assessment evaluates exposure arising from the nature, complexity, opacity, cross-border elements, and cash-intensity of products and services offered, as well as the characteristics of the institution's client base.`;
-
-  narrative += `\n\n`;
-
-  if (riskExposures.length > 0) {
-    const clientTypes = riskExposures.slice(0, 5).map(r => {
-      const text = r.question_text || '';
-      return text.replace(/^Does the (firm|institution) (serve |provide services to |assist |deal with )?/i, '').replace(/\?$/, '').toLowerCase();
-    }).join('; ');
-
-    narrative += `The assessment identified ${riskExposures.length} client profile or product risk ${riskExposures.length === 1 ? 'characteristic' : 'characteristics'} that ${riskExposures.length === 1 ? 'presents' : 'present'} elevated inherent risk: ${clientTypes}. These client types or service characteristics present heightened money laundering, terrorist financing, or proliferation financing vulnerabilities due to factors such as complex ownership structures, cross-border elements, involvement in cash-intensive sectors, political exposure, geographic risk factors, or potential links to higher-risk activities.`;
-
-    const pepsExposure = a2Responses.find(r => (r.question_text?.toLowerCase().includes('politically exposed') || r.question_text?.toLowerCase().includes('pep')) && (r.response?.toLowerCase() === 'yes' || r.response?.toLowerCase() === 'partially'));
-    const foreignExposure = a2Responses.find(r => (r.question_text?.toLowerCase().includes('non-resident') || r.question_text?.toLowerCase().includes('foreign')) && (r.response?.toLowerCase() === 'yes' || r.response?.toLowerCase() === 'partially'));
-    const cashIntensive = a2Responses.find(r => r.question_text?.toLowerCase().includes('cash-intensive') && (r.response?.toLowerCase() === 'yes' || r.response?.toLowerCase() === 'partially'));
-
-    narrative += `\n\n`;
-
-    if (pepsExposure) {
-      narrative += `The institution's exposure to Politically Exposed Persons (PEPs) requires implementation of enhanced due diligence procedures including senior management approval for establishing or continuing business relationships, enhanced measures to establish source of wealth and source of funds, and ongoing enhanced monitoring of the business relationship. `;
-    }
-
-    if (foreignExposure) {
-      narrative += `The institution's provision of services to non-resident or foreign clients necessitates enhanced due diligence procedures, enhanced verification of identity and address, assessment of jurisdiction-specific risks, and heightened ongoing monitoring. `;
-    }
-
-    if (cashIntensive) {
-      narrative += `The institution's exposure to cash-intensive business sectors requires enhanced scrutiny, source of funds verification, monitoring of transaction patterns, and appropriate controls to detect potential cash-based money laundering schemes. `;
-    }
-  } else {
-    narrative += `The assessment confirms that the institution serves predominantly low-risk domestic clients with transparent ownership structures, verifiable sources of funds, clear commercial rationale, and limited exposure to higher-risk client categories or service characteristics.`;
-  }
-
-  narrative += `\n\n`;
-  narrative += `The ${rating} product and service inherent risk rating requires implementation of proportionate customer acceptance policies, risk-based due diligence procedures commensurate with identified risk factors, and ongoing monitoring mechanisms to detect unusual or suspicious activity patterns. The institution must ensure that its risk management framework appropriately addresses the specific vulnerabilities associated with its product and service offerings and client base characteristics.`;
+  narrative += `The ${rating} product and service inherent risk rating requires implementation of proportionate customer acceptance policies, risk-based due diligence procedures commensurate with identified risk factors, service-specific controls, and ongoing monitoring mechanisms to detect unusual or suspicious activity patterns. The institution must ensure that its risk management framework appropriately addresses the specific vulnerabilities associated with its product and service offerings.`;
 
   return narrative;
 }
