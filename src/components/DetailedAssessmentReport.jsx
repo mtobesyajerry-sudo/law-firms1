@@ -450,9 +450,11 @@ export default function DetailedAssessmentReport({ assessment, sectionScores = [
 
               const sectionCode = section?.code || '';
               const sectionCodeLower = sectionCode.toLowerCase();
-              const isInherentRiskModule = sectionCodeLower.includes('module1') || sectionCode.startsWith('1');
-              const isComplianceModule = sectionCodeLower.includes('module2') || sectionCode.startsWith('2');
-              const isEffectivenessModule = sectionCodeLower.includes('module3') || sectionCode.startsWith('3');
+
+              // Detect module type from section code (handles: module1, MODULE_module1, 1, M1, etc.)
+              const isInherentRiskModule = /module[\s_-]?1|^1\b|^m1\b/i.test(sectionCode);
+              const isComplianceModule = /module[\s_-]?2|^2\b|^m2\b/i.test(sectionCode);
+              const isEffectivenessModule = /module[\s_-]?3|^3\b|^m3\b/i.test(sectionCode);
 
               // Calculate percentage based on module type
               let percentageScore;
@@ -537,10 +539,10 @@ export default function DetailedAssessmentReport({ assessment, sectionScores = [
                     <p style={styles.analysisParagraph}>
                       {(() => {
                         const sectionCode = section?.code || '';
-                        const sectionCodeLower = sectionCode.toLowerCase();
-                        const isInherentRisk = sectionCodeLower.includes('module1') || sectionCode.startsWith('1');
-                        const isCompliance = sectionCodeLower.includes('module2') || sectionCode.startsWith('2');
-                        const isEffectiveness = sectionCodeLower.includes('module3') || sectionCode.startsWith('3');
+                        // Detect module type from section code (handles: module1, MODULE_module1, 1, M1, etc.)
+                        const isInherentRisk = /module[\s_-]?1|^1\b|^m1\b/i.test(sectionCode);
+                        const isCompliance = /module[\s_-]?2|^2\b|^m2\b/i.test(sectionCode);
+                        const isEffectiveness = /module[\s_-]?3|^3\b|^m3\b/i.test(sectionCode);
 
                         if (fivePointScore < 1.5) {
                           if (isInherentRisk) {
