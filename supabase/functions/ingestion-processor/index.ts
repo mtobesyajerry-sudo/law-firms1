@@ -739,14 +739,28 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
-    // Auth: accept CRON_SECRET, service role key, or a valid admin JWT.
-    // verify_jwt=false at the gateway; this function enforces its own auth.
+    // Auth: accept CRON_SECRET env var, Vault-stored cron_secret, service role key,
+    // or a valid admin JWT. verify_jwt=false at the gateway; we enforce auth here.
     const authHeader = req.headers.get("Authorization") ?? "";
     const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : "";
-    const cronSecret = Deno.env.get("CRON_SECRET");
+    const cronSecretEnv = Deno.env.get("CRON_SECRET");
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-    const isTrusted = (cronSecret && token === cronSecret) ||
-                      (serviceRoleKey && token === serviceRoleKey);
+
+    // Fast path: env var or service role key matches without a DB round-trip.
+    let isTrusted = (cronSecretEnv && token === cronSecretEnv) ||
+                    (serviceRoleKey && token === serviceRoleKey);
+
+    // Slow path: if neither env secret matched, check the Vault-stored cron_secret
+    // via the get_cron_secret() DB function. This is how pg_cron jobs authenticate.
+    if (!isTrusted && token.length > 0) {
+      const svc = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+        { auth: { persistSession: false } },
+      );
+      const { data: vaultSecret } = await svc.rpc("get_cron_secret");
+      if (vaultSecret && token === vaultSecret) isTrusted = true;
+    }
 
     if (!isTrusted) {
       const anonClient = createClient(
