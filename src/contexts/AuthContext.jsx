@@ -22,6 +22,11 @@ export const AuthProvider = ({ children }) => {
   // MFA state
   const [mfaEnrolled, setMfaEnrolled] = useState(false);
   const [mfaAssuranceLevel, setMfaAssuranceLevel] = useState(null); // 'aal1' | 'aal2'
+  // True while the user has a valid aal1 session but must complete TOTP before we set `user`.
+  // Keeping `user` null while this is true prevents App.jsx from redirecting away from /auth
+  // before Auth.jsx's MfaChallenge screen has a chance to render and collect the code.
+  const [pendingMfaChallenge, setPendingMfaChallenge] = useState(false);
+  const pendingMfaUserRef = useRef(null); // holds the auth user object during the aal1→aal2 gap
   // Track the last session token we checked so we don't re-check on every render
   const lastCheckedSession = useRef(null);
 
@@ -203,11 +208,26 @@ export const AuthProvider = ({ children }) => {
           setIsEarlyClient(false);
           setMfaEnrolled(false);
           setMfaAssuranceLevel(null);
+          setPendingMfaChallenge(false);
+          pendingMfaUserRef.current = null;
           setLoading(false);
           return;
         }
 
         if (event === 'SIGNED_IN') {
+          if (newUser) {
+            // Before exposing the user to the rest of the app, check whether they need to
+            // complete a TOTP challenge (aal1 session with an enrolled aal2 factor).
+            // If so, hold the user object in a ref and set pendingMfaChallenge — this keeps
+            // `user` null so App.jsx does NOT redirect away from /auth while challenge is pending.
+            const { data: aalData } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+            if (aalData?.nextLevel === 'aal2' && aalData?.currentLevel === 'aal1') {
+              pendingMfaUserRef.current = newUser;
+              setPendingMfaChallenge(true);
+              setLoading(false);
+              return; // do NOT setUser — keep user null until challenge is passed
+            }
+          }
           setUser(newUser);
           if (newUser) {
             setLoading(true);
@@ -255,13 +275,30 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const signOut = useCallback(async () => {
-    if (user?.id) {
-      await loginTrackingService.endSession(user.id);
+    const userId = user?.id ?? pendingMfaUserRef.current?.id;
+    if (userId) {
+      await loginTrackingService.endSession(userId);
     }
+    pendingMfaUserRef.current = null;
+    setPendingMfaChallenge(false);
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
     setProfile(null);
   }, [user]);
+
+  // Called by Auth.jsx after the TOTP challenge is successfully verified.
+  // Promotes the held user object into real state so the app can proceed normally.
+  const completeMfaChallenge = useCallback(async () => {
+    const pendingUser = pendingMfaUserRef.current;
+    pendingMfaUserRef.current = null;
+    setPendingMfaChallenge(false);
+    if (pendingUser) {
+      setUser(pendingUser);
+      setLoading(true);
+      await loadUserProfile(pendingUser.id);
+      setLoading(false);
+    }
+  }, [loadUserProfile]);
 
   const hasActiveSubscription = useMemo(() => {
     if (!profile) return false;
@@ -330,7 +367,10 @@ export const AuthProvider = ({ children }) => {
     requiresMfaEnrollment,
     showMfaNudge,
     refreshMfaState: checkMfaState,
-  }), [user, profile, organization, loading, signUp, signIn, signOut, isEarlyClient, hasActiveSubscription, hasAccess, refreshProfile, revokedMessage, mfaEnrolled, mfaAssuranceLevel, mfaGracePeriodEnds, mfaGraceExpired, requiresMfaEnrollment, showMfaNudge, checkMfaState]);
+    // MFA challenge gate — true while user has aal1 session and needs TOTP to reach aal2
+    pendingMfaChallenge,
+    completeMfaChallenge,
+  }), [user, profile, organization, loading, signUp, signIn, signOut, isEarlyClient, hasActiveSubscription, hasAccess, refreshProfile, revokedMessage, mfaEnrolled, mfaAssuranceLevel, mfaGracePeriodEnds, mfaGraceExpired, requiresMfaEnrollment, showMfaNudge, checkMfaState, pendingMfaChallenge, completeMfaChallenge]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

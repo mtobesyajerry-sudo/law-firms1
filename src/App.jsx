@@ -466,11 +466,13 @@ function RoleBasedRedirect() {
 }
 
 function AppRoutes() {
-  const { user } = useAuth();
+  const { user, pendingMfaChallenge } = useAuth();
 
   return (
     <Routes>
-      <Route path="/auth" element={user ? <Navigate to="/" /> : <Auth />} />
+      {/* Keep /auth mounted while MFA challenge is pending — user is still null at that point
+          and Auth.jsx owns the challenge UI. Only redirect once user is fully authenticated. */}
+      <Route path="/auth" element={(user && !pendingMfaChallenge) ? <Navigate to="/" /> : <Auth />} />
       <Route
         path="/"
         element={

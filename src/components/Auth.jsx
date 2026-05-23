@@ -35,10 +35,8 @@ export default function Auth() {
   const [loading, setLoading] = useState(false);
   const [isFirstUser, setIsFirstUser] = useState(false);
   const [checkingFirstUser, setCheckingFirstUser] = useState(false);
-  // MFA challenge state — set after password succeeds if aal2 is required
-  const [mfaPending, setMfaPending] = useState(false);
   const [pendingProfile, setPendingProfile] = useState(null);
-  const { signIn, revokedMessage } = useAuth();
+  const { signIn, revokedMessage, pendingMfaChallenge, completeMfaChallenge, signOut: authSignOut } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -112,52 +110,52 @@ export default function Auth() {
 
     try {
       await signIn(email, password);
+      // AuthContext.onAuthStateChange SIGNED_IN now checks AAL immediately.
+      // If aal2 is required it sets pendingMfaChallenge=true and keeps user=null,
+      // so this component stays mounted and the challenge UI renders below.
+      // If no MFA is required, user becomes non-null and App.jsx navigates to dashboard.
+      // Either way we stop here — nothing more to do in Auth.jsx after signIn succeeds.
 
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
+      // Fetch profile for use in handleMfaSuccess (role-based redirect after challenge)
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      if (authUser) {
         let profile = null;
         let retries = 0;
-
         while (!profile && retries < 5) {
           const { data } = await supabase
             .from('user_profiles')
             .select('role')
-            .eq('id', user.id)
+            .eq('id', authUser.id)
             .maybeSingle();
-
-          if (data) {
-            profile = data;
-          } else {
-            await new Promise(resolve => setTimeout(resolve, 500));
+          if (data) { profile = data; } else {
+            await new Promise(r => setTimeout(r, 500));
             retries++;
           }
         }
+        setPendingProfile(profile);
 
-        // Check MFA assurance level — if aal2 is required, show challenge screen
+        // Non-MFA path: log the successful login and navigate.
+        // (For the MFA path, pendingMfaChallenge will be true so the challenge renders;
+        // navigation happens in handleMfaSuccess instead.)
         const { data: aalData } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
-        if (aalData?.currentLevel === 'aal1' && aalData?.nextLevel === 'aal2') {
-          // User has TOTP enrolled but hasn't completed the second factor yet
-          setPendingProfile(profile);
-          setMfaPending(true);
+        if (aalData?.nextLevel === 'aal2' && aalData?.currentLevel === 'aal1') {
+          // MFA challenge pending — UI handled by pendingMfaChallenge in context
           setLoading(false);
           return;
         }
 
-        await loginTrackingService.logLoginAttempt(email, true, user, null, false);
-        await loginTrackingService.createSession(user.id);
+        await loginTrackingService.logLoginAttempt(email, true, authUser, null, false);
+        await loginTrackingService.createSession(authUser.id);
         await auditService.logSecurityEvent(
-          'user_login_success',
-          'info',
+          'user_login_success', 'info',
           `User ${email} logged in successfully`
         );
-
         navigateByRole(profile?.role);
       }
     } catch (err) {
       await loginTrackingService.logLoginAttempt(email, false, null, err.message, false);
       await auditService.logSecurityEvent(
-        'user_login_failure',
-        'warning',
+        'user_login_failure', 'warning',
         `Failed login attempt for ${email}`,
         { reason: err.message }
       );
@@ -188,24 +186,23 @@ export default function Auth() {
   };
 
   const handleMfaSuccess = async () => {
-    setMfaPending(false);
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      await loginTrackingService.logLoginAttempt(email, true, user, null, false);
-      await loginTrackingService.createSession(user.id);
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    if (authUser) {
+      await loginTrackingService.logLoginAttempt(email, true, authUser, null, false);
+      await loginTrackingService.createSession(authUser.id);
       await auditService.logSecurityEvent(
-        'user_login_success',
-        'info',
+        'user_login_success', 'info',
         `User ${email} completed MFA and logged in`
       );
     }
+    // Promote the held user into AuthContext state, load profile, then navigate.
+    await completeMfaChallenge();
     navigateByRole(pendingProfile?.role);
   };
 
   const handleMfaCancel = async () => {
-    setMfaPending(false);
     setPendingProfile(null);
-    await supabase.auth.signOut();
+    await authSignOut();
     setError('Sign-in cancelled.');
   };
 
@@ -392,7 +389,7 @@ export default function Auth() {
     }
   };
 
-  if (mfaPending) {
+  if (pendingMfaChallenge) {
     return (
       <div style={styles.container}>
         <MfaChallenge onSuccess={handleMfaSuccess} onCancel={handleMfaCancel} />
