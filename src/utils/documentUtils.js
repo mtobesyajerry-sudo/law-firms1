@@ -336,7 +336,7 @@ const ALLOWED_FILE_TYPES = {
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx']
 };
 
-const MAX_FILE_SIZE = 25 * 1024 * 1024;
+const MAX_FILE_SIZE = 10 * 1024 * 1024;
 
 const DANGEROUS_EXTENSIONS = [
   '.exe', '.bat', '.cmd', '.com', '.scr', '.vbs', '.js', '.jar',
@@ -478,4 +478,34 @@ export async function calculateFileHash(file) {
 export async function verifyFileIntegrity(file, expectedHash) {
   const actualHash = await calculateFileHash(file);
   return actualHash === expectedHash;
+}
+
+/**
+ * Validate a file server-side via the validate-file-upload Edge Function.
+ * Must be called before any storage.upload() to enforce size, MIME type, and
+ * magic byte checks on the server rather than trusting client-side validation.
+ *
+ * @param {File} file - File to validate
+ * @param {string} accessToken - User's JWT access token
+ * @returns {Promise<{valid: boolean, errors: string[], fileHash?: string}>}
+ */
+export async function serverValidateFile(file, accessToken) {
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('mimeType', file.type);
+
+  const response = await fetch(
+    `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/validate-file-upload`,
+    {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${accessToken}` },
+      body: formData,
+    }
+  );
+
+  if (!response.ok && response.status !== 400) {
+    throw new Error(`Server validation request failed (${response.status})`);
+  }
+
+  return response.json();
 }

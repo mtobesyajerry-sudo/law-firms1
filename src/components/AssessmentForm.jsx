@@ -22,6 +22,7 @@ import {
   getTotalQuestionCountForFramework,
   getFrameworkLabel
 } from '../utils/frameworkUtils';
+import { serverValidateFile } from '../utils/documentUtils';
 import AssessmentIntroduction from './AssessmentIntroduction';
 
 export default function AssessmentForm() {
@@ -556,9 +557,17 @@ export default function AssessmentForm() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not authenticated');
 
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) throw new Error('Authentication required. Please sign in again.');
+
       const uploadedFiles = [];
 
       for (const file of Array.from(files)) {
+        const serverValidation = await serverValidateFile(file, session.access_token);
+        if (!serverValidation.valid) {
+          throw new Error(`${file.name}: ${serverValidation.errors?.join(', ') || 'File validation failed'}`);
+        }
+
         const fileExt = file.name.split('.').pop();
         const timestamp = Date.now();
         const storagePath = `assessments/${id}/${questionCode}/${timestamp}_${file.name}`;

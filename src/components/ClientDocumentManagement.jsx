@@ -3,7 +3,8 @@ import { supabase } from '../supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
 import {
   getRequiredDocuments,
-  getDocumentCategoryColor
+  getDocumentCategoryColor,
+  serverValidateFile
 } from '../utils/documentUtils';
 
 export default function ClientDocumentManagement({ client, onUpdate }) {
@@ -64,6 +65,14 @@ export default function ClientDocumentManagement({ client, onUpdate }) {
 
     setUploading(true);
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) throw new Error('Authentication required. Please sign in again.');
+
+      const serverValidation = await serverValidateFile(file, session.access_token);
+      if (!serverValidation.valid) {
+        throw new Error(serverValidation.errors?.join(', ') || 'File validation failed');
+      }
+
       const fileExt = file.name.split('.').pop();
       const fileName = `${client.id}_${documentTypeName.replace(/\s+/g, '_')}_${Date.now()}.${fileExt}`;
       const filePath = `${client.organization_id}/${fileName}`;

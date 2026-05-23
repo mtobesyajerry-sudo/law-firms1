@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
+import { serverValidateFile } from '../utils/documentUtils';
 
 const SOFSOWTemplates = ({ client, onClose, onUpdate, isReadOnly = false }) => {
   const [selectedTemplate, setSelectedTemplate] = useState(null);
@@ -61,6 +62,14 @@ const SOFSOWTemplates = ({ client, onClose, onUpdate, isReadOnly = false }) => {
 
     setUploading(true);
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) throw new Error('Authentication required. Please sign in again.');
+
+      const serverValidation = await serverValidateFile(file, session.access_token);
+      if (!serverValidation.valid) {
+        throw new Error(serverValidation.errors?.join(', ') || 'File validation failed');
+      }
+
       const fileExt = file.name.split('.').pop();
       const fileName = `${client.id}_${documentType}_${Date.now()}.${fileExt}`;
       const filePath = `${client.organization_id}/${fileName}`;
