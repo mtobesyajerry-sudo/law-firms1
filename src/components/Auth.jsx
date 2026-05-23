@@ -146,10 +146,14 @@ export default function Auth() {
 
         await loginTrackingService.logLoginAttempt(email, true, authUser, null, false);
         await loginTrackingService.createSession(authUser.id);
-        await auditService.logSecurityEvent(
-          'user_login_success', 'info',
-          `User ${email} logged in successfully`
-        );
+        await auditService.logEvent({
+          event_type: 'user_login_success',
+          event_category: 'security',
+          action_description: `User ${email} logged in successfully`,
+          severity: 'info',
+          resource_type: 'auth.session',
+          resource_id: authUser.id,
+        });
         navigateByRole(profile?.role);
       }
     } catch (err) {
@@ -190,10 +194,14 @@ export default function Auth() {
     if (authUser) {
       await loginTrackingService.logLoginAttempt(email, true, authUser, null, true);
       await loginTrackingService.createSession(authUser.id);
-      await auditService.logSecurityEvent(
-        'user_login_success', 'info',
-        `User ${email} completed MFA and logged in`
-      );
+      await auditService.logEvent({
+        event_type: 'user_login_success',
+        event_category: 'security',
+        action_description: `User ${email} completed MFA (TOTP) and logged in`,
+        severity: 'info',
+        resource_type: 'auth.session',
+        resource_id: authUser.id,
+      });
     }
     // Promote the held user into AuthContext state, load profile, then navigate.
     await completeMfaChallenge();

@@ -113,9 +113,19 @@ class LoginTrackingService {
       const ipAddress = await this.getClientIP();
 
       if (session) {
+        // Use session_id from JWT payload — unique per Supabase auth session.
+        // Fallback to a random UUID if the claim is absent (should never happen).
+        let sessionToken;
+        try {
+          const payload = JSON.parse(atob(session.access_token.split('.')[1]));
+          sessionToken = payload.session_id || crypto.randomUUID();
+        } catch {
+          sessionToken = crypto.randomUUID();
+        }
+
         const sessionEntry = {
           user_id: userId,
-          session_token: session.access_token.substring(0, 50),
+          session_token: sessionToken,
           ip_address: ipAddress,
           user_agent: navigator.userAgent,
           is_active: true,
@@ -145,16 +155,26 @@ class LoginTrackingService {
       const { data: { session } } = await supabase.auth.getSession();
 
       if (session) {
-        const sessionToken = session.access_token.substring(0, 50);
+        let sessionToken;
+        try {
+          const payload = JSON.parse(atob(session.access_token.split('.')[1]));
+          sessionToken = payload.session_id || null;
+        } catch {
+          sessionToken = null;
+        }
 
-        await supabase
+        const query = supabase
           .from('user_sessions')
-          .update({
-            is_active: false,
-            ended_at: new Date().toISOString()
-          })
-          .eq('user_id', userId)
-          .eq('session_token', sessionToken);
+          .update({ is_active: false, ended_at: new Date().toISOString() })
+          .eq('user_id', userId);
+
+        if (sessionToken) {
+          query.eq('session_token', sessionToken);
+        } else {
+          query.eq('is_active', true);
+        }
+
+        await query;
       }
     } catch (error) {
       console.error('Session end error:', error);

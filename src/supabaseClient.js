@@ -29,3 +29,8 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     storageKey: getSessionKey(),
   }
 });
+
+// DEV ONLY — never shipped to production (Vite tree-shakes this block entirely in prod build)
+if (import.meta.env.DEV) {
+  window.__supabase = supabase;
+}
