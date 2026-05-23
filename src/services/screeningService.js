@@ -39,8 +39,8 @@ export async function runScreening({
 // ---------------------------------------------------------------------
 export async function rescreenClient(clientId, options = {}) {
   const { data: client, error } = await supabase
-    .from('kyc_clients')
-    .select('id, client_name, date_of_birth, nationality, id_number')
+    .from('kyc_clients_decrypted')
+    .select('id, client_name, date_of_birth, nationality, national_id')
     .eq('id', clientId)
     .maybeSingle();
   if (error) throw error;
@@ -49,7 +49,7 @@ export async function rescreenClient(clientId, options = {}) {
     fullName: client.client_name,
     dateOfBirth: client.date_of_birth,
     nationality: client.nationality,
-    idNumber: client.id_number,
+    idNumber: client.national_id,
     usePremium: options.usePremium ?? false,
   });
 }

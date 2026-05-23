@@ -49,7 +49,7 @@ export default function KYCClientManagement({ initialFilter = 'all' }) {
   const loadClients = async () => {
     try {
       let query = supabase
-        .from('kyc_clients')
+        .from('kyc_clients_decrypted')
         .select(`
           *,
           client_matter_relationships (
@@ -199,8 +199,8 @@ export default function KYCClientManagement({ initialFilter = 'all' }) {
                     <td style={styles.td}>
                       <div>
                         <div style={styles.clientName}>{client.client_name}</div>
-                        {client.client_id_number && (
-                          <div style={styles.clientId}>ID: {client.client_id_number}</div>
+                        {client.national_id && (
+                          <div style={styles.clientId}>ID: {client.national_id}</div>
                         )}
                       </div>
                     </td>
@@ -367,7 +367,7 @@ function NewClientModal({ onClose, onSuccess, organizationId, userId }) {
   const [formData, setFormData] = useState({
     client_type: 'individual',
     client_name: '',
-    client_id_number: '',
+    national_id_plain: '',
     date_of_birth: '',
     nationality: '',
     country_of_residence: '',
@@ -433,7 +433,7 @@ function NewClientModal({ onClose, onSuccess, organizationId, userId }) {
         organization_id: organizationId,
         client_type: formData.client_type,
         client_name: formData.client_name,
-        client_id_number: formData.client_id_number || null,
+        national_id_plain: formData.national_id_plain || null,
         date_of_birth: formData.date_of_birth || null,
         nationality: formData.nationality || null,
         country_of_residence: formData.country_of_residence || null,
@@ -574,8 +574,8 @@ function BasicInformationStep({ formData, onChange, amlTriggerActivities, toggle
             <label style={styles.label}>ID Number</label>
             <input
               type="text"
-              value={formData.client_id_number}
-              onChange={(e) => onChange({...formData, client_id_number: e.target.value})}
+              value={formData.national_id_plain}
+              onChange={(e) => onChange({...formData, national_id_plain: e.target.value})}
               style={styles.input}
               placeholder="National ID, Passport, etc."
             />

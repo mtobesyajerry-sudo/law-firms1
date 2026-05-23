@@ -503,12 +503,7 @@ export default function MatterDetailView({ matter, onClose, onUpdate, activeTab:
                             <span style={styles.clientContactValue}>{rel.kyc_clients.email}</span>
                           </div>
                         )}
-                        {rel.kyc_clients?.phone_number && (
-                          <div style={styles.clientContactInfo}>
-                            <span style={styles.clientContactLabel}>Phone:</span>
-                            <span style={styles.clientContactValue}>{rel.kyc_clients.phone_number}</span>
-                          </div>
-                        )}
+                        {/* Phone stored encrypted — view KYC client details for contact info */}
                       </div>
                     ))}
                   </div>

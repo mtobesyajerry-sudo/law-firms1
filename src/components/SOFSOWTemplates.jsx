@@ -720,7 +720,7 @@ const SourceOfFundsTemplate = ({ client }) => (
       </div>
       <div className="form-field">
         <div className="form-label">Client ID Number:</div>
-        <div className="form-line">{client.client_id_number || ''}</div>
+        <div className="form-line">{client.national_id || ''}</div>
       </div>
       <div className="form-field">
         <div className="form-label">Date:</div>
@@ -1086,7 +1086,7 @@ const SourceOfWealthTemplate = ({ client }) => (
       </div>
       <div className="form-field">
         <div className="form-label">Client ID Number:</div>
-        <div className="form-line">{client.client_id_number || ''}</div>
+        <div className="form-line">{client.national_id || ''}</div>
       </div>
       <div className="form-field">
         <div className="form-label">Date:</div>
