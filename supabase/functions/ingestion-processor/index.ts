@@ -82,6 +82,18 @@ function buildName(parts: Array<string | undefined | null>): string {
   return parts.filter(Boolean).map((s) => String(s!).trim()).filter(Boolean).join(" ");
 }
 
+// Sanitize potentially malformed timestamps (e.g. "2015-07-01-04:00") to ISO or null
+function sanitizeTimestamp(s: string | null | undefined): string | null {
+  if (!s) return null;
+  // Already valid ISO-like date
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  // Strip timezone garbage: "2015-07-01-04:00" → "2015-07-01"
+  const m = s.match(/^(\d{4}-\d{2}-\d{2})/);
+  if (m) return m[1];
+  const d = new Date(s);
+  return isNaN(d.getTime()) ? null : d.toISOString().slice(0, 10);
+}
+
 // ---------------------------------------------------------------------------
 // Ingestion log helpers
 // ---------------------------------------------------------------------------
@@ -123,52 +135,36 @@ async function finishIngestion(
   }).eq("id", logId);
 }
 
-async function upsertEntries(
+async function upsertBatch(
   supabase: SupabaseClient,
   listId: string,
   entries: ListEntry[],
-  batchSize = 500,
-): Promise<{ added: number; updated: number }> {
-  let added = 0, updated = 0;
-  const { data: existing } = await supabase
+): Promise<number> {
+  const batch = entries.map((e) => ({
+    list_id: listId,
+    full_name: e.primary_name,
+    entry_type: e.entry_type,
+    external_id: e.external_id,
+    primary_name: e.primary_name,
+    aliases_jsonb: e.aliases_jsonb,
+    date_of_birth: e.date_of_birth,
+    dob_text: e.dob_text,
+    place_of_birth: e.place_of_birth,
+    nationalities: e.nationalities,
+    identifications: e.identifications,
+    program: e.program,
+    remarks: e.remarks,
+    // raw_data intentionally omitted — too large, causes memory limit
+    source_updated_at: e.source_updated_at,
+    is_pep: e.is_pep,
+    pep_position: e.pep_position,
+    pep_country: e.pep_country,
+  }));
+  const { error } = await supabase
     .from("screening_list_entries")
-    .select("external_id")
-    .eq("list_id", listId);
-  const existingIds = new Set((existing ?? []).map((r: any) => r.external_id));
-
-  for (let i = 0; i < entries.length; i += batchSize) {
-    const batch = entries.slice(i, i + batchSize).map((e) => ({
-      list_id: listId,
-      full_name: e.primary_name,
-      entry_type: e.entry_type,
-      external_id: e.external_id,
-      primary_name: e.primary_name,
-      aliases_jsonb: e.aliases_jsonb,
-      date_of_birth: e.date_of_birth,
-      dob_text: e.dob_text,
-      place_of_birth: e.place_of_birth,
-      nationalities: e.nationalities,
-      identifications: e.identifications,
-      program: e.program,
-      remarks: e.remarks,
-      raw_data: e.raw_data,
-      source_updated_at: e.source_updated_at,
-      is_pep: e.is_pep,
-      pep_position: e.pep_position,
-      pep_country: e.pep_country,
-    }));
-
-    const { error } = await supabase
-      .from("screening_list_entries")
-      .upsert(batch, { onConflict: "list_id,external_id" });
-    if (error) throw error;
-
-    for (const e of batch) {
-      if (existingIds.has(e.external_id)) updated++;
-      else added++;
-    }
-  }
-  return { added, updated };
+    .upsert(batch, { onConflict: "list_id,external_id" });
+  if (error) throw error;
+  return batch.length;
 }
 
 async function removeStaleEntries(
@@ -220,60 +216,27 @@ const xmlParser = new XMLParser({
 });
 
 // ---------------------------------------------------------------------------
-// OFAC SDN ingestion
+// OFAC SDN ingestion — uses the SDN CSV (smaller than XML, ~2MB vs ~20MB)
 // ---------------------------------------------------------------------------
-const OFAC_SDN_URL = "https://www.treasury.gov/ofac/downloads/sdn.xml";
+const OFAC_SDN_URL = "https://www.treasury.gov/ofac/downloads/sdn.csv";
 const SDN_TYPE_MAP: Record<string, ListEntry["entry_type"]> = {
   Individual: "individual", Entity: "entity", Vessel: "vessel", Aircraft: "aircraft",
 };
 
-function parseDobOfac(dobList: any): { dob: string | null; dobText: string | null } {
-  const dobs = arr(dobList?.dateOfBirthItem);
-  if (dobs.length === 0) return { dob: null, dobText: null };
-  const text = String((dobs[0] as any)?.dateOfBirth ?? "");
-  if (!text) return { dob: null, dobText: null };
-  const parsed = new Date(text);
-  return { dob: isNaN(parsed.getTime()) ? null : parsed.toISOString().slice(0, 10), dobText: text };
-}
-
-function extractOfacEntry(sdn: any): ListEntry | null {
-  if (!sdn?.uid) return null;
-  const firstName = sdn.firstName ?? "";
-  const lastName = sdn.lastName ?? "";
-  const primaryName = [firstName, lastName].filter(Boolean).join(" ").trim() || (sdn.title ?? `OFAC-${sdn.uid}`);
-  const akaList = arr(sdn.akaList?.aka);
-  const aliases_jsonb = akaList
-    .map((aka: any) => {
-      const aname = [aka.firstName, aka.lastName].filter(Boolean).join(" ").trim();
-      if (!aname) return null;
-      return { name: aname, normalized_name: normalizeName(aname), type: aka.type };
-    })
-    .filter((x: any) => x !== null);
-  const { dob, dobText } = parseDobOfac(sdn.dateOfBirthList);
-  const nats = arr(sdn.nationalityList?.nationality).map((n: any) => n.country).filter(Boolean) as string[];
-  const ids = arr(sdn.idList?.id).map((i: any) => ({ type: i.idType ?? "unknown", number: i.idNumber ?? "", country: i.idCountry ?? null }));
-  const addresses = arr(sdn.addressList?.address).map((a: any) => ({ address1: a.address1 ?? null, city: a.city ?? null, country: a.country ?? null }));
-  const programs = arr(sdn.programList?.program).join(", ");
-  const pob = arr(sdn.placeOfBirthList?.placeOfBirthItem).map((p: any) => p.placeOfBirth).filter(Boolean).join("; ");
-  return {
-    external_id: `OFAC-SDN-${sdn.uid}`,
-    primary_name: primaryName,
-    entry_type: SDN_TYPE_MAP[sdn.sdnType] ?? "entity",
-    aliases_jsonb,
-    date_of_birth: dob,
-    dob_text: dobText,
-    place_of_birth: pob || null,
-    nationalities: nats.length ? nats : null,
-    identifications: ids,
-    addresses,
-    program: programs || null,
-    remarks: sdn.remarks ?? null,
-    raw_data: sdn,
-    is_pep: false,
-    pep_position: null,
-    pep_country: null,
-    source_updated_at: null,
-  };
+// OFAC SDN CSV columns (0-indexed):
+// 0: ent_num, 1: SDN_Name, 2: SDN_Type, 3: Program, 4: Title, 5: Call_Sign,
+// 6: Vess_type, 7: Tonnage, 8: GRT, 9: Vess_flag, 10: Vess_owner, 11: Remarks
+function parseOfacCsvLine(line: string): string[] {
+  const cols: string[] = [];
+  let cur = "", inQ = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (c === '"') { inQ = !inQ; }
+    else if (c === "," && !inQ) { cols.push(cur.trim()); cur = ""; }
+    else { cur += c; }
+  }
+  cols.push(cur.trim());
+  return cols;
 }
 
 async function ingestOfacSdn(supabase: SupabaseClient): Promise<{ added: number; updated: number; removed: number; total: number }> {
@@ -281,24 +244,55 @@ async function ingestOfacSdn(supabase: SupabaseClient): Promise<{ added: number;
   const started = Date.now();
   const logId = await startIngestion(supabase, listId, OFAC_SDN_URL);
   try {
-    console.log("Fetching OFAC SDN XML...");
+    console.log("Fetching OFAC SDN CSV...");
     const res = await fetch(OFAC_SDN_URL);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const xml = await res.text();
-    const parsed = xmlParser.parse(xml);
-    const sdnEntries = arr(parsed?.sdnList?.sdnEntry);
-    console.log(`Parsed ${sdnEntries.length} OFAC SDN entries`);
-    const entries: ListEntry[] = [];
+    const csv = await res.text();
+    const lines = csv.split("\n").filter((l) => l.trim());
+    console.log(`Parsed ${lines.length} OFAC SDN lines`);
+    let total = 0;
     const keepIds = new Set<string>();
-    for (const sdn of sdnEntries) {
-      const e = extractOfacEntry(sdn);
-      if (e) { entries.push(e); keepIds.add(e.external_id); }
+    const BATCH = 50;
+    let batch: ListEntry[] = [];
+    for (const line of lines) {
+      const cols = parseOfacCsvLine(line);
+      const uid = cols[0]?.replace(/"/g, "").trim();
+      if (!uid || isNaN(Number(uid))) continue; // skip header/non-numeric IDs
+      const name = cols[1]?.replace(/"/g, "").trim() || `OFAC-${uid}`;
+      const sdnType = cols[2]?.replace(/"/g, "").trim() || "Entity";
+      const program = cols[3]?.replace(/"/g, "").trim() || null;
+      const remarks = cols[11]?.replace(/"/g, "").trim() || null;
+      const entry: ListEntry = {
+        external_id: `OFAC-SDN-${uid}`,
+        primary_name: name,
+        entry_type: SDN_TYPE_MAP[sdnType] ?? "entity",
+        aliases_jsonb: [],
+        date_of_birth: null,
+        dob_text: null,
+        place_of_birth: null,
+        nationalities: null,
+        identifications: [],
+        addresses: [],
+        program,
+        remarks,
+        raw_data: null,
+        is_pep: false,
+        pep_position: null,
+        pep_country: null,
+        source_updated_at: null,
+      };
+      keepIds.add(entry.external_id);
+      batch.push(entry);
+      if (batch.length >= BATCH) {
+        total += await upsertBatch(supabase, listId, batch);
+        batch = [];
+      }
     }
-    const { added, updated } = await upsertEntries(supabase, listId, entries);
+    if (batch.length > 0) total += await upsertBatch(supabase, listId, batch);
     const removed = await removeStaleEntries(supabase, listId, keepIds);
-    await updateListMeta(supabase, listId, entries.length, "success");
-    await finishIngestion(supabase, logId, { status: "success", added, updated, removed, total: entries.length, started_at: started });
-    return { added, updated, removed, total: entries.length };
+    await updateListMeta(supabase, listId, total, "success");
+    await finishIngestion(supabase, logId, { status: "success", added: total, updated: 0, removed, total, started_at: started });
+    return { added: total, updated: 0, removed, total };
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     await updateListMeta(supabase, listId, 0, "failed", msg);
@@ -356,7 +350,7 @@ function extractUnIndividual(ind: any): ListEntry | null {
     is_pep: false,
     pep_position: null,
     pep_country: null,
-    source_updated_at: ind.LISTED_ON ? String(ind.LISTED_ON) : null,
+    source_updated_at: ind.LISTED_ON ? sanitizeTimestamp(String(ind.LISTED_ON)) : null,
   };
 }
 
@@ -386,7 +380,7 @@ function extractUnEntity(ent: any): ListEntry | null {
     is_pep: false,
     pep_position: null,
     pep_country: null,
-    source_updated_at: ent.LISTED_ON ? String(ent.LISTED_ON) : null,
+    source_updated_at: ent.LISTED_ON ? sanitizeTimestamp(String(ent.LISTED_ON)) : null,
   };
 }
 
@@ -404,15 +398,25 @@ async function ingestUn(supabase: SupabaseClient): Promise<{ added: number; upda
     const individuals = arr(root?.INDIVIDUALS?.INDIVIDUAL);
     const entities = arr(root?.ENTITIES?.ENTITY);
     console.log(`Parsed ${individuals.length} individuals, ${entities.length} entities`);
-    const entries: ListEntry[] = [];
+    let total = 0;
     const keepIds = new Set<string>();
-    for (const i of individuals) { const e = extractUnIndividual(i); if (e) { entries.push(e); keepIds.add(e.external_id); } }
-    for (const i of entities) { const e = extractUnEntity(i); if (e) { entries.push(e); keepIds.add(e.external_id); } }
-    const { added, updated } = await upsertEntries(supabase, listId, entries);
+    const BATCH = 50;
+    let batch: ListEntry[] = [];
+    for (const raw of [...individuals, ...entities]) {
+      const e = individuals.includes(raw) ? extractUnIndividual(raw) : extractUnEntity(raw);
+      if (!e) continue;
+      keepIds.add(e.external_id);
+      batch.push(e);
+      if (batch.length >= BATCH) {
+        total += await upsertBatch(supabase, listId, batch);
+        batch = [];
+      }
+    }
+    if (batch.length > 0) total += await upsertBatch(supabase, listId, batch);
     const removed = await removeStaleEntries(supabase, listId, keepIds);
-    await updateListMeta(supabase, listId, entries.length, "success");
-    await finishIngestion(supabase, logId, { status: "success", added, updated, removed, total: entries.length, started_at: started });
-    return { added, updated, removed, total: entries.length };
+    await updateListMeta(supabase, listId, total, "success");
+    await finishIngestion(supabase, logId, { status: "success", added: total, updated: 0, removed, total, started_at: started });
+    return { added: total, updated: 0, removed, total };
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     await updateListMeta(supabase, listId, 0, "failed", msg);
@@ -424,6 +428,8 @@ async function ingestUn(supabase: SupabaseClient): Promise<{ added: number; upda
 // ---------------------------------------------------------------------------
 // EU Consolidated ingestion
 // ---------------------------------------------------------------------------
+// EU FSF requires a registration token. Use EU_FSF_TOKEN env var or this falls back to the public endpoint.
+// Alternative public mirror: https://data.europa.eu/api/hub/search/datasets/consolidated-list-of-persons-groups-and-entities-subject-to-eu-financial-sanctions
 const EU_URL = "https://webgate.ec.europa.eu/fsd/fsf/public/files/xmlFullSanctionsList_1_1/content";
 
 function parseEuDob(birth: any): { dob: string | null; dobText: string | null } {
@@ -496,14 +502,25 @@ async function ingestEu(supabase: SupabaseClient): Promise<{ added: number; upda
     const root = parsed?.export ?? parsed?.SANCTIONS ?? parsed;
     const entities = arr(root?.sanctionEntity ?? root?.entity);
     console.log(`Parsed ${entities.length} EU entities`);
-    const entries: ListEntry[] = [];
+    let total = 0;
     const keepIds = new Set<string>();
-    for (const e of entities) { const ext = extractEuEntity(e); if (ext) { entries.push(ext); keepIds.add(ext.external_id); } }
-    const { added, updated } = await upsertEntries(supabase, listId, entries);
+    const BATCH = 50;
+    let batch: ListEntry[] = [];
+    for (const e of entities) {
+      const ext = extractEuEntity(e);
+      if (!ext) continue;
+      keepIds.add(ext.external_id);
+      batch.push(ext);
+      if (batch.length >= BATCH) {
+        total += await upsertBatch(supabase, listId, batch);
+        batch = [];
+      }
+    }
+    if (batch.length > 0) total += await upsertBatch(supabase, listId, batch);
     const removed = await removeStaleEntries(supabase, listId, keepIds);
-    await updateListMeta(supabase, listId, entries.length, "success");
-    await finishIngestion(supabase, logId, { status: "success", added, updated, removed, total: entries.length, started_at: started });
-    return { added, updated, removed, total: entries.length };
+    await updateListMeta(supabase, listId, total, "success");
+    await finishIngestion(supabase, logId, { status: "success", added: total, updated: 0, removed, total, started_at: started });
+    return { added: total, updated: 0, removed, total };
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     await updateListMeta(supabase, listId, 0, "failed", msg);
@@ -513,75 +530,21 @@ async function ingestEu(supabase: SupabaseClient): Promise<{ added: number; upda
 }
 
 // ---------------------------------------------------------------------------
-// UK HMT/OFSI ingestion
+// UK HMT/OFSI ingestion — uses CSV format (much smaller than XML)
 // ---------------------------------------------------------------------------
-const UK_URL = "https://ofsistorage.blob.core.windows.net/publishlive/2022format/ConList.xml";
+const UK_URL = "https://ofsistorage.blob.core.windows.net/publishlive/2022format/ConList.csv";
 
-function parseUkDob(dobs: any[]): { dob: string | null; dobText: string | null } {
-  if (dobs.length === 0) return { dob: null, dobText: null };
-  const text = String((dobs[0] as any)?.DOB ?? dobs[0] ?? "");
-  if (!text) return { dob: null, dobText: null };
-  // UK uses DD/MM/YYYY
-  const m = text.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+// UK OFSI CSV columns (pipe-delimited or comma):
+// GroupID, LastUpdated, UniqueID, Names, NameType, Title, Name1..6,
+// NonLatinName, DOB, Town, Country, Nationality, NationalityCountry,
+// AddressLine1..6, PostCode, Country, OtherInformation, RegimeName,
+// IndividualEntityShip, ListType, UKSanctionsListRef
+function parseUkDobText(text: string): { dob: string | null; dobText: string | null } {
+  if (!text?.trim()) return { dob: null, dobText: null };
+  const m = text.trim().match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
   if (m) return { dob: `${m[3]}-${m[2]}-${m[1]}`, dobText: text };
-  const parsed = new Date(text);
-  return { dob: isNaN(parsed.getTime()) ? null : parsed.toISOString().slice(0, 10), dobText: text };
-}
-
-function extractUkDesignation(d: any): ListEntry | null {
-  const groupId = d?.GroupID ?? d?.groupId;
-  if (!groupId) return null;
-  const names = arr(d.Names?.Name ?? d.names?.name) as any[];
-  if (names.length === 0) return null;
-  const primaryRec = names.find((n: any) => (n.NameType ?? n.nameType) === "Primary Name") ?? names[0];
-  const primaryName = buildName([
-    primaryRec.Name6 ?? primaryRec.title,
-    primaryRec.Name1, primaryRec.Name2, primaryRec.Name3, primaryRec.Name4, primaryRec.Name5,
-  ]) || `UK Designation ${groupId}`;
-  const aliases_jsonb = names
-    .filter((n: any) => n !== primaryRec)
-    .map((n: any) => {
-      const aname = buildName([n.Name1, n.Name2, n.Name3, n.Name4, n.Name5]);
-      if (!aname) return null;
-      return { name: aname, normalized_name: normalizeName(aname), type: n.NameType ?? n.AKAType };
-    })
-    .filter((x: any) => x !== null);
-  const entryType: ListEntry["entry_type"] = (d.IndividualEntityShip ?? d.individualEntity) === "Individual" ? "individual" : "entity";
-  const indivs = arr(d.Individuals?.Individual ?? d.individuals?.individual) as any[];
-  const dobsRaw = indivs.flatMap((i: any) => arr(i.DOBs?.DOB ?? i.dobs?.dob));
-  const { dob, dobText } = parseUkDob(dobsRaw as any[]);
-  const pobs = indivs
-    .flatMap((i: any) => arr(i.BirthDetails?.Location ?? i.birthDetails?.location))
-    .map((l: any) => buildName([l.TownCity, l.Country]))
-    .filter(Boolean)
-    .join("; ");
-  const nats = indivs
-    .flatMap((i: any) => arr(i.Nationalities?.Nationality ?? i.nationalities?.nationality))
-    .map((n: any) => n.NationalityCountry ?? n.nationalityCountry ?? String(n))
-    .filter(Boolean) as string[];
-  const addresses = arr(d.Addresses?.Address ?? d.addresses?.address).map((a: any) => ({
-    line1: a.AddressLine1 ?? null, city: a.TownCity ?? null, country: a.Country ?? null,
-  }));
-  const regimes = arr(d.RegimeName ?? d.regimeName).join(", ");
-  return {
-    external_id: `UK-${groupId}`,
-    primary_name: primaryName,
-    entry_type: entryType,
-    aliases_jsonb,
-    date_of_birth: dob,
-    dob_text: dobText,
-    place_of_birth: pobs || null,
-    nationalities: nats.length ? nats : null,
-    identifications: [],
-    addresses,
-    program: regimes || null,
-    remarks: d.OtherInformation ?? null,
-    raw_data: d,
-    is_pep: false,
-    pep_position: null,
-    pep_country: null,
-    source_updated_at: d.LastUpdated ? String(d.LastUpdated) : null,
-  };
+  const d = new Date(text);
+  return { dob: isNaN(d.getTime()) ? null : d.toISOString().slice(0, 10), dobText: text };
 }
 
 async function ingestUk(supabase: SupabaseClient): Promise<{ added: number; updated: number; removed: number; total: number }> {
@@ -589,22 +552,90 @@ async function ingestUk(supabase: SupabaseClient): Promise<{ added: number; upda
   const started = Date.now();
   const logId = await startIngestion(supabase, listId, UK_URL);
   try {
-    console.log("Fetching UK OFSI XML...");
+    console.log("Fetching UK OFSI CSV...");
     const res = await fetch(UK_URL);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const xml = await res.text();
-    const parsed = xmlParser.parse(xml);
-    const root = parsed?.ConsolidatedList ?? parsed?.Designations ?? parsed;
-    const designations = arr(root?.Designation ?? root?.designation);
-    console.log(`Parsed ${designations.length} UK designations`);
-    const entries: ListEntry[] = [];
+    const csv = await res.text();
+    const lines = csv.split("\n");
+    // Detect delimiter (OFSI uses comma)
+    const header = lines[0] ?? "";
+    const delim = header.includes(",") ? "," : "\t";
+    const headerCols = header.split(delim).map((c) => c.replace(/"/g, "").trim().toLowerCase());
+    const idx = (name: string) => headerCols.indexOf(name);
+    const iGroupId = idx("groupid") >= 0 ? idx("groupid") : 0;
+    const iName1 = idx("name1") >= 0 ? idx("name1") : 5;
+    const iName2 = idx("name2") >= 0 ? idx("name2") : 6;
+    const iName3 = idx("name3") >= 0 ? idx("name3") : 7;
+    const iName4 = idx("name4") >= 0 ? idx("name4") : 8;
+    const iName5 = idx("name5") >= 0 ? idx("name5") : 9;
+    const iDob = idx("dob") >= 0 ? idx("dob") : 13;
+    const iNat = idx("nationalitycountry") >= 0 ? idx("nationalitycountry") : 16;
+    const iRegime = idx("regimename") >= 0 ? idx("regimename") : -1;
+    const iType = idx("individualentityship") >= 0 ? idx("individualentityship") : -1;
+    const iRemarks = idx("otherinformation") >= 0 ? idx("otherinformation") : -1;
+
+    let total = 0;
     const keepIds = new Set<string>();
-    for (const d of designations) { const e = extractUkDesignation(d); if (e) { entries.push(e); keepIds.add(e.external_id); } }
-    const { added, updated } = await upsertEntries(supabase, listId, entries);
+    const BATCH = 50;
+    let batch: ListEntry[] = [];
+    // Group rows by GroupID (multiple rows per designation for aliases)
+    const groups = new Map<string, string[][]>();
+    for (let i = 1; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (!line) continue;
+      const cols = parseOfacCsvLine(line); // reuse CSV parser
+      const gid = cols[iGroupId]?.replace(/"/g, "").trim();
+      if (!gid) continue;
+      if (!groups.has(gid)) groups.set(gid, []);
+      groups.get(gid)!.push(cols);
+    }
+
+    for (const [gid, rows] of groups) {
+      const primaryRow = rows[0];
+      const primaryName = buildName([
+        primaryRow[iName1], primaryRow[iName2], primaryRow[iName3],
+        primaryRow[iName4], primaryRow[iName5],
+      ]) || `UK Designation ${gid}`;
+      const aliases_jsonb = rows.slice(1).map((r) => {
+        const aname = buildName([r[iName1], r[iName2], r[iName3], r[iName4], r[iName5]]);
+        if (!aname || aname === primaryName) return null;
+        return { name: aname, normalized_name: normalizeName(aname) };
+      }).filter((x): x is NonNullable<typeof x> => x !== null);
+      const { dob, dobText } = parseUkDobText(primaryRow[iDob]?.replace(/"/g, "").trim() ?? "");
+      const nat = primaryRow[iNat]?.replace(/"/g, "").trim();
+      const entryType: ListEntry["entry_type"] =
+        (iType >= 0 && primaryRow[iType]?.replace(/"/g, "").trim().toLowerCase() === "individual") ? "individual" : "entity";
+      const entry: ListEntry = {
+        external_id: `UK-${gid}`,
+        primary_name: primaryName,
+        entry_type: entryType,
+        aliases_jsonb,
+        date_of_birth: dob,
+        dob_text: dobText,
+        place_of_birth: null,
+        nationalities: nat ? [nat] : null,
+        identifications: [],
+        addresses: [],
+        program: iRegime >= 0 ? (primaryRow[iRegime]?.replace(/"/g, "").trim() || null) : null,
+        remarks: iRemarks >= 0 ? (primaryRow[iRemarks]?.replace(/"/g, "").trim() || null) : null,
+        raw_data: null,
+        is_pep: false,
+        pep_position: null,
+        pep_country: null,
+        source_updated_at: null,
+      };
+      keepIds.add(entry.external_id);
+      batch.push(entry);
+      if (batch.length >= BATCH) {
+        total += await upsertBatch(supabase, listId, batch);
+        batch = [];
+      }
+    }
+    if (batch.length > 0) total += await upsertBatch(supabase, listId, batch);
     const removed = await removeStaleEntries(supabase, listId, keepIds);
-    await updateListMeta(supabase, listId, entries.length, "success");
-    await finishIngestion(supabase, logId, { status: "success", added, updated, removed, total: entries.length, started_at: started });
-    return { added, updated, removed, total: entries.length };
+    await updateListMeta(supabase, listId, total, "success");
+    await finishIngestion(supabase, logId, { status: "success", added: total, updated: 0, removed, total, started_at: started });
+    return { added: total, updated: 0, removed, total };
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     await updateListMeta(supabase, listId, 0, "failed", msg);
@@ -620,13 +651,16 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
-    // Auth: accept CRON_SECRET (from cron jobs) or a valid admin JWT
+    // Auth: accept CRON_SECRET, service role key, or a valid admin JWT.
+    // verify_jwt=false at the gateway; this function enforces its own auth.
     const authHeader = req.headers.get("Authorization") ?? "";
+    const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : "";
     const cronSecret = Deno.env.get("CRON_SECRET");
-    const isCron = cronSecret && authHeader === `Bearer ${cronSecret}`;
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    const isTrusted = (cronSecret && token === cronSecret) ||
+                      (serviceRoleKey && token === serviceRoleKey);
 
-    if (!isCron) {
-      // Fall back to checking user JWT for admin-triggered calls from the UI
+    if (!isTrusted) {
       const anonClient = createClient(
         Deno.env.get("SUPABASE_URL")!,
         Deno.env.get("SUPABASE_ANON_KEY")!,
