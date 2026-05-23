@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { DocumentService } from '../services/documentService';
+import { sanitizeUrl } from '../utils/sanitization';
 
 export default function DocumentViewer({ documentId, onClose }) {
   const [document, setDocument] = useState(null);
@@ -87,13 +88,13 @@ export default function DocumentViewer({ documentId, onClose }) {
             <>
               {document?.mime_type.startsWith('image/') ? (
                 <img
-                  src={url}
+                  src={sanitizeUrl(url) ?? ''}
                   alt={document.document_name}
                   style={styles.image}
                 />
               ) : document?.mime_type === 'application/pdf' ? (
                 <iframe
-                  src={url}
+                  src={sanitizeUrl(url) ?? ''}
                   style={styles.iframe}
                   title={document.document_name}
                 />
