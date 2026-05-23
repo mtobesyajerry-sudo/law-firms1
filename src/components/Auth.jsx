@@ -5,6 +5,7 @@ import { supabase } from '../supabaseClient';
 import { institutionCategories } from '../data/assessmentData';
 import { loginTrackingService } from '../services/loginTrackingService';
 import { auditService } from '../services/auditService';
+import { validatePassword } from '../utils/security';
 
 export default function Auth() {
   const [mode, setMode] = useState('login');
@@ -186,8 +187,9 @@ export default function Auth() {
       return;
     }
 
-    if (password.length < 8) {
-      setError('Password must be at least 8 characters');
+    const pwCheck = validatePassword(password);
+    if (!pwCheck.isValid) {
+      setError(pwCheck.errors.join(' '));
       setLoading(false);
       return;
     }

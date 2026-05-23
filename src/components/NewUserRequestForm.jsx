@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
+import { validatePassword } from '../utils/security';
 
 export default function NewUserRequestForm({ onClose, onSuccess }) {
   const { profile, organization } = useAuth();
@@ -39,8 +40,9 @@ export default function NewUserRequestForm({ onClose, onSuccess }) {
       }
 
       // Validate password strength
-      if (formData.password.length < 8) {
-        setError('Password must be at least 8 characters long');
+      const pwCheck = validatePassword(formData.password);
+      if (!pwCheck.isValid) {
+        setError(pwCheck.errors.join(' '));
         setLoading(false);
         return;
       }
@@ -308,7 +310,7 @@ export default function NewUserRequestForm({ onClose, onSuccess }) {
                 fontSize: '15px',
                 fontFamily: 'inherit'
               }}
-              placeholder="Minimum 8 characters"
+              placeholder="Min 12 chars, upper, lower, number, special"
             />
             <div style={{ fontSize: '12px', color: '#64748b', marginTop: '4px' }}>
               This will be the user's login password

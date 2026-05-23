@@ -289,6 +289,7 @@ export const AuthProvider = ({ children }) => {
     hasAccess,
     refreshProfile,
     revokedMessage,
+    requiresPasswordChange: profile?.password_change_required === true,
   }), [user, profile, organization, loading, signUp, signIn, signOut, isEarlyClient, hasActiveSubscription, hasAccess, refreshProfile, revokedMessage]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

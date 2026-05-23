@@ -1,6 +1,14 @@
 import { createClient } from "npm:@supabase/supabase-js@2.39.0";
 import CryptoJS from "npm:crypto-js@4.2.0";
 
+async function hashPassword(password: string): Promise<string> {
+  const encoded = new TextEncoder().encode(password);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", encoded);
+  return Array.from(new Uint8Array(hashBuffer))
+    .map(b => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
@@ -218,9 +226,35 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Step 6: Create the auth user
-    const userPassword = password ||
-      `Temp${Math.random().toString(36).slice(-8)}!${Date.now().toString().slice(-4)}`;
+    // Step 6: Validate admin-supplied password if provided; generate a compliant temp if not
+    if (password) {
+      const pwErrors: string[] = [];
+      if (password.length < 12) pwErrors.push("Password must be at least 12 characters long");
+      if (!/[A-Z]/.test(password)) pwErrors.push("Password must contain at least one uppercase letter");
+      if (!/[a-z]/.test(password)) pwErrors.push("Password must contain at least one lowercase letter");
+      if (!/\d/.test(password)) pwErrors.push("Password must contain at least one number");
+      if (!/[!@#$%^&*()_+\-=\[\]{}|;:,.<>?]/.test(password)) pwErrors.push("Password must contain at least one special character");
+      const commonPasswords = [
+        "password", "Password123!", "Welcome123!", "Admin123!",
+        "P@ssw0rd", "Qwerty123!", "123456", "password123",
+      ];
+      if (commonPasswords.some((c: string) => password.toLowerCase().includes(c.toLowerCase()))) {
+        pwErrors.push("Password is too common");
+      }
+      if (pwErrors.length > 0) {
+        return new Response(JSON.stringify({ error: pwErrors.join("; ") }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
+    // Generate a cryptographically random temporary password when admin does not supply one.
+    // The user will be required to change it on first login (password_change_required = true).
+    const randomBytes = new Uint8Array(16);
+    crypto.getRandomValues(randomBytes);
+    const randomHex = Array.from(randomBytes).map(b => b.toString(16).padStart(2, '0')).join('');
+    const userPassword = password || `T${randomHex.slice(0, 10)}!A${randomHex.slice(10, 14)}9`;
 
     // Check if a user with this email already exists
     const { data: existingUsers } = await supabaseAdmin.auth.admin.listUsers();
@@ -271,6 +305,17 @@ Deno.serve(async (req: Request) => {
         .update(profileData)
         .eq("id", authData.user.id);
       if (updateError) throw new Error(`Profile update failed: ${updateError.message}`);
+    }
+
+    // Record initial password hash in history only when admin explicitly set a password.
+    // Auto-generated temp passwords are not recorded — the user must change them immediately.
+    if (password) {
+      const newHash = await hashPassword(password);
+      await supabaseAdmin.from("password_history").insert({
+        user_id: authData.user.id,
+        password_hash: newHash,
+        created_by: user.id,
+      });
     }
 
     return new Response(

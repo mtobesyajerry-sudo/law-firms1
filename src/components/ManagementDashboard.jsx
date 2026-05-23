@@ -22,6 +22,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
+import { validatePassword } from '../utils/security';
 import { getRiskColor, getRiskLabel, institutionCategories, calculateSectionScore, calculateRiskLevel } from '../data/assessmentData';
 import { getFilteredSections } from '../utils/frameworkUtils';
 import MarkdownRenderer from './MarkdownRenderer';
@@ -745,8 +746,9 @@ export default function ManagementDashboard() {
     e.preventDefault();
     setPasswordError('');
 
-    if (passwordForm.newPassword.length < 6) {
-      setPasswordError('Password must be at least 6 characters long');
+    const pwCheck = validatePassword(passwordForm.newPassword);
+    if (!pwCheck.isValid) {
+      setPasswordError(pwCheck.errors.join(' '));
       return;
     }
 

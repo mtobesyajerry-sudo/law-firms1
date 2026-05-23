@@ -17,9 +17,79 @@ import STRAlertDashboard from './components/STRAlertDashboard';
 import ControlAssessmentForm from './components/ControlAssessmentForm';
 import IntegratedClientRiskView from './components/IntegratedClientRiskView';
 import LoadingSpinner from './components/LoadingSpinner';
+import { validatePassword } from './utils/security';
+
+// Shown when profile.password_change_required = true.
+// The user cannot reach any other route until they set a compliant password.
+function ForcePasswordChange() {
+  const { signOut, refreshProfile } = useAuth();
+  const [pw, setPw] = React.useState('');
+  const [confirm, setConfirm] = React.useState('');
+  const [error, setError] = React.useState('');
+  const [saving, setSaving] = React.useState(false);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+    const check = validatePassword(pw);
+    if (!check.isValid) { setError(check.errors.join(' ')); return; }
+    if (pw !== confirm) { setError('Passwords do not match'); return; }
+    setSaving(true);
+    try {
+      const { error: updateErr } = await supabase.auth.updateUser({ password: pw });
+      if (updateErr) throw updateErr;
+      const { data: { user } } = await supabase.auth.getUser();
+      // Record new password hash in history to enable reuse prevention
+      const encoded = new TextEncoder().encode(pw);
+      const hashBuffer = await crypto.subtle.digest('SHA-256', encoded);
+      const pwHash = Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+      await supabase.from('password_history').insert({ user_id: user.id, password_hash: pwHash });
+      // Clear the forced-change flag
+      await supabase.from('user_profiles')
+        .update({ password_change_required: false })
+        .eq('id', user.id);
+      refreshProfile();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div style={{ minHeight: '100vh', background: '#f0f4f8', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '32px' }}>
+      <div style={{ maxWidth: '440px', width: '100%', background: 'white', padding: '48px', borderRadius: '16px', boxShadow: '0 4px 16px rgba(0,0,0,0.1)' }}>
+        <h1 style={{ margin: '0 0 8px', fontSize: '24px', fontWeight: '700', color: '#1a202c' }}>Change Your Password</h1>
+        <p style={{ margin: '0 0 28px', fontSize: '15px', color: '#4a5568', lineHeight: '1.5' }}>
+          Your account requires a password change before you can continue. Choose a strong password with at least 12 characters including uppercase, lowercase, a number, and a special character.
+        </p>
+        <form onSubmit={handleSubmit}>
+          <div style={{ marginBottom: '16px' }}>
+            <label style={{ display: 'block', marginBottom: '6px', fontWeight: '600', fontSize: '14px', color: '#2d3748' }}>New Password</label>
+            <input type="password" value={pw} onChange={e => setPw(e.target.value)} required
+              style={{ width: '100%', padding: '10px 12px', border: '1.5px solid #e2e8f0', borderRadius: '8px', fontSize: '15px', boxSizing: 'border-box' }} />
+          </div>
+          <div style={{ marginBottom: '20px' }}>
+            <label style={{ display: 'block', marginBottom: '6px', fontWeight: '600', fontSize: '14px', color: '#2d3748' }}>Confirm Password</label>
+            <input type="password" value={confirm} onChange={e => setConfirm(e.target.value)} required
+              style={{ width: '100%', padding: '10px 12px', border: '1.5px solid #e2e8f0', borderRadius: '8px', fontSize: '15px', boxSizing: 'border-box' }} />
+          </div>
+          {error && <p style={{ color: '#e53e3e', fontSize: '14px', marginBottom: '16px' }}>{error}</p>}
+          <button type="submit" disabled={saving}
+            style={{ width: '100%', padding: '12px', background: '#2563eb', color: 'white', border: 'none', borderRadius: '8px', fontWeight: '600', fontSize: '15px', cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.7 : 1 }}>
+            {saving ? 'Saving…' : 'Set New Password'}
+          </button>
+        </form>
+        <button onClick={signOut} style={{ marginTop: '16px', width: '100%', padding: '10px', background: 'transparent', border: '1.5px solid #e2e8f0', borderRadius: '8px', color: '#4a5568', fontSize: '14px', cursor: 'pointer' }}>
+          Sign Out
+        </button>
+      </div>
+    </div>
+  );
+}
 
 function ProtectedRoute({ children, adminOnly = false, managementOnly = false, staffOnly = false, complianceOnly = false }) {
-  const { user, profile, loading, signOut, isEarlyClient } = useAuth();
+  const { user, profile, loading, signOut, isEarlyClient, requiresPasswordChange } = useAuth();
 
   if (loading) {
     const isInitialLoad = !sessionStorage.getItem('app_mounted');
@@ -32,6 +102,11 @@ function ProtectedRoute({ children, adminOnly = false, managementOnly = false, s
 
   if (!user) {
     return <Navigate to="/auth" replace />;
+  }
+
+  // Block all navigation until a forced password change is completed
+  if (requiresPasswordChange) {
+    return <ForcePasswordChange />;
   }
 
   if (profile && !profile.is_active) {

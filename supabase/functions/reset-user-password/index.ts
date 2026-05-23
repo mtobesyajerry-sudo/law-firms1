@@ -17,6 +17,16 @@ async function isBlockedIP(req: Request): Promise<boolean> {
   return data?.permanently_blocked === true;
 }
 
+async function hashPassword(password: string): Promise<string> {
+  const encoded = new TextEncoder().encode(password);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", encoded);
+  return Array.from(new Uint8Array(hashBuffer))
+    .map(b => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+const PASSWORD_HISTORY_DEPTH = 5;
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
@@ -118,8 +128,22 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    if (newPassword.length < 8) {
-      return new Response(JSON.stringify({ error: "Password must be at least 8 characters" }), {
+    // Password policy — must match the client-side passwordRequirements in security.js
+    const pwErrors: string[] = [];
+    if (newPassword.length < 12) pwErrors.push("Password must be at least 12 characters long");
+    if (!/[A-Z]/.test(newPassword)) pwErrors.push("Password must contain at least one uppercase letter");
+    if (!/[a-z]/.test(newPassword)) pwErrors.push("Password must contain at least one lowercase letter");
+    if (!/\d/.test(newPassword)) pwErrors.push("Password must contain at least one number");
+    if (!/[!@#$%^&*()_+\-=\[\]{}|;:,.<>?]/.test(newPassword)) pwErrors.push("Password must contain at least one special character");
+    const commonPasswords = [
+      "password", "Password123!", "Welcome123!", "Admin123!",
+      "P@ssw0rd", "Qwerty123!", "123456", "password123",
+    ];
+    if (commonPasswords.some(c => newPassword.toLowerCase().includes(c.toLowerCase()))) {
+      pwErrors.push("Password is too common");
+    }
+    if (pwErrors.length > 0) {
+      return new Response(JSON.stringify({ error: pwErrors.join("; ") }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -149,7 +173,23 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    // Step 6: Perform the password reset via Admin API
+    // Step 6: Password reuse check — reject if new password matches any of last N hashes
+    const newHash = await hashPassword(newPassword);
+    const { data: recentHashes } = await supabaseAdmin
+      .from("password_history")
+      .select("password_hash")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(PASSWORD_HISTORY_DEPTH);
+
+    if (recentHashes && recentHashes.some((row: { password_hash: string }) => row.password_hash === newHash)) {
+      return new Response(
+        JSON.stringify({ error: `Password was used recently. Please choose a different password (last ${PASSWORD_HISTORY_DEPTH} passwords cannot be reused).` }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
+    // Step 7: Perform the password reset via Admin API
     const updateResponse = await fetch(
       `${Deno.env.get("SUPABASE_URL")}/auth/v1/admin/users/${userId}`,
       {
@@ -172,6 +212,13 @@ Deno.serve(async (req: Request) => {
     }
 
     const userData = await updateResponse.json();
+
+    // Step 8: Record the new password hash in history
+    await supabaseAdmin.from("password_history").insert({
+      user_id: userId,
+      password_hash: newHash,
+      created_by: user.id,
+    });
 
     return new Response(
       JSON.stringify({
