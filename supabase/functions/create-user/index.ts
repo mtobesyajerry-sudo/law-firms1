@@ -143,6 +143,26 @@ Deno.serve(async (req: Request) => {
       });
     }
 
+    // Step 2b: Check session revocation (defense-in-depth against still-valid revoked JWTs)
+    let jwtJti: string | null = null;
+    let jwtSessionId: string | null = null;
+    try {
+      const payload = JSON.parse(atob(authHeader.replace("Bearer ", "").split(".")[1]));
+      jwtJti = payload.jti ?? null;
+      jwtSessionId = payload.session_id ?? null;
+    } catch { /* non-fatal */ }
+    const { data: isRevoked } = await supabaseAdmin.rpc("is_session_revoked", {
+      p_user_id: user.id,
+      p_session_id: jwtSessionId,
+      p_jti: jwtJti,
+    });
+    if (isRevoked) {
+      return new Response(JSON.stringify({ error: "Session revoked" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // Step 3: Verify admin role from JWT-identified user
     const { data: callerProfile } = await supabaseAdmin
       .from("user_profiles")

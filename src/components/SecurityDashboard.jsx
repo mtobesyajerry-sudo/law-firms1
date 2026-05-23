@@ -27,6 +27,10 @@ export default function SecurityDashboard() {
   const [activeSessions, setActiveSessions] = useState([]);
   const [auditLogs, setAuditLogs] = useState([]);
   const [documentAccess, setDocumentAccess] = useState([]);
+  const [terminateModal, setTerminateModal] = useState(null); // { session }
+  const [terminateReason, setTerminateReason] = useState('');
+  const [terminateLoading, setTerminateLoading] = useState(false);
+  const [terminateToast, setTerminateToast] = useState(null);
 
   useEffect(() => {
     if (!isAdmin) {
@@ -180,18 +184,45 @@ export default function SecurityDashboard() {
     }
   };
 
-  const terminateSession = async (sessionId) => {
-    const { error } = await supabase
-      .from('user_sessions')
-      .update({
-        is_active: false,
-        terminated_at: new Date().toISOString()
-      })
-      .eq('id', sessionId);
+  const openTerminateModal = (session) => {
+    setTerminateModal(session);
+    setTerminateReason('');
+  };
 
-    if (!error) {
+  const confirmTerminateSession = async () => {
+    if (!terminateModal) return;
+    if (terminateReason.trim().length < 20) return;
+
+    setTerminateLoading(true);
+    try {
+      const { data: { session: authSession } } = await supabase.auth.getSession();
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+
+      const resp = await fetch(`${supabaseUrl}/functions/v1/revoke-user-session`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${authSession.access_token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          target_user_id: terminateModal.user_id,
+          reason: terminateReason.trim(),
+        }),
+      });
+
+      const result = await resp.json();
+      if (!resp.ok) throw new Error(result.error || 'Failed to revoke session');
+
+      setTerminateToast('Session terminated successfully.');
+      setTimeout(() => setTerminateToast(null), 4000);
+      setTerminateModal(null);
+      setTerminateReason('');
       loadActiveSessions();
       loadStats();
+    } catch (err) {
+      alert('Failed to terminate session: ' + err.message);
+    } finally {
+      setTerminateLoading(false);
     }
   };
 
@@ -615,7 +646,7 @@ export default function SecurityDashboard() {
                     <td style={styles.td}>{formatDate(session.expires_at)}</td>
                     <td style={styles.td}>
                       <button
-                        onClick={() => terminateSession(session.id)}
+                        onClick={() => openTerminateModal(session)}
                         style={styles.terminateButton}
                       >
                         Terminate
@@ -689,6 +720,54 @@ export default function SecurityDashboard() {
                 ))}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {/* Toast notification */}
+      {terminateToast && (
+        <div style={styles.toast}>{terminateToast}</div>
+      )}
+
+      {/* Session termination confirmation modal */}
+      {terminateModal && (
+        <div style={styles.modalOverlay}>
+          <div style={styles.modal}>
+            <h3 style={styles.modalTitle}>Terminate Session</h3>
+            <p style={styles.modalDesc}>
+              This will immediately revoke the session for{' '}
+              <strong>{terminateModal.user_profiles?.email || 'this user'}</strong> from{' '}
+              {terminateModal.ip_address}. They will be signed out within seconds.
+            </p>
+            <label style={styles.modalLabel}>
+              Reason for termination (minimum 20 characters)
+            </label>
+            <textarea
+              value={terminateReason}
+              onChange={(e) => setTerminateReason(e.target.value)}
+              style={styles.modalTextarea}
+              rows={3}
+              placeholder="e.g. Suspected account compromise — user reported unauthorised access"
+            />
+            <p style={{ fontSize: '12px', color: terminateReason.trim().length >= 20 ? '#10b981' : '#ef4444', margin: '4px 0 16px' }}>
+              {terminateReason.trim().length}/20 characters minimum
+            </p>
+            <div style={styles.modalActions}>
+              <button
+                onClick={() => { setTerminateModal(null); setTerminateReason(''); }}
+                style={styles.modalCancel}
+                disabled={terminateLoading}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmTerminateSession}
+                style={styles.modalConfirm}
+                disabled={terminateLoading || terminateReason.trim().length < 20}
+              >
+                {terminateLoading ? 'Terminating…' : 'Confirm Termination'}
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -974,5 +1053,86 @@ const styles = {
   complianceDesc: {
     fontSize: '12px',
     color: '#047857',
+  },
+  toast: {
+    position: 'fixed',
+    bottom: '24px',
+    right: '24px',
+    background: '#065f46',
+    color: 'white',
+    padding: '14px 24px',
+    borderRadius: '8px',
+    fontWeight: '600',
+    boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
+    zIndex: 9999,
+  },
+  modalOverlay: {
+    position: 'fixed',
+    inset: 0,
+    background: 'rgba(0,0,0,0.5)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 9998,
+  },
+  modal: {
+    background: 'white',
+    borderRadius: '12px',
+    padding: '32px',
+    width: '480px',
+    maxWidth: '90vw',
+    boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
+  },
+  modalTitle: {
+    fontSize: '20px',
+    fontWeight: '700',
+    color: '#0a1929',
+    marginBottom: '12px',
+  },
+  modalDesc: {
+    fontSize: '14px',
+    color: '#4a5568',
+    marginBottom: '20px',
+    lineHeight: '1.5',
+  },
+  modalLabel: {
+    display: 'block',
+    fontSize: '13px',
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: '8px',
+  },
+  modalTextarea: {
+    width: '100%',
+    padding: '10px 12px',
+    border: '1px solid #d1d5db',
+    borderRadius: '6px',
+    fontSize: '14px',
+    resize: 'vertical',
+    boxSizing: 'border-box',
+  },
+  modalActions: {
+    display: 'flex',
+    gap: '12px',
+    justifyContent: 'flex-end',
+  },
+  modalCancel: {
+    padding: '10px 20px',
+    background: 'white',
+    border: '1px solid #d1d5db',
+    borderRadius: '6px',
+    fontSize: '14px',
+    cursor: 'pointer',
+    color: '#374151',
+  },
+  modalConfirm: {
+    padding: '10px 20px',
+    background: '#dc2626',
+    color: 'white',
+    border: 'none',
+    borderRadius: '6px',
+    fontSize: '14px',
+    fontWeight: '600',
+    cursor: 'pointer',
   },
 };

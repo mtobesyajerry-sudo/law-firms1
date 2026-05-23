@@ -33,7 +33,7 @@ export default function Auth() {
   const [loading, setLoading] = useState(false);
   const [isFirstUser, setIsFirstUser] = useState(false);
   const [checkingFirstUser, setCheckingFirstUser] = useState(false);
-  const { signIn } = useAuth();
+  const { signIn, revokedMessage } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -427,6 +427,11 @@ export default function Auth() {
               />
             </div>
 
+            {revokedMessage && (
+              <div style={{ ...styles.error, background: '#fef3c7', color: '#92400e', borderColor: '#f59e0b' }}>
+                {revokedMessage}
+              </div>
+            )}
             {error && <div style={styles.error}>{error}</div>}
 
             <button type="submit" disabled={loading} style={styles.button}>

@@ -139,27 +139,6 @@ class LoginTrackingService {
     }
   }
 
-  async updateSessionActivity(userId) {
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-
-      if (session) {
-        const sessionToken = session.access_token.substring(0, 50);
-
-        await supabase
-          .from('user_sessions')
-          .update({
-            last_activity_at: new Date().toISOString()
-          })
-          .eq('user_id', userId)
-          .eq('session_token', sessionToken)
-          .eq('is_active', true);
-      }
-    } catch (error) {
-      console.error('Session update error:', error);
-    }
-  }
-
   async endSession(userId) {
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -194,34 +173,6 @@ class LoginTrackingService {
     } catch (error) {
       console.error('End all sessions error:', error);
     }
-  }
-
-  getDeviceInfo() {
-    const ua = navigator.userAgent;
-    let device = 'Unknown';
-
-    if (/mobile/i.test(ua)) {
-      device = 'Mobile';
-    } else if (/tablet/i.test(ua)) {
-      device = 'Tablet';
-    } else {
-      device = 'Desktop';
-    }
-
-    let browser = 'Unknown';
-    if (/chrome/i.test(ua)) browser = 'Chrome';
-    else if (/firefox/i.test(ua)) browser = 'Firefox';
-    else if (/safari/i.test(ua)) browser = 'Safari';
-    else if (/edge/i.test(ua)) browser = 'Edge';
-
-    let os = 'Unknown';
-    if (/windows/i.test(ua)) os = 'Windows';
-    else if (/mac/i.test(ua)) os = 'macOS';
-    else if (/linux/i.test(ua)) os = 'Linux';
-    else if (/android/i.test(ua)) os = 'Android';
-    else if (/ios/i.test(ua)) os = 'iOS';
-
-    return { device, browser, os };
   }
 
   async getActiveSessionCount(userId) {

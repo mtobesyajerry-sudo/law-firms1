@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, useMemo, useCallback } from 'react';
+import { createContext, useContext, useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { supabase } from '../supabaseClient';
 import { loginTrackingService } from '../services/loginTrackingService';
 
@@ -18,6 +18,43 @@ export const AuthProvider = ({ children }) => {
   const [organization, setOrganization] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isEarlyClient, setIsEarlyClient] = useState(false);
+  const [revokedMessage, setRevokedMessage] = useState(null);
+  // Track the last session token we checked so we don't re-check on every render
+  const lastCheckedSession = useRef(null);
+
+  // Checks whether the current session has been administratively revoked.
+  // Returns true and triggers a forced sign-out if revoked.
+  const checkSessionRevocation = useCallback(async (session) => {
+    if (!session?.user?.id || !session?.access_token) return false;
+    // Avoid redundant checks for the same token
+    if (lastCheckedSession.current === session.access_token) return false;
+    lastCheckedSession.current = session.access_token;
+
+    try {
+      let jti = null;
+      let sessionId = null;
+      try {
+        const payload = JSON.parse(atob(session.access_token.split('.')[1]));
+        jti = payload.jti ?? null;
+        sessionId = payload.session_id ?? null;
+      } catch { /* non-fatal */ }
+
+      const { data: revoked } = await supabase.rpc('is_session_revoked', {
+        p_user_id: session.user.id,
+        p_session_id: sessionId,
+        p_jti: jti,
+      });
+
+      if (revoked) {
+        setRevokedMessage('Your session has been ended by an administrator.');
+        await supabase.auth.signOut();
+        return true;
+      }
+    } catch (err) {
+      console.error('Session revocation check error:', err);
+    }
+    return false;
+  }, []);
 
   const checkIfEarlyClient = useCallback(async (userId) => {
     if (!userId) {
@@ -117,9 +154,14 @@ export const AuthProvider = ({ children }) => {
       if (error) {
         console.error('AuthContext: Session error', error);
       }
-      setUser(session?.user ?? null);
       if (session?.user) {
-        await loadUserProfile(session.user.id);
+        const wasRevoked = await checkSessionRevocation(session);
+        if (!wasRevoked) {
+          setUser(session.user);
+          await loadUserProfile(session.user.id);
+        }
+      } else {
+        setUser(null);
       }
       clearTimeout(timeout);
       setLoading(false);
@@ -155,6 +197,10 @@ export const AuthProvider = ({ children }) => {
         // Handle TOKEN_REFRESHED and INITIAL_SESSION without changing loading state
         // This prevents navigation during token refresh or page reload
         if (event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') {
+          if (session) {
+            const wasRevoked = await checkSessionRevocation(session);
+            if (wasRevoked) return;
+          }
           setUser(newUser);
           if (newUser) {
             await loadUserProfile(newUser.id);
@@ -242,7 +288,8 @@ export const AuthProvider = ({ children }) => {
     hasActiveSubscription,
     hasAccess,
     refreshProfile,
-  }), [user, profile, organization, loading, signUp, signIn, signOut, isEarlyClient, hasActiveSubscription, hasAccess, refreshProfile]);
+    revokedMessage,
+  }), [user, profile, organization, loading, signUp, signIn, signOut, isEarlyClient, hasActiveSubscription, hasAccess, refreshProfile, revokedMessage]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
