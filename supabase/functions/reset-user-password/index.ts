@@ -135,15 +135,17 @@ Deno.serve(async (req: Request) => {
     if (!/[a-z]/.test(newPassword)) pwErrors.push("Password must contain at least one lowercase letter");
     if (!/\d/.test(newPassword)) pwErrors.push("Password must contain at least one number");
     if (!/[!@#$%^&*()_+\-=\[\]{}|;:,.<>?]/.test(newPassword)) pwErrors.push("Password must contain at least one special character");
-    const commonPasswords = [
-      "password", "Password123!", "Welcome123!", "Admin123!",
-      "P@ssw0rd", "Qwerty123!", "123456", "password123",
-    ];
-    if (commonPasswords.some(c => newPassword.toLowerCase().includes(c.toLowerCase()))) {
-      pwErrors.push("Password is too common");
-    }
     if (pwErrors.length > 0) {
       return new Response(JSON.stringify({ error: pwErrors.join("; ") }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    // Common password check against 9,865-entry DB table (exact match on md5(lower(candidate)))
+    const { data: commonCheck } = await supabaseAdmin
+      .rpc("check_common_password", { candidate: newPassword });
+    if (commonCheck === true) {
+      return new Response(JSON.stringify({ error: "Password is too common" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });

@@ -1,4 +1,5 @@
 import { supabase } from '../supabaseClient';
+import commonPasswords from './commonPasswords.json';
 
 function mapSecurityEventType(eventType) {
   if (!eventType) return 'system_event';
@@ -57,11 +58,8 @@ export function validatePassword(password) {
     }
   }
 
-  const commonPasswords = [
-    'password', 'Password123!', 'Welcome123!', 'Admin123!',
-    'P@ssw0rd', 'Qwerty123!', '123456', 'password123'
-  ];
-  if (commonPasswords.some(common => password.toLowerCase().includes(common.toLowerCase()))) {
+  const commonPasswordSet = new Set(commonPasswords);
+  if (commonPasswordSet.has(password.toLowerCase())) {
     errors.push('Password is too common');
   }
 
