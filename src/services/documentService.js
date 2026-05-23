@@ -220,6 +220,16 @@ export class DocumentService {
         throw new Error('User not authenticated');
       }
 
+      const { data: profile } = await supabase
+        .from('user_profiles')
+        .select('organization_id, role')
+        .eq('id', user.id)
+        .single();
+
+      if (!profile) {
+        throw new Error('User profile not found');
+      }
+
       let document = null;
       let storagePath = null;
 
@@ -230,6 +240,10 @@ export class DocumentService {
         .single();
 
       if (clientDoc) {
+        // Enforce org isolation — admins may cross orgs, all others must match
+        if (profile.role !== 'admin' && clientDoc.organization_id !== profile.organization_id) {
+          throw new Error('Access denied: document belongs to a different organization');
+        }
         document = clientDoc;
         storagePath = clientDoc.storage_path;
       } else {
@@ -240,6 +254,16 @@ export class DocumentService {
           .single();
 
         if (assessmentDoc) {
+          // Verify org ownership via the parent assessment
+          const { data: assessment } = await supabase
+            .from('assessments')
+            .select('organization_id')
+            .eq('id', assessmentDoc.assessment_id)
+            .single();
+
+          if (profile.role !== 'admin' && assessment?.organization_id !== profile.organization_id) {
+            throw new Error('Access denied: document belongs to a different organization');
+          }
           document = assessmentDoc;
           storagePath = assessmentDoc.file_path;
         }
@@ -282,6 +306,16 @@ export class DocumentService {
         throw new Error('User not authenticated');
       }
 
+      const { data: profile } = await supabase
+        .from('user_profiles')
+        .select('organization_id, role')
+        .eq('id', user.id)
+        .single();
+
+      if (!profile) {
+        throw new Error('User profile not found');
+      }
+
       let document = null;
       let storagePath = null;
 
@@ -292,6 +326,9 @@ export class DocumentService {
         .single();
 
       if (clientDoc) {
+        if (profile.role !== 'admin' && clientDoc.organization_id !== profile.organization_id) {
+          throw new Error('Access denied: document belongs to a different organization');
+        }
         document = clientDoc;
         storagePath = clientDoc.storage_path;
       } else {
@@ -302,6 +339,15 @@ export class DocumentService {
           .single();
 
         if (assessmentDoc) {
+          const { data: assessment } = await supabase
+            .from('assessments')
+            .select('organization_id')
+            .eq('id', assessmentDoc.assessment_id)
+            .single();
+
+          if (profile.role !== 'admin' && assessment?.organization_id !== profile.organization_id) {
+            throw new Error('Access denied: document belongs to a different organization');
+          }
           document = {
             ...assessmentDoc,
             document_name: assessmentDoc.file_name,
@@ -351,17 +397,30 @@ export class DocumentService {
         throw new Error('User not authenticated');
       }
 
+      const { data: profile } = await supabase
+        .from('user_profiles')
+        .select('organization_id, role')
+        .eq('id', user.id)
+        .single();
+
+      if (!profile) {
+        throw new Error('User profile not found');
+      }
+
       let document = null;
       let storagePath = null;
       let isAssessmentDoc = false;
 
       const { data: clientDoc } = await supabase
         .from('client_documents')
-        .select('storage_path, client_id, document_name')
+        .select('storage_path, client_id, document_name, organization_id')
         .eq('id', documentId)
         .single();
 
       if (clientDoc) {
+        if (profile.role !== 'admin' && clientDoc.organization_id !== profile.organization_id) {
+          throw new Error('Access denied: document belongs to a different organization');
+        }
         document = clientDoc;
         storagePath = clientDoc.storage_path;
       } else {
@@ -372,6 +431,15 @@ export class DocumentService {
           .single();
 
         if (assessmentDoc) {
+          const { data: assessment } = await supabase
+            .from('assessments')
+            .select('organization_id')
+            .eq('id', assessmentDoc.assessment_id)
+            .single();
+
+          if (profile.role !== 'admin' && assessment?.organization_id !== profile.organization_id) {
+            throw new Error('Access denied: document belongs to a different organization');
+          }
           document = {
             document_name: assessmentDoc.file_name,
             assessment_id: assessmentDoc.assessment_id
