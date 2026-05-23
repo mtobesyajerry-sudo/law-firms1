@@ -85,13 +85,18 @@ function buildName(parts: Array<string | undefined | null>): string {
 // Sanitize potentially malformed timestamps (e.g. "2015-07-01-04:00") to ISO or null
 function sanitizeTimestamp(s: string | null | undefined): string | null {
   if (!s) return null;
-  // Already valid ISO-like date
-  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
-  // Strip timezone garbage: "2015-07-01-04:00" → "2015-07-01"
-  const m = s.match(/^(\d{4}-\d{2}-\d{2})/);
-  if (m) return m[1];
+  // Already valid ISO-like date — reject year 0000 or 00 month/day
+  const isoMatch = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (isoMatch) {
+    const [, y, mo, d] = isoMatch;
+    if (y === "0000" || mo === "00" || d === "00") return null;
+    return `${y}-${mo}-${d}`;
+  }
   const d = new Date(s);
-  return isNaN(d.getTime()) ? null : d.toISOString().slice(0, 10);
+  if (isNaN(d.getTime())) return null;
+  const year = d.getFullYear();
+  if (year <= 0 || year > 9999) return null;
+  return d.toISOString().slice(0, 10);
 }
 
 // ---------------------------------------------------------------------------
@@ -530,21 +535,62 @@ async function ingestEu(supabase: SupabaseClient): Promise<{ added: number; upda
 }
 
 // ---------------------------------------------------------------------------
-// UK HMT/OFSI ingestion — uses CSV format (much smaller than XML)
+// UK HMT/OFSI ingestion — uses CSV format
 // ---------------------------------------------------------------------------
+// CSV column layout (actual header names, 0-indexed):
+//   0:Name 6 (surname/entity name), 1:Name 1 (first name), 2:Name 2, 3:Name 3,
+//   4:Name 4, 5:Name 5, 6:Title, 7:Name Non-Latin Script, 8:Non-Latin Script Type,
+//   9:Non-Latin Script Language, 10:DOB, 11:Town of Birth, 12:Country of Birth,
+//   13:Nationality, 14:Passport Number, 15:Passport Details,
+//   16:National Identification Number, 17:National Identification Details,
+//   18:Position, 19:Address 1, 20:Address 2, 21:Address 3, 22:Address 4,
+//   23:Address 5, 24:Address 6, 25:Post/Zip Code, 26:Country,
+//   27:Other Information, 28:Group Type, 29:Alias Type, 30:Alias Quality,
+//   31:Regime, 32:Listed On, 33:UK Sanctions List Date Designated,
+//   34:Last Updated, 35:Group ID
+// Each designee has multiple rows (one per name/alias) sharing the same Group ID.
+// The "Alias Type" column distinguishes "Primary name variation" from non-Latin aliases.
 const UK_URL = "https://ofsistorage.blob.core.windows.net/publishlive/2022format/ConList.csv";
 
-// UK OFSI CSV columns (pipe-delimited or comma):
-// GroupID, LastUpdated, UniqueID, Names, NameType, Title, Name1..6,
-// NonLatinName, DOB, Town, Country, Nationality, NationalityCountry,
-// AddressLine1..6, PostCode, Country, OtherInformation, RegimeName,
-// IndividualEntityShip, ListType, UKSanctionsListRef
+// UK DOB is DD/MM/YYYY; unknown day/month/year are encoded as 00 or 0000
 function parseUkDobText(text: string): { dob: string | null; dobText: string | null } {
   if (!text?.trim()) return { dob: null, dobText: null };
-  const m = text.trim().match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
-  if (m) return { dob: `${m[3]}-${m[2]}-${m[1]}`, dobText: text };
-  const d = new Date(text);
-  return { dob: isNaN(d.getTime()) ? null : d.toISOString().slice(0, 10), dobText: text };
+  const t = text.trim();
+  // DD/MM/YYYY
+  const m = t.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (m) {
+    const [, dd, mm, yyyy] = m;
+    // Any zero component or year 0000 = partial/unknown — text only
+    if (dd === "00" || mm === "00" || yyyy === "0000") {
+      return { dob: null, dobText: t };
+    }
+    const iso = `${yyyy}-${mm.padStart(2,"0")}-${dd.padStart(2,"0")}`;
+    return { dob: iso, dobText: t };
+  }
+  // YYYY only or partial
+  if (/^\d{4}$/.test(t)) return { dob: null, dobText: t };
+  const d = new Date(t);
+  if (isNaN(d.getTime())) return { dob: null, dobText: t };
+  const year = d.getFullYear();
+  if (year <= 0 || year > 9999) return { dob: null, dobText: t };
+  return { dob: d.toISOString().slice(0, 10), dobText: t };
+}
+
+// Build a full name from UK CSV cols: Name 6 (surname) + Name 1..5 (given names)
+// For individuals: "PUTIN, Vladimir Vladimirovich" style → store as "Vladimir Vladimirovich PUTIN"
+// For entities: Name 6 contains the full entity name
+function buildUkName(cols: string[], groupType: string): string {
+  const surname = cols[0]?.trim() ?? "";
+  const given = [cols[1], cols[2], cols[3], cols[4], cols[5]]
+    .map((s) => s?.trim())
+    .filter(Boolean)
+    .join(" ");
+  if (groupType.toLowerCase() === "individual") {
+    // Individual: given names first, then surname
+    return given ? `${given} ${surname}` : surname;
+  }
+  // Entity: Name 6 is the full name
+  return surname || given;
 }
 
 async function ingestUk(supabase: SupabaseClient): Promise<{ added: number; updated: number; removed: number; total: number }> {
@@ -557,54 +603,92 @@ async function ingestUk(supabase: SupabaseClient): Promise<{ added: number; upda
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const csv = await res.text();
     const lines = csv.split("\n");
-    // Detect delimiter (OFSI uses comma)
-    const header = lines[0] ?? "";
-    const delim = header.includes(",") ? "," : "\t";
-    const headerCols = header.split(delim).map((c) => c.replace(/"/g, "").trim().toLowerCase());
-    const idx = (name: string) => headerCols.indexOf(name);
-    const iGroupId = idx("groupid") >= 0 ? idx("groupid") : 0;
-    const iName1 = idx("name1") >= 0 ? idx("name1") : 5;
-    const iName2 = idx("name2") >= 0 ? idx("name2") : 6;
-    const iName3 = idx("name3") >= 0 ? idx("name3") : 7;
-    const iName4 = idx("name4") >= 0 ? idx("name4") : 8;
-    const iName5 = idx("name5") >= 0 ? idx("name5") : 9;
-    const iDob = idx("dob") >= 0 ? idx("dob") : 13;
-    const iNat = idx("nationalitycountry") >= 0 ? idx("nationalitycountry") : 16;
-    const iRegime = idx("regimename") >= 0 ? idx("regimename") : -1;
-    const iType = idx("individualentityship") >= 0 ? idx("individualentityship") : -1;
-    const iRemarks = idx("otherinformation") >= 0 ? idx("otherinformation") : -1;
+
+    // Line 0 is "Last Updated,<date>" — skip it.
+    // Line 1 is the actual header row.
+    // Column indices are fixed per the 2022format spec above.
+    const COL_NAME6     = 0;   // surname / entity name
+    const COL_NAME1     = 1;   // first given name
+    const COL_NAME2     = 2;
+    const COL_NAME3     = 3;
+    const COL_NAME4     = 4;
+    const COL_NAME5     = 5;
+    const COL_NON_LATIN = 7;   // Name Non-Latin Script
+    const COL_DOB       = 10;
+    const COL_TOWN_BIRTH = 11;
+    const COL_NATIONALITY = 13;
+    const COL_PASSPORT_NO = 14;
+    const COL_NATID_NO  = 16;
+    const COL_POSITION  = 18;
+    const COL_REMARKS   = 27;  // Other Information
+    const COL_GROUP_TYPE = 28; // "Individual" or "Entity"
+    const COL_ALIAS_TYPE = 29; // "Primary name variation", "Non-Latin Script", etc.
+    const COL_REGIME    = 31;
+    const COL_LISTED_ON = 32;
+    const COL_GROUP_ID  = 35;  // unique designee ID
+
+    // Group all rows by Group ID (skip first 2 lines: metadata + header)
+    const groups = new Map<string, string[][]>();
+    for (let i = 2; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (!line) continue;
+      const cols = parseOfacCsvLine(line);
+      const gid = cols[COL_GROUP_ID]?.replace(/"/g, "").trim();
+      if (!gid || isNaN(Number(gid))) continue;
+      if (!groups.has(gid)) groups.set(gid, []);
+      groups.get(gid)!.push(cols.map((c) => c.replace(/"/g, "").trim()));
+    }
 
     let total = 0;
     const keepIds = new Set<string>();
     const BATCH = 50;
     let batch: ListEntry[] = [];
-    // Group rows by GroupID (multiple rows per designation for aliases)
-    const groups = new Map<string, string[][]>();
-    for (let i = 1; i < lines.length; i++) {
-      const line = lines[i].trim();
-      if (!line) continue;
-      const cols = parseOfacCsvLine(line); // reuse CSV parser
-      const gid = cols[iGroupId]?.replace(/"/g, "").trim();
-      if (!gid) continue;
-      if (!groups.has(gid)) groups.set(gid, []);
-      groups.get(gid)!.push(cols);
-    }
 
     for (const [gid, rows] of groups) {
-      const primaryRow = rows[0];
-      const primaryName = buildName([
-        primaryRow[iName1], primaryRow[iName2], primaryRow[iName3],
-        primaryRow[iName4], primaryRow[iName5],
-      ]) || `UK Designation ${gid}`;
-      const aliases_jsonb = rows.slice(1).map((r) => {
-        const aname = buildName([r[iName1], r[iName2], r[iName3], r[iName4], r[iName5]]);
-        if (!aname || aname === primaryName) return null;
-        return { name: aname, normalized_name: normalizeName(aname) };
-      }).filter((x): x is NonNullable<typeof x> => x !== null);
-      const { dob, dobText } = parseUkDobText(primaryRow[iDob]?.replace(/"/g, "").trim() ?? "");
-      const nat = primaryRow[iNat]?.replace(/"/g, "").trim();
+      if (rows.length === 0) continue;
+
+      // Use first row for all metadata (DOB, nationality, regime etc. repeat on every row)
+      const meta = rows[0];
+      const groupType = meta[COL_GROUP_TYPE] ?? "Entity";
       const entryType: ListEntry["entry_type"] =
-        (iType >= 0 && primaryRow[iType]?.replace(/"/g, "").trim().toLowerCase() === "individual") ? "individual" : "entity";
+        groupType.toLowerCase() === "individual" ? "individual" : "entity";
+
+      // Primary name: find rows with alias type "Primary name variation" or take first row
+      const primaryRows = rows.filter((r) =>
+        r[COL_ALIAS_TYPE]?.toLowerCase().includes("primary")
+      );
+      const primaryRow = primaryRows[0] ?? rows[0];
+      const primaryName = buildUkName(primaryRow, groupType) || `UK-${gid}`;
+
+      // Aliases: all other rows with a Latin-script name (skip pure non-Latin rows if primary is Latin)
+      const aliases_jsonb = rows
+        .filter((r) => r !== primaryRow)
+        .map((r) => {
+          const nonLatin = r[COL_NON_LATIN];
+          // Prefer Latin name; fall back to non-Latin if that's all there is
+          const aname = buildUkName(r, groupType) || nonLatin || "";
+          if (!aname || aname === primaryName) return null;
+          const aliasType = r[COL_ALIAS_TYPE] ?? "";
+          return { name: aname, normalized_name: normalizeName(aname), type: aliasType };
+        })
+        .filter((x): x is NonNullable<typeof x> => x !== null);
+
+      const { dob, dobText } = parseUkDobText(meta[COL_DOB]);
+      const nationality = meta[COL_NATIONALITY];
+      const placeOfBirth = [meta[COL_TOWN_BIRTH]].filter(Boolean).join(", ") || null;
+      const position = meta[COL_POSITION];
+      const regime = meta[COL_REGIME];
+      const listedOn = meta[COL_LISTED_ON];
+
+      // Identifications: passport + national ID
+      const identifications: ListEntry["identifications"] = [];
+      if (meta[COL_PASSPORT_NO]) {
+        identifications.push({ type: "passport", number: meta[COL_PASSPORT_NO], country: null });
+      }
+      if (meta[COL_NATID_NO]) {
+        identifications.push({ type: "national_id", number: meta[COL_NATID_NO], country: null });
+      }
+
       const entry: ListEntry = {
         external_id: `UK-${gid}`,
         primary_name: primaryName,
@@ -612,18 +696,21 @@ async function ingestUk(supabase: SupabaseClient): Promise<{ added: number; upda
         aliases_jsonb,
         date_of_birth: dob,
         dob_text: dobText,
-        place_of_birth: null,
-        nationalities: nat ? [nat] : null,
-        identifications: [],
+        place_of_birth: placeOfBirth,
+        nationalities: nationality ? [nationality] : null,
+        identifications,
         addresses: [],
-        program: iRegime >= 0 ? (primaryRow[iRegime]?.replace(/"/g, "").trim() || null) : null,
-        remarks: iRemarks >= 0 ? (primaryRow[iRemarks]?.replace(/"/g, "").trim() || null) : null,
+        program: regime || null,
+        remarks: meta[COL_REMARKS] || null,
         raw_data: null,
-        is_pep: false,
-        pep_position: null,
-        pep_country: null,
-        source_updated_at: null,
+        is_pep: !!position,
+        pep_position: position || null,
+        pep_country: nationality || null,
+        source_updated_at: listedOn ? sanitizeTimestamp(
+          listedOn.replace(/^(\d{2})\/(\d{2})\/(\d{4})$/, "$3-$2-$1")
+        ) : null,
       };
+
       keepIds.add(entry.external_id);
       batch.push(entry);
       if (batch.length >= BATCH) {
@@ -631,6 +718,7 @@ async function ingestUk(supabase: SupabaseClient): Promise<{ added: number; upda
         batch = [];
       }
     }
+
     if (batch.length > 0) total += await upsertBatch(supabase, listId, batch);
     const removed = await removeStaleEntries(supabase, listId, keepIds);
     await updateListMeta(supabase, listId, total, "success");
