@@ -1,5 +1,22 @@
 import { createClient } from "npm:@supabase/supabase-js@2.39.0";
 
+async function isBlockedIP(req: Request): Promise<boolean> {
+  const forwarded = req.headers.get("x-forwarded-for");
+  const ip = forwarded ? forwarded.split(",")[0].trim() : null;
+  if (!ip) return false;
+  const supabase = createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  );
+  const { data } = await supabase
+    .from("ip_reputation")
+    .select("permanently_blocked")
+    .eq("ip_address", ip)
+    .maybeSingle();
+  return data?.permanently_blocked === true;
+}
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
@@ -9,6 +26,13 @@ const corsHeaders = {
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { status: 200, headers: corsHeaders });
+  }
+
+  if (await isBlockedIP(req)) {
+    return new Response(JSON.stringify({ error: "Too Many Requests" }), {
+      status: 429,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 
   try {
