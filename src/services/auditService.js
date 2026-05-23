@@ -54,10 +54,17 @@ class AuditService {
         .insert([auditEntry]);
 
       if (error) {
-        console.error('Failed to log audit event:', error);
+        // Audit failures must never be silent — surface them so monitoring catches them.
+        // We do not re-throw because audit logging must not break the calling operation.
+        const msg = `[AUDIT FAILURE] Insert to audit_logs rejected: ${error.message} | code: ${error.code} | entry: ${JSON.stringify(auditEntry)}`;
+        console.error(msg);
+        if (typeof window !== 'undefined' && window.__auditFailures) {
+          window.__auditFailures.push({ ts: new Date().toISOString(), error: error.message, entry: auditEntry });
+        }
       }
-    } catch (error) {
-      console.error('Audit logging error:', error);
+    } catch (err) {
+      const msg = `[AUDIT FAILURE] Unexpected error in logEvent: ${err?.message ?? err}`;
+      console.error(msg);
     }
   }
 

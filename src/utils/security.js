@@ -126,10 +126,11 @@ export async function logAuditEvent({
       }]);
 
     if (error) {
-      console.error('Error logging audit event:', error);
+      const msg = `[AUDIT FAILURE] Insert to audit_logs rejected: ${error.message} | code: ${error.code} | action: ${eventType}`;
+      console.error(msg);
     }
-  } catch (error) {
-    console.error('Error in logAuditEvent:', error);
+  } catch (err) {
+    console.error(`[AUDIT FAILURE] Unexpected error in logAuditEvent: ${err?.message ?? err}`);
   }
 }
 
@@ -158,10 +159,10 @@ export async function logLoginAttempt({
       }]);
 
     if (error) {
-      console.error('Error logging login attempt:', error);
+      console.error(`[AUDIT FAILURE] Insert to login_history rejected: ${error.message} | code: ${error.code} | email: ${email}`);
     }
-  } catch (error) {
-    console.error('Error in logLoginAttempt:', error);
+  } catch (err) {
+    console.error(`[AUDIT FAILURE] Unexpected error in logLoginAttempt: ${err?.message ?? err}`);
   }
 }
 
@@ -189,10 +190,10 @@ export async function logDocumentAccess({
       }]);
 
     if (error) {
-      console.error('Error logging document access:', error);
+      console.error(`[AUDIT FAILURE] Insert to document_access_logs rejected: ${error.message} | code: ${error.code} | doc: ${documentId}`);
     }
-  } catch (error) {
-    console.error('Error in logDocumentAccess:', error);
+  } catch (err) {
+    console.error(`[AUDIT FAILURE] Unexpected error in logDocumentAccess: ${err?.message ?? err}`);
   }
 }
 

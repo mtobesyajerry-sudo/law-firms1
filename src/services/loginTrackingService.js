@@ -22,10 +22,9 @@ class LoginTrackingService {
         email: email,
         success: success,
         failure_reason: failureReason,
-        ip_address: ipAddress,
-        user_agent: userAgent,
-        mfa_used: mfaUsed,
-        device_info: this.getDeviceInfo()
+        // login_history.ip_address is inet — null is safe; 'unknown' is not a valid inet
+        ip_address: ipAddress || null,
+        user_agent: userAgent
       };
 
       const { error } = await supabase
@@ -33,7 +32,7 @@ class LoginTrackingService {
         .insert([loginEntry]);
 
       if (error) {
-        console.error('Failed to log login attempt:', error);
+        console.error(`[AUDIT FAILURE] Insert to login_history rejected: ${error.message} | code: ${error.code} | email: ${email}`);
       }
 
       if (!success) {
@@ -41,8 +40,8 @@ class LoginTrackingService {
       }
 
       return loginEntry;
-    } catch (error) {
-      console.error('Login tracking error:', error);
+    } catch (err) {
+      console.error(`[AUDIT FAILURE] Unexpected error in logLoginAttempt: ${err?.message ?? err}`);
     }
   }
 
@@ -76,12 +75,13 @@ class LoginTrackingService {
             email: email,
             attempt_count: 1,
             last_attempt_at: new Date().toISOString(),
-            ip_addresses: [ipAddress],
-            reason: reason
+            // ip_address is text NOT NULL — fall back to 'unknown' (not inet type here)
+            ip_address: ipAddress || 'unknown',
+            failure_reason: reason
           }]);
       }
-    } catch (error) {
-      console.error('Failed to log failed attempt:', error);
+    } catch (err) {
+      console.error(`[AUDIT FAILURE] Unexpected error in logFailedAttempt: ${err?.message ?? err}`);
     }
   }
 
