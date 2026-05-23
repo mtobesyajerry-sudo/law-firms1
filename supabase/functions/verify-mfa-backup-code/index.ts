@@ -72,18 +72,22 @@ Deno.serve(async (req: Request) => {
 
     if (!match) {
       // Log failed attempt
-      await supabaseAdmin.from("failed_login_attempts").insert({
-        user_id: user.id,
-        attempt_type: "mfa_backup_code",
-        ip_address: req.headers.get("x-forwarded-for")?.split(",")[0].trim() ?? null,
-      }).catch(() => { /* non-fatal */ });
+      try {
+        await supabaseAdmin.from("failed_login_attempts").insert({
+          user_id: user.id,
+          attempt_type: "mfa_backup_code",
+          ip_address: req.headers.get("x-forwarded-for")?.split(",")[0].trim() ?? null,
+        });
+      } catch { /* non-fatal */ }
 
-      await supabaseAdmin.from("audit_logs").insert({
-        user_id: user.id,
-        action_type: "login",
-        entity_type: "mfa_backup_code",
-        action_description: "Failed MFA backup code attempt",
-      }).catch(() => { /* non-fatal */ });
+      try {
+        await supabaseAdmin.from("audit_logs").insert({
+          user_id: user.id,
+          action_type: "login",
+          entity_type: "mfa_backup_code",
+          action_description: "Failed MFA backup code attempt",
+        });
+      } catch { /* non-fatal */ }
 
       return new Response(JSON.stringify({ error: "Invalid or already-used backup code" }), {
         status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -109,21 +113,22 @@ Deno.serve(async (req: Request) => {
     // reads to treat this user as "backup-code verified" for the current session.
     // A separate mfa_session_elevations table holds this.
     const elevationToken = crypto.randomUUID();
-    await supabaseAdmin.from("mfa_session_elevations").insert({
-      user_id: user.id,
-      token: elevationToken,
-      expires_at: new Date(Date.now() + 5 * 60 * 1000).toISOString(), // 5 min
-    }).catch(async () => {
-      // Table may not exist yet — create it inline
-      await supabaseAdmin.rpc("create_mfa_elevation_table_if_missing").catch(() => { /* ignore */ });
-    });
+    try {
+      await supabaseAdmin.from("mfa_session_elevations").insert({
+        user_id: user.id,
+        token: elevationToken,
+        expires_at: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
+      });
+    } catch { /* non-fatal */ }
 
-    await supabaseAdmin.from("audit_logs").insert({
-      user_id: user.id,
-      action_type: "login",
-      entity_type: "mfa_backup_code",
-      action_description: "MFA backup code verified successfully",
-    }).catch(() => { /* non-fatal */ });
+    try {
+      await supabaseAdmin.from("audit_logs").insert({
+        user_id: user.id,
+        action_type: "login",
+        entity_type: "mfa_backup_code",
+        action_description: "MFA backup code verified successfully",
+      });
+    } catch { /* non-fatal */ }
 
     return new Response(
       JSON.stringify({
