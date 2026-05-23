@@ -145,7 +145,24 @@ Deno.serve(async (req) => {
       });
     }
 
-    const threshold = request.threshold ?? 0.70;
+    // Validate client_id is a valid UUID if supplied
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (request.client_id !== undefined && request.client_id !== null) {
+      if (typeof request.client_id !== "string" || !uuidRegex.test(request.client_id)) {
+        return new Response(JSON.stringify({ error: "client_id must be a valid UUID" }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
+    // Validate threshold is a number in [0, 1]
+    const rawThreshold = request.threshold ?? 0.70;
+    if (typeof rawThreshold !== "number" || isNaN(rawThreshold) || rawThreshold < 0 || rawThreshold > 1) {
+      return new Response(JSON.stringify({ error: "threshold must be a number between 0 and 1" }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const threshold = rawThreshold;
 
     // DB fuzzy match
     const { data: candidates, error: matchError } = await supabase

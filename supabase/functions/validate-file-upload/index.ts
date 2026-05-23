@@ -20,13 +20,61 @@ const FILE_SIGNATURES = {
   'text/plain': null, // Text files don't have a consistent signature
 };
 
-const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB (reduced from 50MB)
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+const MAX_FILENAME_LENGTH = 255;
+
+// Allowed extensions — must match the MIME type whitelist above
+const ALLOWED_EXTENSIONS = new Set([
+  'pdf', 'jpg', 'jpeg', 'png', 'gif',
+  'doc', 'docx', 'xls', 'xlsx', 'txt',
+]);
+
+// Sanitize a filename: strip path traversal, null bytes, and non-safe characters
+function sanitizeFilename(raw: string): { sanitized: string; warnings: string[] } {
+  const warnings: string[] = [];
+  let name = raw;
+
+  // Null byte removal
+  if (name.includes('\x00')) {
+    warnings.push('Filename contained null bytes (removed)');
+    name = name.replace(/\x00/g, '');
+  }
+
+  // Strip path separators / and \
+  if (/[\/\\]/.test(name)) {
+    warnings.push('Filename contained path separators (removed)');
+    name = name.replace(/[\/\\]/g, '');
+  }
+
+  // Strip parent-directory traversal sequences
+  if (/\.\./.test(name)) {
+    warnings.push('Filename contained directory traversal sequences (removed)');
+    name = name.replace(/\.\./g, '');
+  }
+
+  // Replace characters outside safe set with underscore
+  const unsafe = /[^a-zA-Z0-9._\-\s]/g;
+  if (unsafe.test(name)) {
+    warnings.push('Filename contained unsafe characters (replaced with _)');
+    name = name.replace(/[^a-zA-Z0-9._\-\s]/g, '_');
+  }
+
+  // Enforce length limit
+  if (name.length > MAX_FILENAME_LENGTH) {
+    const ext = name.includes('.') ? name.slice(name.lastIndexOf('.')) : '';
+    name = name.slice(0, MAX_FILENAME_LENGTH - ext.length) + ext;
+    warnings.push(`Filename truncated to ${MAX_FILENAME_LENGTH} characters`);
+  }
+
+  return { sanitized: name.trim() || 'unnamed', warnings };
+}
 
 interface ValidationResult {
   valid: boolean;
   errors: string[];
   warnings: string[];
   fileHash?: string;
+  sanitizedFilename?: string;
 }
 
 // Verify file signature matches declared MIME type
@@ -155,6 +203,20 @@ Deno.serve(async (req: Request) => {
       errors: [],
       warnings: [],
     };
+
+    // 0. Sanitize and validate filename
+    const { sanitized: sanitizedFilename, warnings: filenameWarnings } = sanitizeFilename(file.name);
+    result.sanitizedFilename = sanitizedFilename;
+    result.warnings.push(...filenameWarnings);
+
+    // Reject if filename has no recognised extension after sanitization
+    const ext = sanitizedFilename.includes('.')
+      ? sanitizedFilename.slice(sanitizedFilename.lastIndexOf('.') + 1).toLowerCase()
+      : '';
+    if (!ALLOWED_EXTENSIONS.has(ext)) {
+      result.valid = false;
+      result.errors.push(`File extension .${ext || '(none)'} is not allowed`);
+    }
 
     // 1. Validate file size
     if (file.size > MAX_FILE_SIZE) {

@@ -27,10 +27,26 @@ if (!rootElement) {
       console.log('✓ React app mounted successfully');
     } catch (error) {
       console.error('✗ Failed to mount React app:', error);
-      rootElement.innerHTML = '<div style="padding:40px;background:#fee;color:#c00;font-family:monospace;"><h1>Failed to Mount App</h1><pre>' + error.stack + '</pre></div>';
+      const div = document.createElement('div');
+      div.style.cssText = 'padding:40px;background:#fee;color:#c00;font-family:monospace;';
+      const h1 = document.createElement('h1');
+      h1.textContent = 'Failed to Mount App';
+      const pre = document.createElement('pre');
+      pre.textContent = error?.message ?? String(error);
+      div.appendChild(h1);
+      div.appendChild(pre);
+      rootElement.replaceChildren(div);
     }
   }).catch(error => {
     console.error('✗ Failed to import App:', error);
-    rootElement.innerHTML = '<div style="padding:40px;background:#fee;color:#c00;font-family:monospace;"><h1>Failed to Import App</h1><pre>' + error.stack + '</pre></div>';
+    const div = document.createElement('div');
+    div.style.cssText = 'padding:40px;background:#fee;color:#c00;font-family:monospace;';
+    const h1 = document.createElement('h1');
+    h1.textContent = 'Failed to Import App';
+    const pre = document.createElement('pre');
+    pre.textContent = error?.message ?? String(error);
+    div.appendChild(h1);
+    div.appendChild(pre);
+    rootElement.replaceChildren(div);
   });
 }
