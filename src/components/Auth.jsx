@@ -6,6 +6,7 @@ import { institutionCategories } from '../data/assessmentData';
 import { loginTrackingService } from '../services/loginTrackingService';
 import { auditService } from '../services/auditService';
 import { validatePassword } from '../utils/security';
+import MfaChallenge from './MfaChallenge';
 
 export default function Auth() {
   const [mode, setMode] = useState('login');
@@ -34,6 +35,9 @@ export default function Auth() {
   const [loading, setLoading] = useState(false);
   const [isFirstUser, setIsFirstUser] = useState(false);
   const [checkingFirstUser, setCheckingFirstUser] = useState(false);
+  // MFA challenge state — set after password succeeds if aal2 is required
+  const [mfaPending, setMfaPending] = useState(false);
+  const [pendingProfile, setPendingProfile] = useState(null);
   const { signIn, revokedMessage } = useAuth();
   const navigate = useNavigate();
 
@@ -93,6 +97,14 @@ export default function Auth() {
     }
   };
 
+  const navigateByRole = (role) => {
+    if (role === 'admin') navigate('/admin/dashboard');
+    else if (role === 'management' || role === 'senior_partner') navigate('/dashboard/management');
+    else if (role === 'staff' || role === 'lawyer') navigate('/dashboard/staff');
+    else if (role === 'compliance_officer' || role === 'mlro') navigate('/dashboard/compliance');
+    else navigate('/client/dashboard');
+  };
+
   const handleLoginSubmit = async (e) => {
     e.preventDefault();
     setError('');
@@ -121,6 +133,16 @@ export default function Auth() {
           }
         }
 
+        // Check MFA assurance level — if aal2 is required, show challenge screen
+        const { data: aalData } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+        if (aalData?.currentLevel === 'aal1' && aalData?.nextLevel === 'aal2') {
+          // User has TOTP enrolled but hasn't completed the second factor yet
+          setPendingProfile(profile);
+          setMfaPending(true);
+          setLoading(false);
+          return;
+        }
+
         await loginTrackingService.logLoginAttempt(email, true, user, null, false);
         await loginTrackingService.createSession(user.id);
         await auditService.logSecurityEvent(
@@ -129,17 +151,7 @@ export default function Auth() {
           `User ${email} logged in successfully`
         );
 
-        if (profile?.role === 'admin') {
-          navigate('/admin/dashboard');
-        } else if (profile?.role === 'management' || profile?.role === 'senior_partner') {
-          navigate('/dashboard/management');
-        } else if (profile?.role === 'staff' || profile?.role === 'lawyer') {
-          navigate('/dashboard/staff');
-        } else if (profile?.role === 'compliance_officer' || profile?.role === 'mlro') {
-          navigate('/dashboard/compliance');
-        } else {
-          navigate('/client/dashboard');
-        }
+        navigateByRole(profile?.role);
       }
     } catch (err) {
       await loginTrackingService.logLoginAttempt(email, false, null, err.message, false);
@@ -173,6 +185,28 @@ export default function Auth() {
       }
       setLoading(false);
     }
+  };
+
+  const handleMfaSuccess = async () => {
+    setMfaPending(false);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      await loginTrackingService.logLoginAttempt(email, true, user, null, false);
+      await loginTrackingService.createSession(user.id);
+      await auditService.logSecurityEvent(
+        'user_login_success',
+        'info',
+        `User ${email} completed MFA and logged in`
+      );
+    }
+    navigateByRole(pendingProfile?.role);
+  };
+
+  const handleMfaCancel = async () => {
+    setMfaPending(false);
+    setPendingProfile(null);
+    await supabase.auth.signOut();
+    setError('Sign-in cancelled.');
   };
 
   const handleRegisterSubmit = async (e) => {
@@ -357,6 +391,14 @@ export default function Auth() {
       setLoading(false);
     }
   };
+
+  if (mfaPending) {
+    return (
+      <div style={styles.container}>
+        <MfaChallenge onSuccess={handleMfaSuccess} onCancel={handleMfaCancel} />
+      </div>
+    );
+  }
 
   return (
     <div style={styles.container}>

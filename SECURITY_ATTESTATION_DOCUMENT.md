@@ -219,8 +219,8 @@ This platform is specifically designed for:
 | Feature | Implementation | Status |
 |---------|----------------|--------|
 | Password Policy | Minimum 8 characters, complexity requirements | ✅ Enforced |
-| Multi-Factor Authentication (MFA) | TOTP-based (Google Authenticator, Authy) | ✅ Available |
-| MFA Enforcement | Configurable per organization | ✅ Supported |
+| Multi-Factor Authentication (MFA) | TOTP via Supabase Auth (Google Authenticator, Authy, 1Password). 10 backup codes generated at enrollment, hashed with SHA-256, single-use. | ✅ Implemented |
+| MFA Enforcement | New users: 14-day grace period then required. Admin/system_admin: immediate enforcement (no grace period). Privileged actions (user create/delete/reset/session revoke) require AAL2 at the Edge Function layer. | ✅ Enforced |
 | Session Management | JWT tokens with expiry | ✅ Implemented |
 | Session Timeout | Configurable (default: 24 hours) | ✅ Enforced |
 | Password Reset | Secure email-based reset flow | ✅ Implemented |
@@ -713,7 +713,7 @@ Data may be disclosed to:
 **Bank Responsibilities:**
 - ✅ User access management (creating, modifying, removing users)
 - ✅ Strong password enforcement
-- ✅ MFA enablement for all users (highly recommended)
+- ✅ MFA enrollment: required for all users (14-day grace period for standard users, immediate for admins)
 - ✅ User security training (internal staff)
 - ✅ Workstation security (bank's endpoints)
 - ✅ Network security (bank's internal network)

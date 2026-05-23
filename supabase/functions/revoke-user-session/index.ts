@@ -102,6 +102,22 @@ Deno.serve(async (req: Request) => {
       });
     }
 
+    // Require AAL2 — admins must have completed MFA to perform privileged actions
+    try {
+      const jwtPayload = JSON.parse(atob(authHeader.replace("Bearer ", "").split(".")[1]));
+      if (jwtPayload.aal !== "aal2") {
+        return new Response(JSON.stringify({ error: "MFA required for this action" }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    } catch {
+      return new Response(JSON.stringify({ error: "MFA required for this action" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const { target_user_id, session_id, reason } = await req.json();
 
     if (!target_user_id) {

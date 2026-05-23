@@ -19,6 +19,9 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [isEarlyClient, setIsEarlyClient] = useState(false);
   const [revokedMessage, setRevokedMessage] = useState(null);
+  // MFA state
+  const [mfaEnrolled, setMfaEnrolled] = useState(false);
+  const [mfaAssuranceLevel, setMfaAssuranceLevel] = useState(null); // 'aal1' | 'aal2'
   // Track the last session token we checked so we don't re-check on every render
   const lastCheckedSession = useRef(null);
 
@@ -79,6 +82,20 @@ export const AuthProvider = ({ children }) => {
     }
   }, []);
 
+  const checkMfaState = useCallback(async () => {
+    try {
+      const { data: factors } = await supabase.auth.mfa.listFactors();
+      const hasTOTP = (factors?.totp?.length ?? 0) > 0;
+      setMfaEnrolled(hasTOTP);
+
+      const { data: aalData } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+      setMfaAssuranceLevel(aalData?.currentLevel ?? 'aal1');
+    } catch {
+      setMfaEnrolled(false);
+      setMfaAssuranceLevel('aal1');
+    }
+  }, []);
+
   const loadUserProfile = useCallback(async (userId, retryCount = 0) => {
     if (!userId) {
       setProfile(null);
@@ -104,6 +121,9 @@ export const AuthProvider = ({ children }) => {
 
       console.log('Loaded user profile:', data);
       setProfile(data);
+
+      // Check MFA enrollment and assurance level
+      await checkMfaState();
 
       // Check if user is an early client
       await checkIfEarlyClient(userId);
@@ -181,6 +201,8 @@ export const AuthProvider = ({ children }) => {
           setProfile(null);
           setOrganization(null);
           setIsEarlyClient(false);
+          setMfaEnrolled(false);
+          setMfaAssuranceLevel(null);
           setLoading(false);
           return;
         }
@@ -274,6 +296,16 @@ export const AuthProvider = ({ children }) => {
     }
   }, [user?.id, loadUserProfile]);
 
+  // Grace period helpers
+  const mfaGracePeriodEnds = profile?.mfa_grace_period_ends ?? null;
+  const mfaGraceExpired = mfaGracePeriodEnds
+    ? new Date(mfaGracePeriodEnds) <= new Date()
+    : false;
+  // requiresMfaEnrollment = user has no MFA factor AND grace period has expired
+  const requiresMfaEnrollment = !mfaEnrolled && mfaGraceExpired && !!user;
+  // showMfaNudge = user has no MFA factor but still within grace period
+  const showMfaNudge = !mfaEnrolled && !mfaGraceExpired && !!user && mfaGracePeriodEnds !== null;
+
   const value = useMemo(() => ({
     user,
     profile,
@@ -290,7 +322,15 @@ export const AuthProvider = ({ children }) => {
     refreshProfile,
     revokedMessage,
     requiresPasswordChange: profile?.password_change_required === true,
-  }), [user, profile, organization, loading, signUp, signIn, signOut, isEarlyClient, hasActiveSubscription, hasAccess, refreshProfile, revokedMessage]);
+    // MFA
+    mfaEnrolled,
+    mfaAssuranceLevel,
+    mfaGracePeriodEnds,
+    mfaGraceExpired,
+    requiresMfaEnrollment,
+    showMfaNudge,
+    refreshMfaState: checkMfaState,
+  }), [user, profile, organization, loading, signUp, signIn, signOut, isEarlyClient, hasActiveSubscription, hasAccess, refreshProfile, revokedMessage, mfaEnrolled, mfaAssuranceLevel, mfaGracePeriodEnds, mfaGraceExpired, requiresMfaEnrollment, showMfaNudge, checkMfaState]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { supabase } from './supabaseClient';
 import Auth from './components/Auth';
+import MfaEnrollment from './components/MfaEnrollment';
 import ClientDashboard from './components/ClientDashboard';
 import ManagementDashboard from './components/ManagementDashboard';
 import ClientManagementDashboard from './components/ClientManagementDashboard';
@@ -88,8 +89,44 @@ function ForcePasswordChange() {
   );
 }
 
+function MfaNudgeBanner({ gracePeriodEnds, onSetupNow, onDismiss }) {
+  const graceDate = new Date(gracePeriodEnds);
+  const daysLeft = Math.max(0, Math.ceil((graceDate - Date.now()) / 86400000));
+  return (
+    <div style={{
+      position: 'fixed', top: 0, left: 0, right: 0, zIndex: 500,
+      background: daysLeft <= 3 ? '#fef2f2' : '#fffbeb',
+      borderBottom: `2px solid ${daysLeft <= 3 ? '#fca5a5' : '#fcd34d'}`,
+      padding: '10px 20px', display: 'flex', alignItems: 'center',
+      justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap',
+    }}>
+      <span style={{ fontSize: '14px', color: daysLeft <= 3 ? '#b91c1c' : '#92400e', fontWeight: '600' }}>
+        Two-factor authentication is required by {graceDate.toLocaleDateString()}.
+        {daysLeft > 0 ? ` ${daysLeft} day${daysLeft !== 1 ? 's' : ''} remaining.` : ' Required now.'}
+      </span>
+      <div style={{ display: 'flex', gap: '8px' }}>
+        <button onClick={onSetupNow} style={{
+          padding: '6px 16px', fontSize: '13px', fontWeight: '700',
+          color: '#0a1929', background: 'linear-gradient(135deg,#d4af37,#f4d03f)',
+          border: 'none', borderRadius: '6px', cursor: 'pointer',
+        }}>Set up now</button>
+        {daysLeft > 0 && (
+          <button onClick={onDismiss} style={{
+            padding: '6px 14px', fontSize: '13px', fontWeight: '600',
+            color: '#64748b', background: 'transparent',
+            border: '1px solid #cbd5e0', borderRadius: '6px', cursor: 'pointer',
+          }}>Remind me later</button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function ProtectedRoute({ children, adminOnly = false, managementOnly = false, staffOnly = false, complianceOnly = false }) {
-  const { user, profile, loading, signOut, isEarlyClient, requiresPasswordChange } = useAuth();
+  const { user, profile, loading, signOut, isEarlyClient, requiresPasswordChange,
+    requiresMfaEnrollment, showMfaNudge, mfaGracePeriodEnds, refreshMfaState } = useAuth();
+  const [showMfaEnrollment, setShowMfaEnrollment] = React.useState(false);
+  const [nudgeDismissed, setNudgeDismissed] = React.useState(false);
 
   if (loading) {
     const isInitialLoad = !sessionStorage.getItem('app_mounted');
@@ -107,6 +144,16 @@ function ProtectedRoute({ children, adminOnly = false, managementOnly = false, s
   // Block all navigation until a forced password change is completed
   if (requiresPasswordChange) {
     return <ForcePasswordChange />;
+  }
+
+  // Block all navigation until forced MFA enrollment completes (grace period expired)
+  if (requiresMfaEnrollment && !showMfaEnrollment) {
+    return (
+      <MfaEnrollment
+        forced
+        onComplete={() => { refreshMfaState(); }}
+      />
+    );
   }
 
   if (profile && !profile.is_active) {
@@ -221,7 +268,25 @@ function ProtectedRoute({ children, adminOnly = false, managementOnly = false, s
     return <Navigate to="/client/dashboard" replace />;
   }
 
-  return children;
+  return (
+    <>
+      {showMfaNudge && !nudgeDismissed && mfaGracePeriodEnds && (
+        <MfaNudgeBanner
+          gracePeriodEnds={mfaGracePeriodEnds}
+          onSetupNow={() => setShowMfaEnrollment(true)}
+          onDismiss={() => setNudgeDismissed(true)}
+        />
+      )}
+      {showMfaEnrollment && (
+        <MfaEnrollment
+          gracePeriodEnds={mfaGracePeriodEnds}
+          onComplete={() => { setShowMfaEnrollment(false); refreshMfaState(); }}
+          onSkip={() => setShowMfaEnrollment(false)}
+        />
+      )}
+      {children}
+    </>
+  );
 }
 
 function RoleBasedRedirect() {

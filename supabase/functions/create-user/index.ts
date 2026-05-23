@@ -197,6 +197,22 @@ Deno.serve(async (req: Request) => {
       });
     }
 
+    // Step 3b: Require AAL2 — admins must have completed MFA to perform privileged actions
+    try {
+      const jwtPayload = JSON.parse(atob(authHeader.replace("Bearer ", "").split(".")[1]));
+      if (jwtPayload.aal !== "aal2") {
+        return new Response(JSON.stringify({ error: "MFA required for this action" }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    } catch {
+      return new Response(JSON.stringify({ error: "MFA required for this action" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // Step 4: Parse request body
     const requestBody = await req.json();
     const { action, registrationId } = requestBody;
@@ -289,13 +305,21 @@ Deno.serve(async (req: Request) => {
       .eq("id", authData.user.id)
       .maybeSingle();
 
+    // Admins get immediate MFA enforcement; all others get 14-day grace period
+    const assignedRole = role || "client";
+    const isAdminRole = assignedRole === "admin" || assignedRole === "system_admin";
+    const mfaGracePeriodEnds = isAdminRole
+      ? new Date().toISOString()
+      : new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString();
+
     const profileData: Record<string, unknown> = {
       id: authData.user.id,
       email,
-      role: role || "client",
+      role: assignedRole,
       full_name: full_name || "",
       password_change_required: !password,
       organization_id: targetOrgId ?? null,
+      mfa_grace_period_ends: mfaGracePeriodEnds,
     };
 
     if (!existingProfile) {
