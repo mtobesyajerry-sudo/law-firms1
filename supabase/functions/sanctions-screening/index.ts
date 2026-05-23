@@ -1,172 +1,279 @@
-// OFAC SDN List ingestion.
-// Source: https://www.treasury.gov/ofac/downloads/sdn.xml
-// Updated multiple times per week by US Treasury.
-//
-// We use the simpler "advanced format" SDN.XML rather than the newer
-// SDN_ADVANCED.XML because it covers what we need for name screening
-// without requiring full graph traversal of the OFAC schema.
+// sanctions-screening — screen a client against all available lists.
+// - Default: DB fuzzy match against ingested OFAC, UN, EU, UK lists
+// - Premium tier: also calls OpenSanctions /match API
 
-import { parse as parseXML } from "https://deno.land/x/xml@2.1.3/mod.ts";
-import {
-  corsHeaders, finishIngestion, getListId, getServiceClient, jsonResponse,
-  type ListEntry, normalizeName, removeStaleEntries, requireCronAuth,
-  startIngestion, updateListMeta, upsertEntries,
-} from "../_shared/ingestion.ts";
+import { createClient } from "npm:@supabase/supabase-js@2";
 
-const OFAC_SDN_URL = "https://www.treasury.gov/ofac/downloads/sdn.xml";
-
-// OFAC SDN type codes
-const SDN_TYPE_MAP: Record<string, ListEntry["entry_type"]> = {
-  "Individual": "individual",
-  "Entity": "entity",
-  "Vessel": "vessel",
-  "Aircraft": "aircraft",
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-function arr<T>(v: T | T[] | undefined): T[] {
-  if (v === undefined || v === null) return [];
-  return Array.isArray(v) ? v : [v];
+const OPENSANCTIONS_URL = "https://api.opensanctions.org/match/sanctions";
+
+interface ScreenRequest {
+  client_id?: string;
+  full_name: string;
+  date_of_birth?: string;
+  nationality?: string;
+  id_number?: string;
+  entity_type?: "individual" | "entity";
+  use_premium?: boolean;
+  threshold?: number;
 }
 
-function parseDob(dobList: any): { dob: string | null; dobText: string | null } {
-  const dobs = arr(dobList?.dateOfBirthItem);
-  if (dobs.length === 0) return { dob: null, dobText: null };
-  const first = dobs[0]?.dateOfBirth;
-  if (!first) return { dob: null, dobText: null };
-  // Try to parse "01 Jan 1970" or similar
-  const text = String(first);
-  const parsed = new Date(text);
-  return {
-    dob: isNaN(parsed.getTime()) ? null : parsed.toISOString().slice(0, 10),
-    dobText: text,
+function computeFinalScore(candidate: any, request: ScreenRequest) {
+  let score = Number(candidate.match_score) || 0;
+  const breakdown = {
+    name_score: score,
+    dob_bonus: 0,
+    nationality_bonus: 0,
+    id_match_bonus: 0,
+    final_score: score,
   };
+
+  if (request.date_of_birth && candidate.date_of_birth) {
+    if (request.date_of_birth === candidate.date_of_birth) {
+      breakdown.dob_bonus = 0.15;
+    } else {
+      breakdown.dob_bonus = -0.20;
+    }
+  }
+
+  if (request.nationality && candidate.nationalities?.length) {
+    if (candidate.nationalities.some((n: string) =>
+      n.toLowerCase() === request.nationality!.toLowerCase()
+    )) {
+      breakdown.nationality_bonus = 0.05;
+    }
+  }
+
+  if (request.id_number && candidate.raw_data) {
+    const ids = JSON.stringify(candidate.raw_data).toLowerCase();
+    if (ids.includes(request.id_number.toLowerCase())) {
+      breakdown.id_match_bonus = 0.20;
+    }
+  }
+
+  breakdown.final_score = Math.max(0, Math.min(1,
+    score + breakdown.dob_bonus + breakdown.nationality_bonus + breakdown.id_match_bonus
+  ));
+  return breakdown;
 }
 
-function extractSdnEntry(sdn: any): ListEntry | null {
-  if (!sdn?.uid) return null;
-  const externalId = `OFAC-SDN-${sdn.uid}`;
-
-  const firstName = sdn.firstName ?? "";
-  const lastName = sdn.lastName ?? "";
-  const primaryName = [firstName, lastName].filter(Boolean).join(" ").trim() ||
-    sdn.title ?? `Unknown ${sdn.uid}`;
-
-  // Aliases (a.k.a.s)
-  const akaList = arr(sdn.akaList?.aka);
-  const aliases = akaList
-    .map((aka: any) => {
-      const aname = [aka.firstName, aka.lastName].filter(Boolean).join(" ").trim();
-      if (!aname) return null;
-      return {
-        name: aname,
-        normalized_name: normalizeName(aname),
-        type: aka.type,
-      };
-    })
-    .filter((x: any) => x !== null);
-
-  const { dob, dobText } = parseDob(sdn.dateOfBirthList);
-
-  const nats = arr(sdn.nationalityList?.nationality)
-    .map((n: any) => n.country)
-    .filter(Boolean);
-
-  const ids = arr(sdn.idList?.id).map((i: any) => ({
-    type: i.idType ?? "unknown",
-    number: i.idNumber ?? "",
-    country: i.idCountry ?? null,
-  }));
-
-  const addresses = arr(sdn.addressList?.address).map((a: any) => ({
-    address1: a.address1 ?? null,
-    city: a.city ?? null,
-    country: a.country ?? null,
-    postal: a.postalCode ?? null,
-  }));
-
-  const programs = arr(sdn.programList?.program).join(", ");
-
-  const pob = arr(sdn.placeOfBirthList?.placeOfBirthItem)
-    .map((p: any) => p.placeOfBirth)
-    .filter(Boolean)
-    .join("; ");
-
-  return {
-    external_id: externalId,
-    primary_name: primaryName,
-    entry_type: SDN_TYPE_MAP[sdn.sdnType] ?? "entity",
-    aliases,
-    date_of_birth: dob,
-    dob_text: dobText,
-    place_of_birth: pob || null,
-    nationalities: nats,
-    identifications: ids,
-    addresses,
-    program: programs || null,
-    remarks: sdn.remarks ?? null,
-    raw_data: sdn,
-  };
+function riskLevel(highest: number, hasPep: boolean, hasSanction: boolean): string {
+  if (hasSanction && highest >= 0.85) return "critical";
+  if (highest >= 0.85) return "high";
+  if (hasPep || highest >= 0.75) return "medium";
+  return "low";
 }
 
-async function runIngestion() {
-  const started = Date.now();
-  const supabase = getServiceClient();
-  const listId = await getListId(supabase, "OFAC_SDN");
-  const logId = await startIngestion(supabase, listId, OFAC_SDN_URL);
+async function callOpenSanctions(request: ScreenRequest): Promise<any> {
+  const apiKey = Deno.env.get("OPENSANCTIONS_API_KEY");
+  if (!apiKey) return null;
+
+  const schema = request.entity_type === "entity" ? "Organization" : "Person";
+  const properties: Record<string, string[]> = { name: [request.full_name] };
+  if (request.date_of_birth) properties.birthDate = [request.date_of_birth];
+  if (request.nationality) properties.nationality = [request.nationality];
+  if (request.id_number) properties.idNumber = [request.id_number];
 
   try {
-    console.log("Fetching OFAC SDN XML...");
-    const res = await fetch(OFAC_SDN_URL);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const xml = await res.text();
-    console.log(`Downloaded ${xml.length} bytes`);
-
-    const parsed: any = parseXML(xml);
-    const sdnEntries = arr(parsed?.sdnList?.sdnEntry);
-    console.log(`Parsed ${sdnEntries.length} SDN entries`);
-
-    const entries: ListEntry[] = [];
-    const keepIds = new Set<string>();
-    for (const sdn of sdnEntries) {
-      const entry = extractSdnEntry(sdn);
-      if (entry) {
-        entries.push(entry);
-        keepIds.add(entry.external_id);
-      }
-    }
-
-    const { added, updated } = await upsertEntries(supabase, listId, entries);
-    const removed = await removeStaleEntries(supabase, listId, keepIds);
-
-    await updateListMeta(supabase, listId, entries.length, "success");
-    await finishIngestion(supabase, logId, {
-      status: "success",
-      added, updated, removed,
-      total: entries.length,
-      started_at: started,
+    const res = await fetch(OPENSANCTIONS_URL, {
+      method: "POST",
+      headers: { "Authorization": `ApiKey ${apiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ queries: { q1: { schema, properties } } }),
     });
-
-    return { ok: true, added, updated, removed, total: entries.length };
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    console.error("OFAC SDN sync failed:", msg);
-    await updateListMeta(supabase, listId, 0, "failed", msg);
-    await finishIngestion(supabase, logId, {
-      status: "failed", error: msg, started_at: started,
-    });
-    throw err;
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
   }
 }
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+
   try {
-    requireCronAuth(req);
-    const result = await runIngestion();
-    return jsonResponse(result);
+    const authHeader = req.headers.get("Authorization") ?? "";
+    if (!authHeader.startsWith("Bearer ")) {
+      return new Response(JSON.stringify({ error: "Missing auth" }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_ANON_KEY")!,
+      { global: { headers: { Authorization: authHeader } } },
+    );
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      return new Response(JSON.stringify({ error: "Invalid auth" }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const { data: profile } = await supabase
+      .from("user_profiles")
+      .select("organization_id")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    if (!profile?.organization_id) {
+      return new Response(JSON.stringify({ error: "No organization" }), {
+        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const request: ScreenRequest = await req.json();
+    if (!request.full_name) {
+      return new Response(JSON.stringify({ error: "full_name required" }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const threshold = request.threshold ?? 0.70;
+
+    // DB fuzzy match
+    const { data: candidates, error: matchError } = await supabase
+      .rpc("match_screening_candidates", {
+        p_query_name: request.full_name,
+        p_organization_id: profile.organization_id,
+        p_threshold: threshold,
+        p_limit: 50,
+      });
+
+    if (matchError) throw matchError;
+
+    // List snapshot for audit
+    const { data: listSnapshot } = await supabase
+      .from("screening_lists")
+      .select("id, list_source, last_synced_at, entry_count")
+      .or(`is_global.eq.true,organization_id.eq.${profile.organization_id}`);
+
+    // Optional premium screening
+    let opensanctionsResult: any = null;
+    if (request.use_premium) {
+      opensanctionsResult = await callOpenSanctions(request);
+    }
+
+    // Combine and score
+    const allMatches: any[] = [];
+
+    for (const c of (candidates ?? [])) {
+      const breakdown = computeFinalScore(c, request);
+      if (breakdown.final_score >= threshold) {
+        allMatches.push({
+          list_entry_id: c.entry_id,
+          list_source: c.list_source,
+          list_entry_name: c.primary_name,
+          matched_value: c.matched_alias ?? c.primary_name,
+          match_type: c.match_type,
+          match_score: breakdown.final_score,
+          score_breakdown: breakdown,
+          is_pep: c.is_pep,
+          program: c.program,
+        });
+      }
+    }
+
+    if (opensanctionsResult?.responses?.q1?.results) {
+      for (const r of opensanctionsResult.responses.q1.results) {
+        allMatches.push({
+          list_entry_id: null,
+          list_source: "OPENSANCTIONS",
+          list_entry_name: r.caption ?? r.properties?.name?.[0],
+          matched_value: r.caption ?? r.properties?.name?.[0],
+          match_type: "opensanctions_match",
+          match_score: r.score ?? 0,
+          score_breakdown: { name_score: r.score, dob_bonus: 0, nationality_bonus: 0, id_match_bonus: 0, final_score: r.score },
+          is_pep: r.schema === "Person" && (r.properties?.topics?.includes("role.pep") ?? false),
+          program: r.properties?.program?.[0] ?? null,
+        });
+      }
+    }
+
+    allMatches.sort((a, b) => b.match_score - a.match_score);
+
+    const highestScore = allMatches[0]?.match_score ?? 0;
+    const hasPep = allMatches.some((m) => m.is_pep);
+    const hasSanction = allMatches.some((m) => m.list_source !== "OPENSANCTIONS");
+    const risk = riskLevel(highestScore, hasPep, hasSanction);
+
+    // Persist screening result
+    const { data: screening, error: screeningError } = await supabase
+      .from("screening_results")
+      .insert({
+        client_id: request.client_id ?? null,
+        organization_id: profile.organization_id,
+        screened_name: request.full_name,
+        screened_dob: request.date_of_birth ?? null,
+        screened_nationality: request.nationality ?? null,
+        screened_id_number: request.id_number ?? null,
+        screened_entity_type: request.entity_type ?? "individual",
+        lists_checked: listSnapshot ?? [],
+        match_count: allMatches.length,
+        highest_score: highestScore,
+        overall_risk: risk,
+        opensanctions_used: !!opensanctionsResult,
+        opensanctions_response: opensanctionsResult,
+        status: allMatches.length > 0 ? "pending_review" : "cleared",
+        screened_by: user.id,
+        screened_at: new Date().toISOString(),
+      })
+      .select()
+      .single();
+
+    if (screeningError) throw screeningError;
+
+    if (allMatches.length > 0) {
+      const matchRows = allMatches.map((m) => ({
+        screening_result_id: screening.id,
+        list_entry_id: m.list_entry_id,
+        organization_id: profile.organization_id,
+        match_score: m.match_score,
+        match_type: m.match_type,
+        matched_field: "name",
+        matched_value: m.matched_value,
+        score_breakdown: m.score_breakdown,
+        status: "pending_review",
+        list_source: m.list_source,
+        list_entry_name: m.list_entry_name,
+        list_entry_program: m.program,
+        is_pep: m.is_pep,
+      }));
+      await supabase.from("screening_matches").insert(matchRows);
+    }
+
+    // Audit log
+    await supabase.from("screening_audit_log").insert({
+      organization_id: profile.organization_id,
+      screening_result_id: screening.id,
+      action: "screening_run",
+      actor_id: user.id,
+      actor_email: user.email,
+      details: { match_count: allMatches.length, highest_score: highestScore, risk, premium_used: !!opensanctionsResult },
+    });
+
+    return new Response(
+      JSON.stringify({
+        screening_id: screening.id,
+        status: screening.status,
+        match_count: allMatches.length,
+        highest_score: highestScore,
+        overall_risk: risk,
+        matches: allMatches,
+      }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    const status = msg === "Unauthorized" ? 401 : 500;
-    return jsonResponse({ ok: false, error: msg }, status);
+    console.error("sanctions-screening error:", msg);
+    return new Response(JSON.stringify({ error: msg }), {
+      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 });

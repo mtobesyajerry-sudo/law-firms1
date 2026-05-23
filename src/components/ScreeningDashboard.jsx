@@ -5,6 +5,10 @@ import ManualScreeningForm from './ManualScreeningForm';
 import ScreeningMatchReview from './ScreeningMatchReview';
 import ScreeningListManagement from './ScreeningListManagement';
 import LoadingSpinner from './LoadingSpinner';
+import NewScreeningModal from './NewScreeningModal';
+import ReviewMatchesPanel from './ReviewMatchesPanel';
+import ManageListsPanel from './ManageListsPanel';
+import { getDashboardCounters, getScreeningHistory } from '../services/screeningService';
 
 export default function ScreeningDashboard() {
   const [loading, setLoading] = useState(true);
@@ -15,6 +19,7 @@ export default function ScreeningDashboard() {
   const [clients, setClients] = useState([]);
   const [selectedClient, setSelectedClient] = useState(null);
   const [organizationId, setOrganizationId] = useState(null);
+  const [showNewScreening, setShowNewScreening] = useState(false);
 
   useEffect(() => {
     loadDashboardData();
@@ -41,33 +46,40 @@ export default function ScreeningDashboard() {
 
       setClients(clientsData || []);
 
-      const mockStats = {
-        total: (clientsData?.length || 0) * 2,
-        matchesFound: Math.floor((clientsData?.length || 0) * 0.15),
-        pending: Math.floor((clientsData?.length || 0) * 0.3),
-        underReview: Math.floor((clientsData?.length || 0) * 0.2),
-        cleared: Math.floor((clientsData?.length || 0) * 1.3),
-        highRisk: Math.floor((clientsData?.length || 0) * 0.1),
-      };
+      const [counters, history] = await Promise.all([
+        getDashboardCounters().catch(() => null),
+        getScreeningHistory({ pageSize: 50 }).catch(() => ({ rows: [] })),
+      ]);
 
-      setStatistics(mockStats);
+      if (counters) {
+        setStatistics({
+          total: counters.total,
+          matchesFound: counters.matches,
+          pending: counters.pending,
+          underReview: 0,
+          cleared: counters.cleared,
+          highRisk: counters.high_risk,
+        });
+      } else {
+        setStatistics({ total: 0, matchesFound: 0, pending: 0, underReview: 0, cleared: 0, highRisk: 0 });
+      }
 
-      const mockResults = (clientsData || []).slice(0, 10).map((client, idx) => ({
-        id: `screening-${idx}`,
-        client_name: client.client_name,
-        client_id: client.id,
-        screening_type: idx % 3 === 0 ? 'Sanctions' : idx % 3 === 1 ? 'PEP' : 'Adverse Media',
-        screening_date: new Date(Date.now() - (idx * 3 * 24 * 60 * 60 * 1000)).toISOString(),
-        match_found: idx % 4 === 0,
-        match_count: idx % 4 === 0 ? Math.floor(Math.random() * 3) + 1 : 0,
-        risk_level: client.is_pep ? 'high' : client.is_sanctioned ? 'critical' : idx % 4 === 0 ? 'medium' : 'low',
-        screening_status: idx % 4 === 0 ? 'pending' : idx === 1 ? 'under_review' : 'cleared',
-        screened_by: user.email,
+      const liveResults = (history.rows || []).map((r) => ({
+        id: r.id,
+        client_name: r.kyc_clients?.client_name ?? r.screened_name ?? 'Unknown',
+        client_id: r.client_id,
+        screening_type: 'Sanctions / PEP',
+        screening_date: r.screened_at ?? r.created_at,
+        match_found: (r.match_count ?? 0) > 0,
+        match_count: r.match_count ?? 0,
+        risk_level: r.overall_risk ?? 'low',
+        screening_status: r.status ?? 'pending_review',
+        screened_by: r.screened_by,
         lists_checked: ['OFAC SDN', 'UN Sanctions', 'EU Sanctions', 'UK Sanctions'],
-        nationality: client.nationality
+        nationality: r.screened_nationality,
       }));
 
-      setRecentResults(mockResults);
+      setRecentResults(liveResults);
     } catch (error) {
       console.error('Error loading dashboard data:', error);
     } finally {
@@ -153,17 +165,13 @@ export default function ScreeningDashboard() {
         <button
           onClick={() => setActiveView('overview')}
           style={dashboardStyles.backButton}
-          onMouseEnter={(e) => {
-            e.target.style.background = 'rgba(212, 175, 55, 0.1)';
-          }}
-          onMouseLeave={(e) => {
-            e.target.style.background = 'transparent';
-          }}
+          onMouseEnter={(e) => { e.target.style.background = 'rgba(212, 175, 55, 0.1)'; }}
+          onMouseLeave={(e) => { e.target.style.background = 'transparent'; }}
         >
           ← Back
         </button>
         <div style={{ marginTop: '20px' }}>
-          <ScreeningMatchReview />
+          <ReviewMatchesPanel />
         </div>
       </div>
     );
@@ -175,17 +183,13 @@ export default function ScreeningDashboard() {
         <button
           onClick={() => setActiveView('overview')}
           style={dashboardStyles.backButton}
-          onMouseEnter={(e) => {
-            e.target.style.background = 'rgba(212, 175, 55, 0.1)';
-          }}
-          onMouseLeave={(e) => {
-            e.target.style.background = 'transparent';
-          }}
+          onMouseEnter={(e) => { e.target.style.background = 'rgba(212, 175, 55, 0.1)'; }}
+          onMouseLeave={(e) => { e.target.style.background = 'transparent'; }}
         >
           ← Back
         </button>
         <div style={{ marginTop: '20px' }}>
-          <ScreeningListManagement />
+          <ManageListsPanel />
         </div>
       </div>
     );
@@ -263,6 +267,16 @@ export default function ScreeningDashboard() {
 
   return (
     <div style={dashboardStyles.pageContainer}>
+      {showNewScreening && (
+        <NewScreeningModal
+          onClose={() => setShowNewScreening(false)}
+          onSaved={() => {
+            setShowNewScreening(false);
+            loadDashboardData();
+          }}
+        />
+      )}
+
       {/* Header */}
       <div style={dashboardStyles.headerCard}>
         <div style={dashboardStyles.headerContent}>
@@ -308,10 +322,7 @@ export default function ScreeningDashboard() {
             description="Run clients against all screening lists"
             icon="🔍"
             action="New Screening"
-            onClick={() => {
-              setSelectedClient(null);
-              setActiveView('perform_screening');
-            }}
+            onClick={() => setShowNewScreening(true)}
           />
           <WorkflowStep
             number="3"

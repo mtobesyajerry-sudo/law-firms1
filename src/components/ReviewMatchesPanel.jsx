@@ -6,8 +6,8 @@
 import { useEffect, useState } from "react";
 import {
   clearMatch, confirmMatch, escalateMatch, getScreeningDetail,
-} from "../../services/screeningService";
-import { supabase } from "../../lib/supabaseClient";
+} from "../services/screeningService";
+import { supabase } from "../supabaseClient";
 
 const COLORS = {
   gold: "#d4af37",

@@ -3,7 +3,7 @@
 // and displays matches inline. Styled to match the existing gold/navy theme.
 
 import { useState } from "react";
-import { runScreening } from "../../services/screeningService";
+import { runScreening } from "../services/screeningService";
 
 const COLORS = {
   gold: "#d4af37",

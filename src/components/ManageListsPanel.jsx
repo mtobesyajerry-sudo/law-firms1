@@ -3,7 +3,7 @@
 // entry count, and a Refresh button for global lists.
 
 import { useEffect, useState } from "react";
-import { getLists, getRecentIngestionLogs, triggerListSync } from "../../services/screeningService";
+import { getLists, getRecentIngestionLogs, triggerListSync } from "../services/screeningService";
 
 const COLORS = {
   gold: "#d4af37", goldSoft: "#f4e8b8",
