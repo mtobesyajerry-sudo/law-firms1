@@ -130,7 +130,7 @@ export default function Auth() {
 
         if (profile?.role === 'admin') {
           navigate('/admin/dashboard');
-        } else if (profile?.role === 'management' || profile?.role === 'senior_partner' || profile?.role === 'partner') {
+        } else if (profile?.role === 'management' || profile?.role === 'senior_partner') {
           navigate('/dashboard/management');
         } else if (profile?.role === 'staff' || profile?.role === 'lawyer') {
           navigate('/dashboard/staff');

@@ -132,7 +132,7 @@ function ProtectedRoute({ children, adminOnly = false, managementOnly = false, s
   }
 
   // Management access: admin, management, senior_partner, OR early clients (first 5 in org)
-  if (managementOnly && !(profile?.role === 'admin' || profile?.role === 'management' || profile?.role === 'senior_partner' || profile?.role === 'partner' || (profile?.role === 'client' && isEarlyClient))) {
+  if (managementOnly && !(profile?.role === 'admin' || profile?.role === 'management' || profile?.role === 'senior_partner' || (profile?.role === 'client' && isEarlyClient))) {
     return <Navigate to="/client/dashboard" replace />;
   }
 
@@ -159,7 +159,7 @@ function RoleBasedRedirect() {
   // Route users to appropriate dashboard based on role
   if (profile?.role === 'admin') {
     return <Navigate to="/admin/dashboard" replace />;
-  } else if (profile?.role === 'management' || profile?.role === 'senior_partner' || profile?.role === 'partner') {
+  } else if (profile?.role === 'management' || profile?.role === 'senior_partner') {
     return <Navigate to="/dashboard/management" replace />;
   } else if (profile?.role === 'staff' || profile?.role === 'lawyer') {
     return <Navigate to="/dashboard/staff" replace />;

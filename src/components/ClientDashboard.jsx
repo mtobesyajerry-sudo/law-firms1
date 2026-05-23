@@ -70,8 +70,8 @@ export default function ClientDashboard() {
   }
 
   // Role-based access control - strictly enforced
-  // Management: admin, management, senior_partner, partner, OR authorized org users, OR early client (automatic for first 3 users in org)
-  const hasManagementAccess = profile?.role === 'admin' || profile?.role === 'management' || profile?.role === 'senior_partner' || profile?.role === 'partner' || hasOrgManagementAccess || isEarlyClient;
+  // Management: admin, management, senior_partner, OR authorized org users, OR early client (automatic for first 3 users in org)
+  const hasManagementAccess = profile?.role === 'admin' || profile?.role === 'management' || profile?.role === 'senior_partner' || hasOrgManagementAccess || isEarlyClient;
 
   // Staff: Only admin, staff, and lawyer roles (NOT client) OR trial access
   const hasStaffAccess = ((profile?.role === 'admin' || profile?.role === 'staff' || profile?.role === 'lawyer') && profile?.role !== 'client') || trialAccess.staff;

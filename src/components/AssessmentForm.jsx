@@ -64,7 +64,6 @@ export default function AssessmentForm() {
         break;
       case 'management':
       case 'senior_partner':
-      case 'partner':
         navigate('/dashboard/management');
         break;
       case 'compliance_officer':

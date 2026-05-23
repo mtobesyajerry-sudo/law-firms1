@@ -396,7 +396,6 @@ export default function KYCClientDetails() {
         return '/dashboard/staff';
       case 'management':
       case 'senior_partner':
-      case 'partner':
         return '/dashboard/management';
       case 'compliance_officer':
       case 'mlro':

@@ -1194,21 +1194,18 @@ export default function ClientManagementDashboard() {
                         background: user.role === 'admin' ? 'linear-gradient(135deg, #dbeafe, #bfdbfe)' :
                                    user.role === 'senior_partner' ? 'linear-gradient(135deg, #e0e7ff, #c7d2fe)' :
                                    user.role === 'management' ? 'linear-gradient(135deg, #f3e8ff, #e9d5ff)' :
-                                   user.role === 'partner' ? 'linear-gradient(135deg, #fef3c7, #fde68a)' :
                                    user.role === 'compliance_officer' ? 'linear-gradient(135deg, #fce7f3, #fbcfe8)' :
                                    user.role === 'staff' ? 'linear-gradient(135deg, #dcfce7, #bbf7d0)' :
                                    'linear-gradient(135deg, #f3f4f6, #e5e7eb)',
                         color: user.role === 'admin' ? '#1e40af' :
                                user.role === 'senior_partner' ? '#4338ca' :
                                user.role === 'management' ? '#7c3aed' :
-                               user.role === 'partner' ? '#d97706' :
                                user.role === 'compliance_officer' ? '#db2777' :
                                user.role === 'staff' ? '#16a34a' : '#6b7280',
                         border: `2px solid ${
                           user.role === 'admin' ? '#3b82f6' :
                           user.role === 'senior_partner' ? '#6366f1' :
                           user.role === 'management' ? '#a855f7' :
-                          user.role === 'partner' ? '#f59e0b' :
                           user.role === 'compliance_officer' ? '#ec4899' :
                           user.role === 'staff' ? '#22c55e' : '#9ca3af'
                         }`,
@@ -1655,8 +1652,9 @@ export default function ClientManagementDashboard() {
                 >
                   <option value="">Select new role...</option>
                   <option value="staff">Staff</option>
+                  <option value="lawyer">Lawyer</option>
                   <option value="compliance_officer">Compliance Officer</option>
-                  <option value="partner">Partner</option>
+                  <option value="mlro">MLRO</option>
                   <option value="management">Management</option>
                   <option value="senior_partner">Senior Partner</option>
                 </select>
