@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import KYCClientManagement from './KYCClientManagement';
 import STRAlertDashboard from './STRAlertDashboard';
 import ScreeningDashboard from './ScreeningDashboard';
+import DataDeletionRequestsPanel from './DataDeletionRequestsPanel';
 import { dashboardStyles, getBadgeStyle, getRiskBadgeStyle, getStatusBadgeStyle } from '../utils/dashboardStyles';
 import LoadingSpinner from './LoadingSpinner';
 import RoleUpgradeRequestForm from './RoleUpgradeRequestForm';
@@ -261,6 +262,22 @@ export default function ComplianceOfficerDashboard() {
         </button>
         <div style={{ marginTop: '20px' }}>
           <ScreeningDashboard />
+        </div>
+      </div>
+    );
+  }
+
+  if (activeView === 'erasure') {
+    return (
+      <div style={dashboardStyles.pageContainer}>
+        <button
+          onClick={() => setActiveView('overview')}
+          style={dashboardStyles.buttonSecondary}
+        >
+          ← Back
+        </button>
+        <div style={{ marginTop: '20px' }}>
+          <DataDeletionRequestsPanel orgId={profile?.organization_id} />
         </div>
       </div>
     );
@@ -565,6 +582,13 @@ export default function ComplianceOfficerDashboard() {
             >
               <span style={{ fontSize: '20px' }}>🔍</span>
               Sanctions & Screening
+            </button>
+            <button
+              onClick={() => setActiveView('erasure')}
+              style={dashboardStyles.button}
+            >
+              <span style={{ fontSize: '20px' }}>🗑</span>
+              Data Erasure Requests
             </button>
           </div>
         </div>

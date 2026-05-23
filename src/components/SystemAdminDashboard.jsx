@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
 import ManagementUserApproval from './ManagementUserApproval';
+import DataDeletionRequestsPanel from './DataDeletionRequestsPanel';
 import LoadingSpinner from './LoadingSpinner';
 
 export default function SystemAdminDashboard() {
@@ -356,6 +357,15 @@ export default function SystemAdminDashboard() {
             }}
           >
             Policy Templates
+          </button>
+          <button
+            onClick={() => setActiveTab('erasure')}
+            style={{
+              ...styles.tab,
+              ...(activeTab === 'erasure' ? styles.activeTab : {})
+            }}
+          >
+            Data Erasure
           </button>
         </div>
 
@@ -789,6 +799,10 @@ export default function SystemAdminDashboard() {
               )}
             </div>
           </div>
+        )}
+
+        {activeTab === 'erasure' && (
+          <DataDeletionRequestsPanel />
         )}
 
         {activeTab === 'policies' && (
