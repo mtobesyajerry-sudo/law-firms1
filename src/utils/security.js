@@ -1,5 +1,27 @@
 import { supabase } from '../supabaseClient';
 
+function mapSecurityEventType(eventType) {
+  if (!eventType) return 'system_event';
+  const t = eventType.toLowerCase();
+  if (t.includes('login') && t.includes('fail')) return 'login_failed';
+  if (t.includes('login')) return 'login';
+  if (t.includes('logout')) return 'logout';
+  if (t.includes('password')) return 'password_change';
+  if (t.includes('session') && t.includes('creat')) return 'session_created';
+  if (t.includes('session')) return 'session_terminated';
+  if (t.includes('role')) return 'role_change';
+  if (t.includes('create') || t.includes('add')) return 'create';
+  if (t.includes('update') || t.includes('edit')) return 'update';
+  if (t.includes('delete') || t.includes('remove')) return 'delete';
+  if (t.includes('view') || t.includes('read')) return 'view';
+  if (t.includes('approve')) return 'approve';
+  if (t.includes('reject')) return 'reject';
+  if (t.includes('suspicious') || t.includes('alert')) return 'suspicious_activity';
+  if (t.includes('access') && t.includes('den')) return 'access_denied';
+  if (t.includes('export')) return 'data_export';
+  return 'security_alert';
+}
+
 export const passwordRequirements = {
   minLength: 12,
   requireUppercase: true,
@@ -83,22 +105,24 @@ export async function logAuditEvent({
     const ipAddress = await getUserIP();
     const userAgent = navigator.userAgent;
 
+    const mappedActionType = mapSecurityEventType(eventType);
     const { error } = await supabase
       .from('audit_logs')
       .insert([{
-        event_type: eventType,
+        action_type: mappedActionType,
         event_category: eventCategory,
-        target_user_id: targetUserId,
-        target_table: targetTable,
-        target_record_id: targetRecordId,
+        entity_type: targetTable,
+        entity_id: targetRecordId || undefined,
         action_description: actionDescription,
+        severity: success ? 'info' : 'warning',
         ip_address: ipAddress,
         user_agent: userAgent,
-        request_url: window.location.href,
-        old_values: oldValues,
-        new_values: newValues,
-        success,
-        error_message: errorMessage
+        changes: (oldValues || newValues || errorMessage) ? {
+          ...(oldValues && { old_values: oldValues }),
+          ...(newValues && { new_values: newValues }),
+          ...(errorMessage && { error_message: errorMessage }),
+          success
+        } : null
       }]);
 
     if (error) {
@@ -127,10 +151,9 @@ export async function logLoginAttempt({
         user_id: userId,
         email,
         success,
-        ip_address: ipAddress,
+        ip_address: ipAddress === 'unknown' ? null : ipAddress,
         user_agent: userAgent,
         failure_reason: failureReason,
-        mfa_used: mfaUsed,
         session_id: sessionId
       }]);
 

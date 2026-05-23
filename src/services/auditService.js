@@ -1,5 +1,29 @@
 import { supabase } from '../supabaseClient';
 
+// Maps free-form event_type strings to the constrained action_type values
+// the audit_logs table accepts.
+function mapToActionType(eventType) {
+  if (!eventType) return 'system_event';
+  const t = eventType.toLowerCase();
+  if (t.includes('create') || t.includes('add') || t.includes('insert')) return 'create';
+  if (t.includes('update') || t.includes('edit') || t.includes('change')) return 'update';
+  if (t.includes('delete') || t.includes('remove')) return 'delete';
+  if (t.includes('view') || t.includes('read') || t.includes('fetch')) return 'view';
+  if (t.includes('approve') || t.includes('accept')) return 'approve';
+  if (t.includes('reject') || t.includes('deny') || t.includes('decline')) return 'reject';
+  if (t.includes('submit') || t.includes('complete')) return 'submit';
+  if (t.includes('login') || t.includes('signin') || t.includes('sign_in')) return 'login';
+  if (t.includes('logout') || t.includes('signout') || t.includes('sign_out')) return 'logout';
+  if (t.includes('upload')) return 'document_upload';
+  if (t.includes('download')) return 'document_download';
+  if (t.includes('screening')) return 'screening_run';
+  if (t.includes('security') || t.includes('suspicious')) return 'security_alert';
+  if (t.includes('password')) return 'password_change';
+  if (t.includes('role')) return 'role_change';
+  if (t.includes('export')) return 'data_export';
+  return 'system_event';
+}
+
 class AuditService {
   async logEvent(eventData) {
     try {
@@ -14,15 +38,15 @@ class AuditService {
       const auditEntry = {
         user_id: user?.id || null,
         organization_id: profile?.organization_id || null,
-        event_type: eventData.event_type,
+        action_type: mapToActionType(eventData.event_type),
         event_category: eventData.event_category || 'general',
+        entity_type: eventData.resource_type || null,
+        entity_id: eventData.resource_id || null,
         action_description: eventData.action_description,
-        resource_type: eventData.resource_type || null,
-        resource_id: eventData.resource_id || null,
+        severity: eventData.severity || 'info',
         ip_address: eventData.ip_address || null,
         user_agent: navigator.userAgent,
-        severity: eventData.severity || 'info',
-        metadata: eventData.metadata || null
+        changes: eventData.metadata ? { metadata: eventData.metadata } : null
       };
 
       const { error } = await supabase
