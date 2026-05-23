@@ -103,20 +103,26 @@ Deno.serve(async (req) => {
       });
     }
 
-    const supabase = createClient(
+    const serviceClient = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+      { auth: { persistSession: false } },
+    );
+
+    const anonClient = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_ANON_KEY")!,
       { global: { headers: { Authorization: authHeader } } },
     );
 
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { user } } = await anonClient.auth.getUser();
     if (!user) {
       return new Response(JSON.stringify({ error: "Invalid auth" }), {
         status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const { data: profile } = await supabase
+    const { data: profile } = await serviceClient
       .from("user_profiles")
       .select("organization_id")
       .eq("id", user.id)
@@ -127,6 +133,10 @@ Deno.serve(async (req) => {
         status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    const organizationId = profile.organization_id;
+    const userId = user.id;
+    const supabase = serviceClient;
 
     const request: ScreenRequest = await req.json();
     if (!request.full_name) {
@@ -141,18 +151,18 @@ Deno.serve(async (req) => {
     const { data: candidates, error: matchError } = await supabase
       .rpc("match_screening_candidates", {
         p_query_name: request.full_name,
-        p_organization_id: profile.organization_id,
+        p_organization_id: organizationId,
         p_threshold: threshold,
         p_limit: 50,
       });
 
-    if (matchError) throw matchError;
+    if (matchError) throw new Error(matchError.message ?? JSON.stringify(matchError));
 
     // List snapshot for audit
     const { data: listSnapshot } = await supabase
       .from("screening_lists")
       .select("id, list_source, last_synced_at, entry_count")
-      .or(`is_global.eq.true,organization_id.eq.${profile.organization_id}`);
+      .or(`is_global.eq.true,organization_id.eq.${organizationId}`);
 
     // Optional premium screening
     let opensanctionsResult: any = null;
@@ -208,7 +218,8 @@ Deno.serve(async (req) => {
       .from("screening_results")
       .insert({
         client_id: request.client_id ?? null,
-        organization_id: profile.organization_id,
+        organization_id: organizationId,
+        screening_type: "sanctions",
         screened_name: request.full_name,
         screened_dob: request.date_of_birth ?? null,
         screened_nationality: request.nationality ?? null,
@@ -221,19 +232,19 @@ Deno.serve(async (req) => {
         opensanctions_used: !!opensanctionsResult,
         opensanctions_response: opensanctionsResult,
         status: allMatches.length > 0 ? "pending_review" : "cleared",
-        screened_by: user.id,
+        screened_by: userId,
         screened_at: new Date().toISOString(),
       })
       .select()
       .single();
 
-    if (screeningError) throw screeningError;
+    if (screeningError) throw new Error(screeningError.message ?? JSON.stringify(screeningError));
 
     if (allMatches.length > 0) {
       const matchRows = allMatches.map((m) => ({
         screening_result_id: screening.id,
         list_entry_id: m.list_entry_id,
-        organization_id: profile.organization_id,
+        organization_id: organizationId,
         match_score: m.match_score,
         match_type: m.match_type,
         matched_field: "name",
@@ -250,11 +261,11 @@ Deno.serve(async (req) => {
 
     // Audit log
     await supabase.from("screening_audit_log").insert({
-      organization_id: profile.organization_id,
+      organization_id: organizationId,
       screening_result_id: screening.id,
       action: "screening_run",
-      actor_id: user.id,
-      actor_email: user.email,
+      actor_id: userId,
+      actor_email: null,
       details: { match_count: allMatches.length, highest_score: highestScore, risk, premium_used: !!opensanctionsResult },
     });
 
@@ -270,7 +281,8 @@ Deno.serve(async (req) => {
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
+    const msg = err instanceof Error ? err.message
+      : (err as any)?.message ?? JSON.stringify(err);
     console.error("sanctions-screening error:", msg);
     return new Response(JSON.stringify({ error: msg }), {
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
