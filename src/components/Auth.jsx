@@ -188,7 +188,7 @@ export default function Auth() {
   const handleMfaSuccess = async () => {
     const { data: { user: authUser } } = await supabase.auth.getUser();
     if (authUser) {
-      await loginTrackingService.logLoginAttempt(email, true, authUser, null, false);
+      await loginTrackingService.logLoginAttempt(email, true, authUser, null, true);
       await loginTrackingService.createSession(authUser.id);
       await auditService.logSecurityEvent(
         'user_login_success', 'info',

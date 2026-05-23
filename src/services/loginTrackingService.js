@@ -24,7 +24,8 @@ class LoginTrackingService {
         failure_reason: failureReason,
         // login_history.ip_address is inet — null is safe; 'unknown' is not a valid inet
         ip_address: ipAddress || null,
-        user_agent: userAgent
+        user_agent: userAgent,
+        mfa_used: mfaUsed === true
       };
 
       const { error } = await supabase
