@@ -218,14 +218,30 @@ export default function EnhancedSecurityDashboard() {
         <div className="mb-8 flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Enhanced Security Dashboard</h1>
-            <p className="mt-2 text-gray-600">Real-time threat detection and security monitoring</p>
+            <p className="mt-2 text-gray-600">Detection infrastructure and incident management</p>
           </div>
           <button
             onClick={runThreatDetection}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            className="px-4 py-2 bg-gray-400 text-white rounded-lg cursor-not-allowed"
+            title="Automated threat scanning is scheduled for a post-launch release"
+            disabled
           >
-            Run Threat Scan
+            Threat Scan (Post-Launch)
           </button>
+        </div>
+
+        <div style={{
+          marginBottom: 24,
+          padding: '14px 20px',
+          background: '#fefce8',
+          border: '1px solid #ca8a04',
+          borderLeft: '4px solid #ca8a04',
+          borderRadius: 6,
+          fontSize: 13,
+          color: '#713f12',
+          lineHeight: 1.6,
+        }}>
+          <strong>Status:</strong> Audit logging active. Automated threat detection is scheduled for an upcoming release. Until then, the tables below will remain empty during normal operation. Manual review of audit logs is the current detection mechanism.
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-6 gap-6 mb-8">
@@ -381,8 +397,8 @@ export default function EnhancedSecurityDashboard() {
                   <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
-                  <h3 className="mt-2 text-sm font-medium text-gray-900">No security events</h3>
-                  <p className="mt-1 text-sm text-gray-500">All systems operating normally.</p>
+                  <h3 className="mt-2 text-sm font-medium text-gray-900">No automated events recorded</h3>
+                  <p className="mt-1 text-sm text-gray-500">Automated threat evaluation is scheduled for a post-launch release. Review audit logs for manual monitoring.</p>
                 </div>
               ) : (
                 <div className="space-y-4">
@@ -593,28 +609,28 @@ export default function EnhancedSecurityDashboard() {
               <span className="text-sm text-green-600">100 req/min</span>
             </div>
 
-            <div className="flex items-center justify-between p-4 bg-green-50 rounded-lg">
+            <div className="flex items-center justify-between p-4 bg-yellow-50 rounded-lg">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
-                  <svg className="h-5 w-5 text-green-600" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                  <svg className="h-5 w-5 text-yellow-600" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9 9a1 1 0 012 0v4a1 1 0 01-2 0V9zm1-4a1 1 0 100 2 1 1 0 000-2z" clipRule="evenodd" />
                   </svg>
                 </div>
-                <span className="ml-3 text-sm font-medium text-green-800">Intrusion Detection Active</span>
+                <span className="ml-3 text-sm font-medium text-yellow-800">Intrusion Detection Rules</span>
               </div>
-              <span className="text-sm text-green-600">5 Rules</span>
+              <span className="text-sm text-yellow-600">5 Rules — Not Scheduled</span>
             </div>
 
-            <div className="flex items-center justify-between p-4 bg-green-50 rounded-lg">
+            <div className="flex items-center justify-between p-4 bg-yellow-50 rounded-lg">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
-                  <svg className="h-5 w-5 text-green-600" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                  <svg className="h-5 w-5 text-yellow-600" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9 9a1 1 0 012 0v4a1 1 0 01-2 0V9zm1-4a1 1 0 100 2 1 1 0 000-2z" clipRule="evenodd" />
                   </svg>
                 </div>
-                <span className="ml-3 text-sm font-medium text-green-800">Automated Threat Detection</span>
+                <span className="ml-3 text-sm font-medium text-yellow-800">Automated Threat Detection</span>
               </div>
-              <span className="text-sm text-green-600">Monitoring</span>
+              <span className="text-sm text-yellow-600">Post-Launch</span>
             </div>
 
             <div className="flex items-center justify-between p-4 bg-yellow-50 rounded-lg">

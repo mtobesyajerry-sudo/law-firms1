@@ -113,7 +113,21 @@ export default function SecurityMonitoringDashboard() {
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900">Security Monitoring Dashboard</h1>
-          <p className="mt-2 text-gray-600">Real-time security event monitoring and threat detection</p>
+          <p className="mt-2 text-gray-600">Audit log review and incident management</p>
+        </div>
+
+        <div style={{
+          marginBottom: 24,
+          padding: '14px 20px',
+          background: '#fefce8',
+          border: '1px solid #ca8a04',
+          borderLeft: '4px solid #ca8a04',
+          borderRadius: 6,
+          fontSize: 13,
+          color: '#713f12',
+          lineHeight: 1.6,
+        }}>
+          <strong>Status:</strong> Audit logging active. Automated threat detection is scheduled for an upcoming release. Until then, the tables below will remain empty during normal operation. Manual review of audit logs is the current detection mechanism.
         </div>
 
         {/* Stats Overview */}
@@ -359,9 +373,9 @@ export default function SecurityMonitoringDashboard() {
                     <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                   </svg>
                 </div>
-                <span className="ml-3 text-sm font-medium text-green-800">Automated Threat Detection</span>
+                <span className="ml-3 text-sm font-medium text-yellow-800">Automated Threat Detection</span>
               </div>
-              <span className="text-sm text-green-600">Monitoring</span>
+              <span className="text-sm text-yellow-600">Post-Launch</span>
             </div>
 
             <div className="flex items-center justify-between p-4 bg-yellow-50 rounded-lg">

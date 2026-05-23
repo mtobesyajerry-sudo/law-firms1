@@ -218,11 +218,25 @@ export default function SecurityDashboard() {
       <div style={styles.header}>
         <div>
           <h1 style={styles.title}>Security Dashboard</h1>
-          <p style={styles.subtitle}>Monitor security events and system activity</p>
+          <p style={styles.subtitle}>Audit logs, session activity, and manual security review</p>
         </div>
         <button onClick={() => navigate('/admin/dashboard')} style={styles.backButton}>
           Back
         </button>
+      </div>
+
+      <div style={{
+        margin: '0 0 24px 0',
+        padding: '14px 20px',
+        background: '#fefce8',
+        border: '1px solid #ca8a04',
+        borderLeft: '4px solid #ca8a04',
+        borderRadius: 6,
+        fontSize: 13,
+        color: '#713f12',
+        lineHeight: 1.6,
+      }}>
+        <strong>Status:</strong> Audit logging active. Automated threat detection is scheduled for an upcoming release. Until then, the Suspicious Alerts table will remain empty during normal operation. Manual review of audit logs below is the current detection mechanism.
       </div>
 
       <div style={styles.statsGrid}>
