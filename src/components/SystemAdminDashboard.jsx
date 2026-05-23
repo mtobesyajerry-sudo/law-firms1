@@ -2,9 +2,45 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
+import MfaEnrollment from './MfaEnrollment';
 import ManagementUserApproval from './ManagementUserApproval';
 import DataDeletionRequestsPanel from './DataDeletionRequestsPanel';
 import LoadingSpinner from './LoadingSpinner';
+
+function MfaBanner({ gracePeriodEnds, onSetup }) {
+  const [dismissed, setDismissed] = useState(false);
+  if (dismissed) return null;
+  const graceDate = new Date(gracePeriodEnds);
+  const daysLeft = Math.max(0, Math.ceil((graceDate - Date.now()) / 86400000));
+  return (
+    <div style={{
+      background: daysLeft <= 3 ? '#fef2f2' : '#fffbeb',
+      borderBottom: `2px solid ${daysLeft <= 3 ? '#fca5a5' : '#fcd34d'}`,
+      padding: '10px 24px',
+      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+      gap: '12px', flexWrap: 'wrap',
+    }}>
+      <span style={{ fontSize: '14px', color: daysLeft <= 3 ? '#b91c1c' : '#92400e', fontWeight: '600' }}>
+        Two-factor authentication is required by {graceDate.toLocaleDateString()}.
+        {daysLeft > 0 ? ` ${daysLeft} day${daysLeft !== 1 ? 's' : ''} remaining.` : ' Required now.'}
+      </span>
+      <div style={{ display: 'flex', gap: '8px' }}>
+        <button onClick={onSetup} style={{
+          padding: '6px 16px', fontSize: '13px', fontWeight: '700',
+          color: '#0a1929', background: 'linear-gradient(135deg,#d4af37,#f4d03f)',
+          border: 'none', borderRadius: '6px', cursor: 'pointer',
+        }}>Set up now</button>
+        {daysLeft > 0 && (
+          <button onClick={() => setDismissed(true)} style={{
+            padding: '6px 14px', fontSize: '13px', fontWeight: '600',
+            color: '#64748b', background: 'transparent',
+            border: '1px solid #cbd5e0', borderRadius: '6px', cursor: 'pointer',
+          }}>Remind me later</button>
+        )}
+      </div>
+    </div>
+  );
+}
 
 export default function SystemAdminDashboard() {
   const [stats, setStats] = useState({
@@ -23,8 +59,9 @@ export default function SystemAdminDashboard() {
   const [registrationRequests, setRegistrationRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
-  const { signOut, profile } = useAuth();
+  const { signOut, profile, showMfaNudge, mfaGracePeriodEnds, refreshMfaState } = useAuth();
   const navigate = useNavigate();
+  const [showMfaSetup, setShowMfaSetup] = useState(false);
 
   useEffect(() => {
     console.log('=== SYSTEM ADMIN DASHBOARD LOADED ===');
@@ -244,6 +281,21 @@ export default function SystemAdminDashboard() {
 
   return (
     <div style={styles.container}>
+      {showMfaNudge && mfaGracePeriodEnds && (
+        <MfaBanner
+          gracePeriodEnds={mfaGracePeriodEnds}
+          onSetup={() => setShowMfaSetup(true)}
+        />
+      )}
+      {showMfaSetup && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 1000 }}>
+          <MfaEnrollment
+            gracePeriodEnds={mfaGracePeriodEnds}
+            onComplete={() => { setShowMfaSetup(false); refreshMfaState(); }}
+            onSkip={() => setShowMfaSetup(false)}
+          />
+        </div>
+      )}
       <header style={styles.header}>
         <div>
           <div style={{ fontSize: '14px', fontWeight: '600', color: '#d4af37', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '1px' }}>
@@ -267,35 +319,61 @@ export default function SystemAdminDashboard() {
             </div>
           </div>
         </div>
-        <button
-          onClick={signOut}
-          style={{
-            padding: '10px 16px',
-            background: 'linear-gradient(135deg, #d4af37, #b8941f)',
-            border: '2px solid #d4af37',
-            borderRadius: '8px',
-            color: 'white',
-            fontSize: '13px',
-            fontWeight: '600',
-            cursor: 'pointer',
-            transition: 'all 0.2s',
-            boxShadow: '0 2px 8px rgba(212, 175, 55, 0.3)'
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = 'linear-gradient(135deg, #b8941f, #9c7a1a)';
-            e.currentTarget.style.transform = 'translateY(-1px)';
-            e.currentTarget.style.boxShadow = '0 4px 12px rgba(212, 175, 55, 0.4)';
-            e.currentTarget.style.borderColor = '#f0d883';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = 'linear-gradient(135deg, #d4af37, #b8941f)';
-            e.currentTarget.style.transform = 'translateY(0)';
-            e.currentTarget.style.boxShadow = '0 2px 8px rgba(212, 175, 55, 0.3)';
-            e.currentTarget.style.borderColor = '#d4af37';
-          }}
-        >
-          Sign Out
-        </button>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'flex-end' }}>
+          <button
+            onClick={() => navigate('/security/settings')}
+            style={{
+              padding: '8px 16px',
+              background: 'transparent',
+              border: '1.5px solid #475569',
+              borderRadius: '8px',
+              color: '#94a3b8',
+              fontSize: '13px',
+              fontWeight: '600',
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = '#d4af37';
+              e.currentTarget.style.color = '#d4af37';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = '#475569';
+              e.currentTarget.style.color = '#94a3b8';
+            }}
+          >
+            Security Settings
+          </button>
+          <button
+            onClick={signOut}
+            style={{
+              padding: '10px 16px',
+              background: 'linear-gradient(135deg, #d4af37, #b8941f)',
+              border: '2px solid #d4af37',
+              borderRadius: '8px',
+              color: 'white',
+              fontSize: '13px',
+              fontWeight: '600',
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+              boxShadow: '0 2px 8px rgba(212, 175, 55, 0.3)'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = 'linear-gradient(135deg, #b8941f, #9c7a1a)';
+              e.currentTarget.style.transform = 'translateY(-1px)';
+              e.currentTarget.style.boxShadow = '0 4px 12px rgba(212, 175, 55, 0.4)';
+              e.currentTarget.style.borderColor = '#f0d883';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = 'linear-gradient(135deg, #d4af37, #b8941f)';
+              e.currentTarget.style.transform = 'translateY(0)';
+              e.currentTarget.style.boxShadow = '0 2px 8px rgba(212, 175, 55, 0.3)';
+              e.currentTarget.style.borderColor = '#d4af37';
+            }}
+          >
+            Sign Out
+          </button>
+        </div>
       </header>
 
       <div style={styles.content}>

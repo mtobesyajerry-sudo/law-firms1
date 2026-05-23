@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { supabase } from './supabaseClient';
 import Auth from './components/Auth';
@@ -122,6 +122,164 @@ function MfaNudgeBanner({ gracePeriodEnds, onSetupNow, onDismiss }) {
   );
 }
 
+// Full-page MFA enrollment screen — used for forced enrollment (grace expired) and voluntary setup.
+// Unlike the overlay version, this replaces the entire page so there's nothing behind it.
+function MfaEnrollmentPage({ forced, gracePeriodEnds, onComplete, onSkip }) {
+  const { signOut } = useAuth();
+  return (
+    <div style={{
+      minHeight: '100vh',
+      background: 'linear-gradient(135deg, #0a1929 0%, #0d2137 50%, #0a1929 100%)',
+      display: 'flex', flexDirection: 'column',
+      alignItems: 'center', justifyContent: 'center',
+      padding: '24px',
+    }}>
+      <div style={{ width: '100%', maxWidth: '520px' }}>
+        {forced && (
+          <div style={{
+            textAlign: 'center', marginBottom: '24px',
+            color: '#d4af37', fontSize: '13px', fontWeight: '600',
+            letterSpacing: '1px', textTransform: 'uppercase',
+          }}>
+            Two-factor authentication is required to continue
+          </div>
+        )}
+        <MfaEnrollment
+          forced={forced}
+          gracePeriodEnds={gracePeriodEnds}
+          onComplete={onComplete}
+          onSkip={onSkip}
+        />
+        {forced && (
+          <div style={{ textAlign: 'center', marginTop: '16px' }}>
+            <button
+              onClick={signOut}
+              style={{
+                background: 'transparent', border: 'none',
+                color: '#64748b', fontSize: '13px', cursor: 'pointer',
+                textDecoration: 'underline',
+              }}
+            >
+              Sign out instead
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Voluntary MFA security settings page — accessible from the profile menu.
+function MfaSettingsPage() {
+  const { mfaEnrolled, mfaAssuranceLevel, mfaGracePeriodEnds, refreshMfaState } = useAuth();
+  const [showEnrollment, setShowEnrollment] = React.useState(false);
+  const navigate = useNavigate();
+
+  if (showEnrollment) {
+    return (
+      <MfaEnrollmentPage
+        gracePeriodEnds={mfaGracePeriodEnds}
+        onComplete={() => { setShowEnrollment(false); refreshMfaState(); }}
+        onSkip={() => setShowEnrollment(false)}
+      />
+    );
+  }
+
+  return (
+    <div style={{
+      minHeight: '100vh',
+      background: '#f0f4f8',
+      display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
+      padding: '48px 24px',
+    }}>
+      <div style={{ maxWidth: '560px', width: '100%' }}>
+        <button
+          onClick={() => navigate(-1)}
+          style={{
+            background: 'transparent', border: 'none',
+            color: '#64748b', fontSize: '14px', cursor: 'pointer',
+            marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '6px',
+            padding: 0,
+          }}
+        >
+          ← Back
+        </button>
+
+        <h1 style={{ margin: '0 0 8px', fontSize: '28px', fontWeight: '800', color: '#0a1929' }}>
+          Security Settings
+        </h1>
+        <p style={{ margin: '0 0 32px', fontSize: '15px', color: '#4a5568', lineHeight: 1.6 }}>
+          Manage your account security settings including two-factor authentication.
+        </p>
+
+        <div style={{
+          background: 'white', borderRadius: '12px',
+          border: '1px solid #e2e8f0',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+          overflow: 'hidden',
+        }}>
+          <div style={{
+            padding: '20px 24px',
+            borderBottom: '1px solid #e2e8f0',
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            gap: '16px', flexWrap: 'wrap',
+          }}>
+            <div>
+              <div style={{ fontSize: '16px', fontWeight: '700', color: '#0a1929', marginBottom: '4px' }}>
+                Two-Factor Authentication (TOTP)
+              </div>
+              <div style={{ fontSize: '13px', color: mfaEnrolled ? '#059669' : '#92400e' }}>
+                {mfaEnrolled
+                  ? 'Active — your account is protected with an authenticator app'
+                  : 'Not set up — your account uses only a password'}
+              </div>
+            </div>
+            <div style={{
+              padding: '4px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: '700',
+              background: mfaEnrolled ? '#d1fae5' : '#fef3c7',
+              color: mfaEnrolled ? '#065f46' : '#92400e',
+              whiteSpace: 'nowrap',
+            }}>
+              {mfaEnrolled ? 'Enabled' : 'Not enabled'}
+            </div>
+          </div>
+
+          <div style={{ padding: '20px 24px' }}>
+            {mfaEnrolled ? (
+              <div style={{
+                padding: '14px', background: '#f0fdf4',
+                border: '1px solid #86efac', borderRadius: '8px',
+                fontSize: '14px', color: '#166534', lineHeight: 1.5,
+              }}>
+                Two-factor authentication is active. When you log in, you will be asked for a code from your authenticator app.
+                To change your authenticator app, set up MFA again — this will replace the existing factor.
+              </div>
+            ) : (
+              <p style={{ margin: '0 0 16px', fontSize: '14px', color: '#4a5568', lineHeight: 1.6 }}>
+                Add an extra layer of security by requiring a one-time code from your authenticator app each time you sign in.
+              </p>
+            )}
+
+            <button
+              onClick={() => setShowEnrollment(true)}
+              style={{
+                marginTop: '16px',
+                padding: '12px 24px',
+                background: 'linear-gradient(135deg, #d4af37, #b8941f)',
+                color: '#0a1929', border: 'none', borderRadius: '8px',
+                fontWeight: '700', fontSize: '14px', cursor: 'pointer',
+                boxShadow: '0 2px 8px rgba(212,175,55,0.3)',
+              }}
+            >
+              {mfaEnrolled ? 'Re-enroll authenticator app' : 'Set up two-factor authentication'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ProtectedRoute({ children, adminOnly = false, managementOnly = false, staffOnly = false, complianceOnly = false }) {
   const { user, profile, loading, signOut, isEarlyClient, requiresPasswordChange,
     requiresMfaEnrollment, showMfaNudge, mfaGracePeriodEnds, refreshMfaState } = useAuth();
@@ -129,11 +287,6 @@ function ProtectedRoute({ children, adminOnly = false, managementOnly = false, s
   const [nudgeDismissed, setNudgeDismissed] = React.useState(false);
 
   if (loading) {
-    const isInitialLoad = !sessionStorage.getItem('app_mounted');
-    if (isInitialLoad) {
-      sessionStorage.setItem('app_mounted', 'true');
-      return <LoadingSpinner fullPage />;
-    }
     return <LoadingSpinner fullPage />;
   }
 
@@ -146,12 +299,13 @@ function ProtectedRoute({ children, adminOnly = false, managementOnly = false, s
     return <ForcePasswordChange />;
   }
 
-  // Block all navigation until forced MFA enrollment completes (grace period expired)
-  if (requiresMfaEnrollment && !showMfaEnrollment) {
+  // Block all navigation until forced MFA enrollment completes (grace period expired).
+  // Render the enrollment page full-screen — no dashboard, no sidebar behind it.
+  if (requiresMfaEnrollment) {
     return (
-      <MfaEnrollment
+      <MfaEnrollmentPage
         forced
-        onComplete={() => { refreshMfaState(); }}
+        onComplete={refreshMfaState}
       />
     );
   }
@@ -278,7 +432,7 @@ function ProtectedRoute({ children, adminOnly = false, managementOnly = false, s
         />
       )}
       {showMfaEnrollment && (
-        <MfaEnrollment
+        <MfaEnrollmentPage
           gracePeriodEnds={mfaGracePeriodEnds}
           onComplete={() => { setShowMfaEnrollment(false); refreshMfaState(); }}
           onSkip={() => setShowMfaEnrollment(false)}
@@ -430,6 +584,14 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <IntegratedClientRiskView />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/security/settings"
+        element={
+          <ProtectedRoute>
+            <MfaSettingsPage />
           </ProtectedRoute>
         }
       />

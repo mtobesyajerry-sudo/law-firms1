@@ -255,18 +255,29 @@ export default function StaffDashboard() {
               Client management, KYC operations, and matter handling
             </p>
           </div>
-          <button
-            onClick={() => navigate(getBackRoute())}
-            style={dashboardStyles.backButton}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = 'rgba(212, 175, 55, 0.1)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = 'transparent';
-            }}
-          >
-            ← Back
-          </button>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'flex-end' }}>
+            <button
+              onClick={() => navigate('/security/settings')}
+              style={{
+                padding: '6px 14px', background: 'transparent',
+                border: '1.5px solid rgba(255,255,255,0.3)', borderRadius: '8px',
+                color: 'rgba(255,255,255,0.8)', fontSize: '12px', fontWeight: '600',
+                cursor: 'pointer', transition: 'all 0.2s',
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#d4af37'; e.currentTarget.style.color = '#d4af37'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.3)'; e.currentTarget.style.color = 'rgba(255,255,255,0.8)'; }}
+            >
+              Security Settings
+            </button>
+            <button
+              onClick={() => navigate(getBackRoute())}
+              style={dashboardStyles.backButton}
+              onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(212, 175, 55, 0.1)'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+            >
+              ← Back
+            </button>
+          </div>
         </div>
       </div>
 

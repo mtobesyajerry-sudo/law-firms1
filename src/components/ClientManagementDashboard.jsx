@@ -591,35 +591,50 @@ export default function ClientManagementDashboard() {
               </p>
             )}
           </div>
-          <button
-            onClick={() => navigate(getBackRoute())}
-            style={{
-              padding: '12px 24px',
-              background: 'transparent',
-              border: '2px solid #d4af37',
-              borderRadius: '8px',
-              color: 'white',
-              cursor: 'pointer',
-              fontSize: '14px',
-              fontWeight: '600',
-              transition: 'all 0.2s',
-              letterSpacing: '0.5px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              marginBottom: '16px'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = 'rgba(212, 175, 55, 0.1)';
-              e.currentTarget.style.transform = 'translateY(-2px)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = 'transparent';
-              e.currentTarget.style.transform = 'translateY(0)';
-            }}
-          >
-            Back
-          </button>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'flex-end' }}>
+            <button
+              onClick={() => navigate('/security/settings')}
+              style={{
+                padding: '6px 14px', background: 'transparent',
+                border: '1.5px solid rgba(255,255,255,0.3)', borderRadius: '8px',
+                color: 'rgba(255,255,255,0.8)', fontSize: '12px', fontWeight: '600',
+                cursor: 'pointer', transition: 'all 0.2s',
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#d4af37'; e.currentTarget.style.color = '#d4af37'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.3)'; e.currentTarget.style.color = 'rgba(255,255,255,0.8)'; }}
+            >
+              Security Settings
+            </button>
+            <button
+              onClick={() => navigate(getBackRoute())}
+              style={{
+                padding: '12px 24px',
+                background: 'transparent',
+                border: '2px solid #d4af37',
+                borderRadius: '8px',
+                color: 'white',
+                cursor: 'pointer',
+                fontSize: '14px',
+                fontWeight: '600',
+                transition: 'all 0.2s',
+                letterSpacing: '0.5px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                marginBottom: '16px'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'rgba(212, 175, 55, 0.1)';
+                e.currentTarget.style.transform = 'translateY(-2px)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'transparent';
+                e.currentTarget.style.transform = 'translateY(0)';
+              }}
+            >
+              Back
+            </button>
+          </div>
         </div>
       </div>
 

@@ -517,6 +517,31 @@ export default function Dashboard() {
                 </svg>
               </button>
               <button
+                onClick={() => navigate('/security/settings')}
+                style={{
+                  padding: '8px 14px',
+                  background: 'transparent',
+                  border: '1.5px solid rgba(255,255,255,0.3)',
+                  borderRadius: '8px',
+                  color: 'rgba(255,255,255,0.8)',
+                  fontSize: '12px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                }}
+                title="Security Settings"
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.borderColor = '#d4af37';
+                  e.currentTarget.style.color = '#d4af37';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor = 'rgba(255,255,255,0.3)';
+                  e.currentTarget.style.color = 'rgba(255,255,255,0.8)';
+                }}
+              >
+                Security
+              </button>
+              <button
                 onClick={signOut}
                 style={{
                   padding: '10px 16px',
