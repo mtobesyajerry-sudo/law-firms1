@@ -873,8 +873,8 @@ Law firms handle extraordinarily sensitive information:
 **Cloud Infrastructure:**
 - **Platform:** Supabase (Built on Amazon Web Services)
 - **Data Centers:** Multi-region AWS infrastructure
-- **Certifications:** SOC 2 Type II, ISO 27001
-- **Compliance:** GDPR-ready, Tanzania Data Protection Act compliant
+- **Infrastructure Certifications (AWS):** SOC 2 Type II, ISO 27001 (infrastructure-level; application-level certifications not yet pursued)
+- **Compliance:** Tanzania Personal Data Protection Act 2022 aligned; GDPR-compatible data handling patterns
 
 **Why This Matters:**
 - ❌ NOT hosted on personal computers
@@ -1298,17 +1298,17 @@ Even if entire data center burns down, your data is safe and can be restored wit
 
 **Current Status:**
 
-**Infrastructure Certifications (Supabase/AWS):**
-- ✅ SOC 2 Type II (System and Organization Controls)
-- ✅ ISO 27001 (Information Security Management)
-- ✅ GDPR Compliant (General Data Protection Regulation)
-- ✅ Tanzania Data Protection Act Aligned
+**Infrastructure Certifications (Supabase/AWS — infrastructure-level):**
+- ✅ SOC 2 Type II (Supabase/AWS infrastructure; application-level attestation not yet pursued)
+- ✅ ISO 27001 (AWS infrastructure; application-level certification not yet pursued)
+- ✅ Tanzania Personal Data Protection Act 2022 aligned
+- Note: GDPR is EU law and does not apply to Tanzania practices; data handling patterns are conceptually compatible with GDPR Articles 17 and 20.
 
 **Application-Level Compliance:**
-- ✅ Tanzania AML Act compliant
-- ✅ BOT CDD Regulations compliant
-- ✅ FIU Guidelines compliant
-- ✅ 10-year retention period enforced
+- ✅ Tanzania Anti-Money Laundering Act — 7-year retention architecture enforced
+- ✅ Tanzania FIU (FIAMLA) obligations supported: sanctions screening, STR record-keeping, audit trails
+- Note: BOT (Bank of Tanzania) CDD Regulations apply to banks and deposit-taking institutions supervised by BOT, not to law firm advocates. The supervisor for advocates under FIAMLA is the FIU and the Attorney General's Office.
+- ✅ FIU Guidelines supported
 - ✅ Audit-ready system
 
 **Future Roadmap (6-24 months):**
@@ -1806,7 +1806,7 @@ A: BRELA API integration is in development. Currently, you can upload BRELA cert
 
 **3. Production-Grade Security**
 - Enterprise security from day one
-- SOC 2 / ISO 27001 certified infrastructure
+- SOC 2 Type II and ISO 27001 certified infrastructure (Supabase/AWS; infrastructure-level)
 - 10-year data retention compliant
 - Comprehensive audit trail
 

@@ -4,7 +4,7 @@ A comprehensive risk assessment system designed specifically for banks and finan
 
 ## Overview
 
-This system guides financial institutions through a structured, risk-based assessment process aligned with Bank of Tanzania guidelines and FATF Recommendations. It features a three-tier approach based on institutional risk, automatic risk scoring, and comprehensive reporting. The system includes role-based access control with admin and client user types.
+This system guides law firm advocates through a structured, risk-based assessment process following the FATF risk-based approach guidance for legal professionals and Tanzania FIU (FIAMLA) obligations. It features a three-tier due diligence approach based on client risk, automatic risk scoring, and comprehensive reporting. The system includes role-based access control with admin and client user types.
 
 ## 🔐 Security Implementation
 
@@ -110,7 +110,7 @@ Response options: Effective / Weak / Ineffective
 - Tier 2 institutions: ~75 questions (operational effectiveness)
 - Tier 3 institutions: ~100 questions (deep effectiveness testing)
 
-### 4. FATF-Aligned Risk Scoring System
+### 4. FATF Risk-Based Approach Scoring System
 
 The system calculates four key risk metrics:
 
@@ -148,7 +148,7 @@ Comprehensive reporting includes:
 - Module-by-module breakdown
 - Critical control gaps highlighted
 - Visual risk indicators with color coding
-- FATF-aligned risk methodology
+- Risk methodology following FATF guidance for legal professionals
 - Institution profile (contact person, employees, branches, products)
 - Recommendations for risk mitigation
 

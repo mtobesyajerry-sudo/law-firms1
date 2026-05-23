@@ -121,12 +121,12 @@ This platform is specifically designed for:
 
 | Standard | Status | Certification/Evidence | Applicable Module |
 |----------|--------|------------------------|-------------------|
-| FATF 40 Recommendations | ✅ Aligned | Assessment methodology follows FATF Mutual Evaluation criteria | Module 1 & 2 |
+| FATF Risk-Based Approach | ✅ Methodology used | Assessment methodology follows FATF guidance for legal professionals and DNFBPs. Note: FATF 40 Recommendations are addressed to countries, not products. | Module 1 & 2 |
 | Basel Committee on Banking Supervision AML Guidelines | ✅ Aligned | Risk scoring incorporates Basel Committee principles | Module 1 & 2 |
 | Wolfsberg Group AML Principles | ✅ Aligned | CDD questionnaires based on Wolfsberg standards | Module 2 |
-| FATF Risk-Based Approach Guidance | ✅ Aligned | Three-tier due diligence model (SDD, Standard DD, EDD) | Module 2 |
-| GDPR (Data Protection) | ✅ Compliant | Data privacy controls, right to erasure, data portability | Both |
-| ISO 27001 (Information Security) | ✅ Aligned | Security controls framework follows ISO 27001 | Both |
+| FATF Risk-Based Approach Guidance | ✅ Methodology used | Three-tier due diligence model (SDD, Standard DD, EDD) | Module 2 |
+| Tanzania PDPA 2022 / GDPR Patterns | ✅ Implemented | Data subject rights: erasure, portability, consent capture. Patterns conceptually compatible with GDPR Articles 17 and 20. | Both |
+| ISO 27001 (Infrastructure) | ✅ Infrastructure-level | Hosted on ISO 27001-certified infrastructure (AWS). Application-level ISO 27001 certification has not been pursued and is not implied. | Both |
 
 ### 1.5 Scope Clarification for Banking Regulators
 
@@ -166,11 +166,11 @@ This platform is specifically designed for:
 
 ### 2.1 Cloud Platform Provider: Supabase (Built on AWS)
 
-**Platform Certifications:**
-- ✅ SOC 2 Type II Certified
-- ✅ GDPR Compliant
+**Platform Certifications (Supabase/AWS infrastructure):**
+- ✅ SOC 2 Type II Certified (infrastructure-level; application-level attestation not pursued)
+- ✅ GDPR Compliant (Supabase platform)
 - ✅ HIPAA Eligible (BAA available)
-- ✅ ISO 27001 Aligned
+- ✅ ISO 27001 Certified (AWS infrastructure; application-level certification not pursued)
 - ✅ Annual third-party penetration testing
 
 **Geographic Data Residency:**
@@ -481,7 +481,7 @@ This platform is specifically designed for:
 
 | Feature | Description | Regulatory Requirement |
 |---------|-------------|------------------------|
-| FATF-Aligned Framework | Assessment based on FATF 40 Recommendations | BOT/FIU Guidelines |
+| FATF Risk-Based Approach Framework | Assessment methodology follows FATF guidance for legal professionals/DNFBPs. FATF Recommendations apply to countries, not products. | FIU/Tanzania AML Guidelines |
 | Technical Compliance Scoring | Evaluate AML/CFT policies, procedures, and controls | FATF Methodology |
 | Effectiveness Assessment | Measure implementation and practical application | FATF Methodology |
 | Three-Module Structure | Risk & Context, Technical Compliance, Effectiveness | FATF Immediate Outcomes |
@@ -495,7 +495,8 @@ This platform is specifically designed for:
 **Supported Assessment Frameworks:**
 - ✅ FATF Mutual Evaluation Methodology
 - ✅ Basel Committee on Banking Supervision AML/CFT Guidelines
-- ✅ Tanzania Bank of Tanzania (BOT) AML/CFT Guidelines for Banks
+- ✅ Tanzania FIU (FIAMLA) requirements for advocate obligations (sanctions screening, STR record-keeping, audit trails)
+- Note: Bank of Tanzania (BOT) supervises banks and deposit-taking institutions. BOT guidelines are not directly applicable to law firm advocates.
 - ✅ Tanzania FIU Risk Assessment Guidelines
 - ✅ East African Community (EAC) AML/CFT Framework
 
@@ -840,13 +841,13 @@ Phone: [phone number]
 This document attests that the AML/CFT Compliance Platform for Banks and Financial Institutions, as of the effective date stated above:
 
 1. ✅ Implements enterprise-grade security controls suitable for handling sensitive institutional and client KYC/AML data
-2. ✅ Complies with Bank of Tanzania (BOT) and Tanzania Financial Intelligence Unit (FIU) requirements for financial institutions
-3. ✅ Aligns with FATF 40 Recommendations, Basel Committee AML Guidelines, and international AML/CFT standards
-4. ✅ Provides adequate data protection controls in accordance with GDPR principles and Tanzania data protection laws
+2. ✅ Supports advocate obligations under Tanzania FIU (FIAMLA): sanctions screening against OFAC/UN/UK lists, audit trails with 7-year retention, suspicious transaction record-keeping. Note: BOT supervises banks; BOT guidelines do not directly apply to law firm advocates.
+3. ✅ Assessment methodology follows FATF guidance on the risk-based approach for legal professionals and DNFBPs. Note: FATF 40 Recommendations are addressed to member countries, not to individual products or firms.
+4. ✅ Data subject rights aligned with Tanzania Personal Data Protection Act 2022 (erasure, portability, consent capture). Patterns conceptually compatible with GDPR Articles 17 and 20.
 5. ✅ Maintains comprehensive audit trails for regulatory compliance and examinations
 6. ✅ Implements role-based access controls with data segregation and organizational isolation
 7. ✅ Encrypts all data at rest and in transit using industry-standard encryption (AES-256, TLS 1.3)
-8. ✅ Operates on a SOC 2 Type II certified infrastructure (Supabase/AWS)
+8. ✅ Hosted on SOC 2 Type II-certified infrastructure (Supabase/AWS). Application-level SOC 2 attestation has not been pursued and is not implied.
 9. ✅ Maintains business continuity and disaster recovery capabilities with 99.9% uptime SLA
 10. ✅ Commits to continuous security improvement and regulatory compliance
 11. ✅ Operates as a standalone compliance tool, separate from transaction processing systems

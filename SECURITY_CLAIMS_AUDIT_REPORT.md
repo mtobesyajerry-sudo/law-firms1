@@ -195,8 +195,8 @@ This audit reveals **SIGNIFICANT DISCREPANCIES** between what is claimed in the 
 ## 6. SECURITY INFRASTRUCTURE 🛡️
 
 ### CLAIMS MADE:
-1. Hosted on Supabase (SOC 2 Type II)
-2. AWS infrastructure (ISO 27001)
+1. Hosted on SOC 2 Type II-certified infrastructure (Supabase/AWS) — infrastructure-level only; application-level SOC 2 attestation not pursued
+2. Hosted on ISO 27001-certified infrastructure (AWS) — infrastructure-level only; application-level ISO 27001 certification not pursued
 3. Automated backup systems
 4. 99.9% uptime SLA
 5. DDoS protection
@@ -330,26 +330,29 @@ This audit reveals **SIGNIFICANT DISCREPANCIES** between what is claimed in the 
 
 ## 10. REGULATORY COMPLIANCE STATUS
 
-### CLAIMS MADE:
-- ✓ Bank of Tanzania (BOT) AML/CFT Guidelines
-- ✓ Tanzania FIU AML/CFT requirements
-- ✓ FATF 40 Recommendations
-- ✓ GDPR Compliance
-- ✓ ISO 27001 Aligned
-- ✓ 7-Year Data Retention
+### CORRECTED CLAIMS:
+- ✓ Tanzania FIU (FIAMLA) — Supports advocate obligations: sanctions screening, STR record-keeping, 7-year audit trails
+- ✗ REMOVED: "Bank of Tanzania (BOT) AML/CFT Guidelines" — BOT supervises banks, not law firm advocates; not applicable
+- ✓ FATF Risk-Based Approach — Assessment methodology follows FATF guidance for legal professionals/DNFBPs. FATF Recommendations apply to countries, not products.
+- ✗ REMOVED: "FATF 40 Recommendations — Fully aligned" — overstates applicability
+- ✓ Tanzania PDPA 2022 / GDPR Patterns — Data subject rights: erasure, portability, consent. Compatible with GDPR Articles 17 and 20 patterns.
+- ✓ ISO 27001 Infrastructure — Hosted on ISO 27001-certified infrastructure (AWS). Application-level certification not pursued and not implied.
+- ✓ SOC 2 Type II Infrastructure — Hosted on SOC 2 Type II-certified infrastructure (Supabase/AWS). Application-level attestation not pursued and not implied.
+- ✓ 7-Year Retention Architecture — Append-only audit tables; DELETE/UPDATE RLS policies set to `qual = false` (immutable). AML Act retention requirement supported.
 
 ### VERIFICATION RESULTS:
 
 | Compliance Area | Status | Evidence |
 |----------------|--------|----------|
-| **BOT Guidelines** | ✅ VERIFIED | Questionnaire framework aligned |
-| **Tanzania FIU** | ✅ VERIFIED | AML assessment and reporting |
-| **FATF 40** | ✅ VERIFIED | Risk scoring model matches FATF |
-| **GDPR** | ⚠️ PARTIAL | Data retention exists, NO consent tracking |
-| **ISO 27001** | ⚠️ INFRASTRUCTURE | Supabase-level, not application |
-| **7-Year Retention** | ✅ VERIFIED | 2555 days configured in policies |
+| **Tanzania FIU (FIAMLA)** | ✅ VERIFIED | Sanctions screening, STR records, 7-year audit trails |
+| **BOT Guidelines** | ❌ REMOVED | BOT supervises banks; not applicable to law firm advocates |
+| **FATF Risk-Based Approach** | ✅ METHODOLOGY | Assessment design follows FATF guidance; Recommendations apply to countries |
+| **Tanzania PDPA 2022** | ✅ IMPLEMENTED | Consent, erasure, portability implemented |
+| **ISO 27001** | ✅ INFRASTRUCTURE | AWS infrastructure certified; application-level not pursued |
+| **SOC 2 Type II** | ✅ INFRASTRUCTURE | Supabase/AWS certified; application-level not pursued |
+| **7-Year Retention** | ✅ ENFORCED | RLS DELETE/UPDATE qual=false on all audit tables; no cron purge jobs |
 
-**COMPLIANCE SCORE: 4.5/6 (75%)**
+**COMPLIANCE SCORE: Corrected — claims now accurately scoped to actual certifications held**
 
 ---
 

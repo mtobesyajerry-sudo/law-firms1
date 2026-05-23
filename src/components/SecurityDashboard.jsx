@@ -506,9 +506,9 @@ export default function SecurityDashboard() {
               <div style={styles.featureIcon}>⚖️</div>
               <h3 style={styles.featureTitle}>Privacy & Compliance</h3>
               <ul style={styles.featureList}>
-                <li>GDPR-aligned data handling</li>
-                <li>BOT/FIU regulatory compliance</li>
-                <li>FATF recommendations alignment</li>
+                <li>Tanzania PDPA 2022-aligned data handling</li>
+                <li>Tanzania FIU (FIAMLA) obligations supported</li>
+                <li>FATF risk-based approach methodology</li>
                 <li>Data retention automation</li>
                 <li>Legal document management</li>
                 <li>User consent tracking</li>
@@ -520,8 +520,8 @@ export default function SecurityDashboard() {
               <div style={styles.featureIcon}>🛡️</div>
               <h3 style={styles.featureTitle}>Security Infrastructure</h3>
               <ul style={styles.featureList}>
-                <li>Hosted on Supabase (SOC 2 Type II)</li>
-                <li>AWS infrastructure (ISO 27001)</li>
+                <li>Hosted on SOC 2 Type II-certified infrastructure (Supabase/AWS)</li>
+                <li>ISO 27001-certified infrastructure (AWS); application-level not certified</li>
                 <li>Automated backup systems</li>
                 <li>99.9% uptime SLA</li>
                 <li>DDoS protection</li>
@@ -579,43 +579,43 @@ export default function SecurityDashboard() {
               <div style={styles.complianceItem}>
                 <div style={styles.complianceCheck}>✓</div>
                 <div>
-                  <div style={styles.complianceLabel}>Bank of Tanzania (BOT)</div>
-                  <div style={styles.complianceDesc}>AML/CFT Guidelines for Banks</div>
+                  <div style={styles.complianceLabel}>Tanzania FIU (FIAMLA)</div>
+                  <div style={styles.complianceDesc}>Supports advocate obligations: sanctions screening, audit trails, STR record-keeping</div>
                 </div>
               </div>
               <div style={styles.complianceItem}>
                 <div style={styles.complianceCheck}>✓</div>
                 <div>
-                  <div style={styles.complianceLabel}>Tanzania FIU</div>
-                  <div style={styles.complianceDesc}>AML/CFT requirements compliant</div>
+                  <div style={styles.complianceLabel}>FATF Risk-Based Approach</div>
+                  <div style={styles.complianceDesc}>Assessment methodology follows FATF guidance for legal professionals; FATF Recommendations apply to countries, not products</div>
                 </div>
               </div>
               <div style={styles.complianceItem}>
                 <div style={styles.complianceCheck}>✓</div>
                 <div>
-                  <div style={styles.complianceLabel}>FATF 40 Recommendations</div>
-                  <div style={styles.complianceDesc}>Fully aligned assessment framework</div>
+                  <div style={styles.complianceLabel}>Tanzania PDPA 2022</div>
+                  <div style={styles.complianceDesc}>Data subject rights: erasure, portability, consent. Patterns conceptually compatible with GDPR Articles 17 and 20</div>
                 </div>
               </div>
               <div style={styles.complianceItem}>
                 <div style={styles.complianceCheck}>✓</div>
                 <div>
-                  <div style={styles.complianceLabel}>GDPR Compliance</div>
-                  <div style={styles.complianceDesc}>Data protection controls implemented</div>
+                  <div style={styles.complianceLabel}>ISO 27001 Infrastructure</div>
+                  <div style={styles.complianceDesc}>Hosted on ISO 27001-certified infrastructure (AWS). Application-level certification not pursued</div>
                 </div>
               </div>
               <div style={styles.complianceItem}>
                 <div style={styles.complianceCheck}>✓</div>
                 <div>
-                  <div style={styles.complianceLabel}>ISO 27001 Aligned</div>
-                  <div style={styles.complianceDesc}>Security controls framework</div>
+                  <div style={styles.complianceLabel}>SOC 2 Type II Infrastructure</div>
+                  <div style={styles.complianceDesc}>Hosted on SOC 2 Type II-certified infrastructure (Supabase/AWS). Application-level attestation not pursued</div>
                 </div>
               </div>
               <div style={styles.complianceItem}>
                 <div style={styles.complianceCheck}>✓</div>
                 <div>
-                  <div style={styles.complianceLabel}>7-Year Data Retention</div>
-                  <div style={styles.complianceDesc}>Automated retention policies</div>
+                  <div style={styles.complianceLabel}>7-Year Retention Architecture</div>
+                  <div style={styles.complianceDesc}>Append-only audit tables with deletion policies enforcing minimum retention before purge (AML Act requirement)</div>
                 </div>
               </div>
             </div>
