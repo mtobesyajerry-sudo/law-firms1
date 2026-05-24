@@ -12,13 +12,11 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    // Read caller IP from request headers — works behind Supabase's infrastructure.
-    // This avoids client-side api.ipify.org fetches that Firefox ETP blocks.
     const forwarded = req.headers.get("x-forwarded-for");
     const realIp = req.headers.get("x-real-ip");
     const ipAddress = forwarded
       ? forwarded.split(",")[0].trim()
-      : (realIp ?? null);
+      : (realIp ?? "unknown");
 
     const supabaseAdmin = createClient(
       Deno.env.get("SUPABASE_URL")!,
@@ -43,7 +41,8 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    const { error } = await supabaseAdmin.from("login_history").insert({
+    // Write login_history record
+    const { error: historyError } = await supabaseAdmin.from("login_history").insert({
       user_id,
       email,
       success: success === true,
@@ -53,12 +52,53 @@ Deno.serve(async (req: Request) => {
       mfa_used: mfa_used === true,
     });
 
-    if (error) {
-      console.error("log-login-event insert error:", error.message, error.code);
-      return new Response(
-        JSON.stringify({ error: "Failed to log event", details: error.message }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    if (historyError) {
+      console.error("log-login-event insert error:", historyError.message, historyError.code);
+    }
+
+    // On failed login: upsert into failed_login_attempts so detect_security_threats
+    // has data to work with. We upsert by (email, ip_address) within a 15-minute window
+    // to aggregate rapid repeat attempts into a single counter row.
+    if (success !== true) {
+      try {
+        const windowStart = new Date(Date.now() - 15 * 60 * 1000).toISOString();
+
+        // Look for an existing row for this email+ip within the current 15-min window
+        const { data: existing } = await supabaseAdmin
+          .from("failed_login_attempts")
+          .select("id, attempt_count")
+          .eq("email", email)
+          .eq("ip_address", ipAddress)
+          .gte("last_attempt_at", windowStart)
+          .maybeSingle();
+
+        if (existing) {
+          await supabaseAdmin
+            .from("failed_login_attempts")
+            .update({
+              attempt_count: (existing.attempt_count ?? 1) + 1,
+              last_attempt_at: new Date().toISOString(),
+              failure_reason,
+              user_agent,
+            })
+            .eq("id", existing.id);
+        } else {
+          await supabaseAdmin
+            .from("failed_login_attempts")
+            .insert({
+              email,
+              ip_address: ipAddress,
+              attempt_count: 1,
+              first_attempt_at: new Date().toISOString(),
+              last_attempt_at: new Date().toISOString(),
+              failure_reason,
+              user_agent,
+            });
+        }
+      } catch (attemptErr) {
+        // Non-fatal — never block the response due to tracking failure
+        console.error("failed_login_attempts write error:", attemptErr);
+      }
     }
 
     return new Response(JSON.stringify({ success: true }), {
