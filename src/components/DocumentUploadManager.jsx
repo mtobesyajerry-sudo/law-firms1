@@ -231,12 +231,13 @@ export default function DocumentUploadManager({
         file_type: file.type,
         mime_type: file.type,
         storage_path: filePath,
+        file_hash: serverValidation.fileHash,
+        hash_algorithm: 'SHA-256',
         verification_status: 'pending',
         is_mandatory: true,
         is_current: true,
         uploaded_by: user.id,
         metadata: {
-          checksum: serverValidation.fileHash,
           validated_at: new Date().toISOString(),
           validation_warnings: serverValidation.warnings || []
         }

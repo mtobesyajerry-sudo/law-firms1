@@ -153,15 +153,17 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Initialize Supabase client with the user's JWT
+    // Initialize Supabase clients
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const token = authHeader.replace("Bearer ", "");
     const supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
       global: {
         headers: { Authorization: authHeader },
       },
     });
+    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
     // Verify the user is authenticated
     const { data: { user }, error: authError } = await supabaseClient.auth.getUser(token);
@@ -178,6 +180,21 @@ Deno.serve(async (req: Request) => {
         }
       );
     }
+
+    // Audit log: record every invocation so we can verify the function fires
+    await supabaseAdmin.from('audit_logs').insert({
+      action_type: 'file_validation_attempt',
+      event_category: 'security',
+      entity_type: 'file_upload',
+      action_description: 'validate-file-upload Edge Function invoked',
+      severity: 'info',
+      user_id: user.id,
+      changes: {
+        user_email: user.email,
+        content_type: req.headers.get('content-type'),
+        user_agent: req.headers.get('user-agent'),
+      }
+    }).catch((e: Error) => console.error('audit log failed:', e));
 
     // Parse multipart form data
     const formData = await req.formData();
@@ -248,9 +265,6 @@ Deno.serve(async (req: Request) => {
     // 5. Check for duplicate files (optional - adds warning only)
     if (result.fileHash) {
       try {
-        const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-        const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
-
         // Check if file with same hash exists
         const { data: existingDocs, error: dbError } = await supabaseAdmin
           .from("client_documents")
