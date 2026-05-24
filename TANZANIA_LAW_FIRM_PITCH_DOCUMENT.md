@@ -188,9 +188,8 @@ Monitoring Frequency: Monthly
 
 **Secure Document Upload & Storage**
 - AES-256 encryption for all stored documents
-- File integrity verification (SHA-256 checksums)
+- Server-side file validation (10MB size cap, magic-byte content verification, server-side hashing for duplicate detection, cross-organization upload prevention via RLS)
 - Virus scanning integration ready
-- Automatic file versioning
 - Tamper-evident audit trail
 - 10MB file size limit (security measure)
 - Allowed file types: PDF, DOCX, XLSX, JPG, PNG
@@ -240,7 +239,7 @@ Monitoring Frequency: Monthly
 
 2. **PEP Databases**
    - Tanzania government officials database
-   - International PEPs (World-Check, Dow Jones)
+   - OpenSanctions premium feed (optional, currently disabled) for extended PEP coverage. Production PEP screening sources are OFAC, UN, and UK HMT/OFSI lists.
    - PEP family members and close associates
    - Former PEPs (within 2-year cooling-off period)
 
@@ -934,7 +933,6 @@ If someone steals the hard drives from the data center, your data is completely 
 - Password strength scoring (0-4 rating)
 - Password history (prevents reuse)
 - Forced password change on first login
-- Password expiration (configurable, e.g., 90 days)
 
 **Account Lockout Protection:**
 - **Threshold:** 5 failed login attempts
@@ -944,10 +942,7 @@ If someone steals the hard drives from the data center, your data is completely 
 - **Protection:** Prevents brute-force password guessing
 
 **Session Management:**
-- **Session Timeout:** Automatic logout after inactivity (configurable, default 30 minutes)
-- **Multiple Device Tracking:** See all active sessions
-- **Location Monitoring:** Unusual location alerts
-- **Remote Logout:** Terminate sessions from any device
+- **Session Timeout:** JWT tokens expire after 1 hour with automatic refresh while active; idle sessions expire per Supabase Auth defaults
 - **Suspicious Login Alerts:** Notify on unusual access patterns
 
 **Role-Based Access Control (RBAC):**
@@ -1081,14 +1076,12 @@ If FIU asks "Who accessed this client file on March 15, 2025?", you can answer i
 **Automated Security Monitoring:**
 
 **Threats Detected:**
-- Brute force login attempts
+- Brute force login attempts / credential stuffing
 - Unusual access patterns
 - Privilege escalation attempts
 - Data exfiltration attempts (unusual downloads)
-- Suspicious location access
 - Multiple failed MFA attempts
 - Account takeover attempts
-- Insider risk behavior
 - Unauthorized access attempts
 - Policy violations
 - Suspicious uploads
@@ -1598,56 +1591,7 @@ As your firm grows and budget allows:
 
 ## PART 5: CASE STUDIES & SUCCESS STORIES
 
-### Case Study 1: Bower & Associates - Medium-Sized Law Firm
-
-**Profile:**
-- Firm size: 12 lawyers
-- Practice areas: Corporate law, real estate, M&A
-- Client base: 150 active clients
-- Challenge: Manual AML compliance, no systematic approach
-
-**Implementation:**
-- **Timeline:** 3 weeks
-- **Tier:** Medium Firm subscription
-- **Users:** 15 (12 lawyers + 1 MLRO + 1 compliance + 1 admin)
-
-**Results After 6 Months:**
-- ✅ 100% KYC compliance (was 60% before)
-- ✅ 45 hours/month time saved
-- ✅ Zero missed regulatory deadlines (was 3-4/year)
-- ✅ 2 high-risk clients properly identified and monitored
-- ✅ 1 STR properly filed (previously would have been missed)
-- ✅ TZS 15,000,000 saved on compliance costs
-- ✅ Won 3 new corporate clients requiring AML compliance
-
-**Testimonial:**
-*"As a corporate law firm handling significant M&A transactions, we needed a robust AML system. This platform transformed our compliance from a burden to a competitive advantage. We now confidently accept high-value matters knowing our due diligence is thorough and documented."*
-— Managing Partner, Bower & Associates
-
-### Case Study 2: SmithLegal - Solo Practitioner
-
-**Profile:**
-- Firm size: 1 lawyer (solo practitioner)
-- Practice areas: Conveyancing, wills, estates
-- Client base: 40 active clients
-- Challenge: Manual paper files, no systematic KYC
-
-**Implementation:**
-- **Timeline:** 1 week
-- **Tier:** Solo Practitioner subscription
-- **Users:** 1
-
-**Results After 3 Months:**
-- ✅ All 40 clients properly KYC'd and risk-assessed
-- ✅ 15 hours/month time saved
-- ✅ Professional appearance to clients
-- ✅ Confidence in regulatory compliance
-- ✅ 1 high-risk property transaction properly handled with EDD
-- ✅ TZS 1,200,000/year saved (vs. hiring compliance consultant)
-
-**Testimonial:**
-*"As a solo practitioner, I thought AML compliance was only for big firms. This system made it affordable and manageable. The automated risk assessments and document management save me hours every week, and I sleep better knowing I'm fully compliant."*
-— Sarah Smith, SmithLegal
+Case studies will be added as the platform onboards production subscribers and accumulates real operational data.
 
 ---
 

@@ -498,7 +498,7 @@ export default function SecurityDashboard() {
                 <li>Organization-level data isolation</li>
                 <li>Legal document versioning</li>
                 <li>User consent management</li>
-                <li>Data retention policies (7-year compliance)</li>
+                <li>Data retention policies (7-year minimum, configurable per record type)</li>
               </ul>
             </div>
 
@@ -614,7 +614,7 @@ export default function SecurityDashboard() {
               <div style={styles.complianceItem}>
                 <div style={styles.complianceCheck}>✓</div>
                 <div>
-                  <div style={styles.complianceLabel}>7-Year Retention Architecture</div>
+                  <div style={styles.complianceLabel}>Multi-year Retention Architecture (configurable 7-10 years per AML Act and POCA requirements)</div>
                   <div style={styles.complianceDesc}>Append-only audit tables with deletion policies enforcing minimum retention before purge (AML Act requirement)</div>
                 </div>
               </div>

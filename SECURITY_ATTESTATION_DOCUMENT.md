@@ -426,12 +426,11 @@ This platform is specifically designed for:
 
 ### 5.4 Vulnerability Management
 
-- ✅ Quarterly penetration testing by external security firm
 - ✅ Continuous automated vulnerability scanning
 - ✅ Weekly security patch reviews
 - ✅ Critical security patches applied within 24 hours
-- ✅ Annual security audit by independent auditor
-- ✅ Bug bounty program for responsible disclosure
+
+Periodic security review will be conducted as part of post-launch operational discipline. External penetration testing and formal third-party audits are planned for a future operational phase but are not currently in place.
 
 ---
 
@@ -634,24 +633,11 @@ All third-party services undergo security assessment:
 
 ### 10.1 Testing Schedule
 
-| Test Type | Frequency | Last Performed | Next Scheduled |
-|-----------|-----------|----------------|----------------|
-| Penetration Testing | Quarterly | [Date] | [Date] |
-| Vulnerability Scanning | Weekly | Automated | Ongoing |
-| Security Audit | Annual | [Date] | [Date] |
-| Business Continuity Test | Semi-annual | [Date] | [Date] |
-| Disaster Recovery Test | Semi-annual | [Date] | [Date] |
-| Access Control Review | Quarterly | [Date] | [Date] |
+A post-launch testing and review cadence will be documented within 30 days of go-live.
 
 ### 10.2 Security Metrics
 
-**Current Security Posture:**
-- ✅ Zero known critical vulnerabilities
-- ✅ Zero data breaches (historical)
-- ✅ 99.95% uptime (12-month average)
-- ✅ < 1 hour mean time to detect (MTTD) security incidents
-- ✅ < 4 hours mean time to respond (MTTR) critical incidents
-- ✅ 100% of staff completed security training
+Operational performance metrics will be tracked from the launch date forward and published periodically. As of the document date, the system has not yet accumulated production operational history.
 
 ---
 
@@ -777,27 +763,9 @@ If a bank chooses to integrate this platform with other bank systems (optional):
 
 ## 13. Security Roadmap
 
-### 13.1 Planned Security Enhancements (Next 12 Months)
+### 13.1 Future Security Enhancements
 
-**Q1 2026:**
-- ✅ ISO 27001 certification initiation
-- ✅ Advanced threat detection (AI-based anomaly detection)
-- ✅ SIEM integration for enterprise clients
-
-**Q2 2026:**
-- Enhanced audit reporting dashboard
-- Automated compliance report generation
-- API security enhancements (OAuth 2.0)
-
-**Q3 2026:**
-- Biometric authentication support (optional)
-- Data loss prevention (DLP) tools
-- Enhanced document watermarking
-
-**Q4 2026:**
-- ISO 27001 certification completion
-- Advanced encryption key management
-- Regional data residency options (Africa-based hosting)
+Future security enhancements and certifications are under evaluation. No specific timeline or certification path has been committed at this time.
 
 ### 13.2 Continuous Improvement
 
