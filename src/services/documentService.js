@@ -574,16 +574,8 @@ export class DocumentService {
     try {
       const { data: { user } } = await supabase.auth.getUser();
 
-      // Attempt to get real client IP from headers (Vercel/Cloudflare)
-      let clientIP = 'unknown';
-      try {
-        const response = await fetch('https://api.ipify.org?format=json');
-        const data = await response.json();
-        clientIP = data.ip || 'unknown';
-      } catch (e) {
-        // Fallback to unknown if IP detection fails
-        clientIP = 'unknown';
-      }
+      // IP detection is server-side only; use null here to avoid Firefox ETP blocking ipify
+      const clientIP = null;
 
       await supabase.from('document_access_logs').insert({
         user_id: user?.id,

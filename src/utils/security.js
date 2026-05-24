@@ -225,13 +225,9 @@ export async function createSuspiciousActivityAlert({
 }
 
 export async function getUserIP() {
-  try {
-    const response = await fetch('https://api.ipify.org?format=json');
-    const data = await response.json();
-    return data.ip;
-  } catch (error) {
-    return 'unknown';
-  }
+  // IP detection moved server-side to avoid Firefox ETP blocking api.ipify.org.
+  // Callers that need an IP should use the log-login-event Edge Function instead.
+  return null;
 }
 
 export function sanitizeInput(input) {

@@ -124,11 +124,12 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    // Step 4: Parse request body — admin_user_id no longer accepted; identity is JWT-derived
-    const { user_id }: { user_id: string } = await req.json();
+    // Step 4: Parse request body — accept target_user_id (canonical) or legacy user_id/userId
+    const body = await req.json();
+    const targetUserId: string = body.target_user_id ?? body.user_id ?? body.userId;
 
-    if (!user_id) {
-      return new Response(JSON.stringify({ error: "user_id is required" }), {
+    if (!targetUserId) {
+      return new Response(JSON.stringify({ error: "target_user_id is required" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -140,7 +141,7 @@ Deno.serve(async (req: Request) => {
       const { data: targetProfile } = await supabaseAdmin
         .from("user_profiles")
         .select("organization_id")
-        .eq("id", user_id)
+        .eq("id", targetUserId)
         .single();
 
       if (!targetProfile) {
@@ -162,13 +163,13 @@ Deno.serve(async (req: Request) => {
     const { error: deleteProfileError } = await supabaseAdmin
       .from("user_profiles")
       .delete()
-      .eq("id", user_id);
+      .eq("id", targetUserId);
 
     if (deleteProfileError) {
       console.error("Profile deletion error:", deleteProfileError);
     }
 
-    const { error: deleteAuthError } = await supabaseAdmin.auth.admin.deleteUser(user_id);
+    const { error: deleteAuthError } = await supabaseAdmin.auth.admin.deleteUser(targetUserId);
 
     if (deleteAuthError) {
       if (!deleteAuthError.message.includes("User not found")) {

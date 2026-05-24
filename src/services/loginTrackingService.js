@@ -1,46 +1,63 @@
 import { supabase } from '../supabaseClient';
 
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
 class LoginTrackingService {
+  // IP detection is now server-side via the log-login-event Edge Function.
+  // This method is kept for logFailedAttempt which needs an IP for the failed_login_attempts table.
   async getClientIP() {
-    try {
-      const response = await fetch('https://api.ipify.org?format=json');
-      const data = await response.json();
-      return data.ip;
-    } catch (error) {
-      console.error('Failed to fetch IP:', error);
-      return null;
-    }
+    return null;
   }
 
   async logLoginAttempt(email, success, user = null, failureReason = null, mfaUsed = false) {
     try {
-      const ipAddress = await this.getClientIP();
-      const userAgent = navigator.userAgent;
+      // Delegate to the Edge Function which reads IP from request headers server-side.
+      // This avoids the api.ipify.org fetch that Firefox ETP blocks in private browsing.
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
 
-      const loginEntry = {
-        user_id: user?.id || null,
-        email: email,
-        success: success,
-        failure_reason: failureReason,
-        // login_history.ip_address is inet — null is safe; 'unknown' is not a valid inet
-        ip_address: ipAddress || null,
-        user_agent: userAgent,
-        mfa_used: mfaUsed === true
-      };
-
-      const { error } = await supabase
-        .from('login_history')
-        .insert([loginEntry]);
-
-      if (error) {
-        console.error(`[AUDIT FAILURE] Insert to login_history rejected: ${error.message} | code: ${error.code} | email: ${email}`);
+      if (token) {
+        try {
+          await fetch(`${SUPABASE_URL}/functions/v1/log-login-event`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json',
+              'Apikey': SUPABASE_ANON_KEY,
+            },
+            body: JSON.stringify({
+              email,
+              success,
+              user_id: user?.id || null,
+              failure_reason: failureReason,
+              mfa_used: mfaUsed === true,
+              user_agent: navigator.userAgent,
+            }),
+          });
+        } catch (fetchErr) {
+          // Non-fatal — audit log failure should never block login
+          console.error(`[AUDIT] log-login-event fetch failed: ${fetchErr?.message}`);
+        }
+      } else {
+        // No session yet (failed login) — write directly without IP
+        const { error } = await supabase.from('login_history').insert([{
+          user_id: null,
+          email,
+          success: false,
+          failure_reason: failureReason,
+          ip_address: null,
+          user_agent: navigator.userAgent,
+          mfa_used: false,
+        }]);
+        if (error) {
+          console.error(`[AUDIT FAILURE] Insert to login_history rejected: ${error.message} | code: ${error.code} | email: ${email}`);
+        }
       }
 
       if (!success) {
-        await this.logFailedAttempt(email, ipAddress, failureReason);
+        await this.logFailedAttempt(email, null, failureReason);
       }
-
-      return loginEntry;
     } catch (err) {
       console.error(`[AUDIT FAILURE] Unexpected error in logLoginAttempt: ${err?.message ?? err}`);
     }
@@ -110,11 +127,11 @@ class LoginTrackingService {
   async createSession(userId) {
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      const ipAddress = await this.getClientIP();
 
       if (session) {
-        // Use session_id from JWT payload — unique per Supabase auth session.
-        // Fallback to a random UUID if the claim is absent (should never happen).
+        // Use session_id from JWT payload as the stable, unique session token.
+        // Supabase reuses the same session_id across token refreshes for the same session,
+        // so we upsert (not insert) to avoid the unique constraint 409 on re-login.
         let sessionToken;
         try {
           const payload = JSON.parse(atob(session.access_token.split('.')[1]));
@@ -126,7 +143,8 @@ class LoginTrackingService {
         const sessionEntry = {
           user_id: userId,
           session_token: sessionToken,
-          ip_address: ipAddress,
+          // IP is now resolved server-side via log-login-event; store null here
+          ip_address: null,
           user_agent: navigator.userAgent,
           is_active: true,
           last_activity_at: new Date().toISOString(),
@@ -135,7 +153,7 @@ class LoginTrackingService {
 
         const { data, error } = await supabase
           .from('user_sessions')
-          .insert([sessionEntry])
+          .upsert(sessionEntry, { onConflict: 'session_token' })
           .select()
           .single();
 

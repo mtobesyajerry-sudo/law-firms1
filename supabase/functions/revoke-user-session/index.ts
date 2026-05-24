@@ -118,7 +118,10 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    const { target_user_id, session_id, reason } = await req.json();
+    // Accept target_user_id (canonical) or legacy userId/user_id
+    const body = await req.json();
+    const target_user_id: string = body.target_user_id ?? body.user_id ?? body.userId;
+    const { session_id, reason } = body;
 
     if (!target_user_id) {
       return new Response(JSON.stringify({ error: "target_user_id is required" }), {

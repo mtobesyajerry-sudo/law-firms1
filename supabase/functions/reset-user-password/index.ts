@@ -134,11 +134,13 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    // Step 4: Parse request body
-    const { userId, newPassword }: { userId: string; newPassword: string } = await req.json();
+    // Step 4: Parse request body — accept target_user_id (canonical) or legacy userId/user_id
+    const body = await req.json();
+    const userId: string = body.target_user_id ?? body.userId ?? body.user_id;
+    const { newPassword }: { newPassword: string } = body;
 
     if (!userId || !newPassword) {
-      return new Response(JSON.stringify({ error: "userId and newPassword are required" }), {
+      return new Response(JSON.stringify({ error: "target_user_id and newPassword are required" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
