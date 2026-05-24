@@ -39,14 +39,14 @@ export default function TrialExpiredModal() {
   useEffect(() => {
     supabase
       .from('subscription_plans')
-      .select('id, name, display_name, price_monthly_tzs, price_annual_tzs, max_users, max_matters, contact_sales')
-      .in('name', ['solo', 'small_firm', 'medium_firm', 'large_firm'])
+      .select('id, tier, name, display_name, price_monthly_tzs, price_annual_tzs, max_users, max_matters, contact_sales')
+      .in('tier', ['solo', 'small_firm', 'medium_firm', 'large_firm'])
       .order('price_monthly_tzs', { ascending: true, nullsFirst: false })
       .then(({ data }) => {
         if (data) {
           setPlans(data);
           // Pre-select the current org tier if available
-          const current = data.find(p => p.name === organization?.subscription_tier);
+          const current = data.find(p => p.tier === organization?.subscription_tier);
           setSelectedPlan(current ?? data[0] ?? null);
         }
       });
@@ -97,7 +97,7 @@ export default function TrialExpiredModal() {
       // Upgrade org tier and set expiry date
       const { error: orgErr } = await supabase.from('organizations')
         .update({
-          subscription_tier: selectedPlan.name,
+          subscription_tier: selectedPlan.tier,
           subscription_expiry_date: periodEnd.toISOString(),
           subscription_status: 'active',
           is_trialing: false,
@@ -162,7 +162,7 @@ export default function TrialExpiredModal() {
                     }}
                   >
                     <div style={{ fontWeight: '700', fontSize: '13px', color: '#0a1929', marginBottom: '4px' }}>
-                      {plan.display_name || TIER_LABELS[plan.name] || plan.name}
+                      {plan.display_name || TIER_LABELS[plan.tier] || plan.name}
                     </div>
                     <div style={{ fontSize: '12px', color: plan.contact_sales ? '#64748b' : '#1e40af', fontWeight: '600' }}>
                       {plan.contact_sales ? 'Contact sales' : `${formatTZS(price)} / ${billingPeriod === 'annual' ? 'yr' : 'mo'}`}
@@ -205,7 +205,7 @@ export default function TrialExpiredModal() {
           {selectedPlan && !selectedPlan.contact_sales && selectedPrice && (
             <div style={{ background: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: '8px', padding: '14px 16px', marginBottom: '20px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', color: '#0369a1', fontWeight: '700' }}>
-                <span>{selectedPlan.display_name || TIER_LABELS[selectedPlan.name]} — {billingPeriod}</span>
+                <span>{selectedPlan.display_name || TIER_LABELS[selectedPlan.tier] || selectedPlan.name} — {billingPeriod}</span>
                 <span>{formatTZS(selectedPrice)}</span>
               </div>
               <div style={{ fontSize: '12px', color: '#64748b', marginTop: '4px' }}>

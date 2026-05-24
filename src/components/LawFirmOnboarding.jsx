@@ -33,8 +33,8 @@ export default function LawFirmOnboarding({ organizationId, onComplete }) {
   useEffect(() => {
     supabase
       .from('subscription_plans')
-      .select('id, name, display_name, price_monthly_tzs, trial_days, contact_sales, max_users')
-      .in('name', ['solo', 'small_firm', 'medium_firm', 'large_firm'])
+      .select('id, tier, name, display_name, price_monthly_tzs, trial_days, contact_sales, max_users')
+      .in('tier', ['solo', 'small_firm', 'medium_firm', 'large_firm'])
       .order('price_monthly_tzs', { ascending: true, nullsFirst: false })
       .then(({ data }) => {
         if (data) {
@@ -126,7 +126,7 @@ export default function LawFirmOnboarding({ organizationId, onComplete }) {
       if (selectedPlan && !selectedPlan.contact_sales) {
         const { error: trialError } = await supabase.rpc('start_trial', {
           p_org_id: organizationId,
-          p_chosen_tier: selectedPlan.name,
+          p_chosen_tier: selectedPlan.tier,
         });
         if (trialError) console.error('Trial start error (non-fatal):', trialError);
       }
@@ -157,7 +157,7 @@ export default function LawFirmOnboarding({ organizationId, onComplete }) {
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '12px', marginBottom: '16px' }}>
                 {plans.map(plan => {
                   const isSelected = selectedPlan?.id === plan.id;
-                  const desc = PLAN_DESCRIPTIONS[plan.name] || {};
+                  const desc = PLAN_DESCRIPTIONS[plan.tier] || {};
                   return (
                     <button
                       key={plan.id}
@@ -172,7 +172,7 @@ export default function LawFirmOnboarding({ organizationId, onComplete }) {
                       }}
                     >
                       <div style={{ fontWeight: '700', fontSize: '15px', color: '#0a1929', marginBottom: '4px' }}>
-                        {plan.display_name || plan.name}
+                        {plan.display_name || plan.name || plan.tier}
                       </div>
                       <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '8px' }}>
                         {desc.tagline || ''}

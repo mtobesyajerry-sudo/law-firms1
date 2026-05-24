@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
 
 const TIER_META = {
-  trial:       { label: 'Trial',       bg: '#fef3c7', color: '#92400e' },
   solo:        { label: 'Solo',         bg: '#dbeafe', color: '#1e40af' },
   small_firm:  { label: 'Small Firm',   bg: '#d1fae5', color: '#065f46' },
   medium_firm: { label: 'Medium Firm',  bg: '#e0f2fe', color: '#0c4a6e' },
@@ -268,8 +267,8 @@ export default function SubscriptionManagement() {
 
   const stats = {
     total: organizations.length,
-    active: organizations.filter(o => o.subscription_status === 'active').length,
-    trial: organizations.filter(o => o.subscription_tier === 'trial').length,
+    active: organizations.filter(o => o.subscription_status === 'active' && !o.is_trialing).length,
+    trialing: organizations.filter(o => o.is_trialing === true).length,
     expired: organizations.filter(o => o.subscription_status === 'expired').length,
   };
 
@@ -290,8 +289,8 @@ export default function SubscriptionManagement() {
           <div style={styles.statLabel}>Active Subscriptions</div>
         </div>
         <div style={styles.statCard}>
-          <div style={styles.statValue}>{stats.trial}</div>
-          <div style={styles.statLabel}>Trial Accounts</div>
+          <div style={styles.statValue}>{stats.trialing}</div>
+          <div style={styles.statLabel}>On Free Trial</div>
         </div>
         <div style={styles.statCard}>
           <div style={styles.statValue}>{stats.expired}</div>
@@ -319,6 +318,11 @@ export default function SubscriptionManagement() {
                 <span style={{ ...styles.badge, background: tierMeta.bg, color: tierMeta.color }}>
                   {tierMeta.label.toUpperCase()}
                 </span>
+                {org.is_trialing && (
+                  <span style={{ ...styles.badge, background: '#fef3c7', color: '#92400e' }}>
+                    FREE TRIAL
+                  </span>
+                )}
                 <span style={{ ...styles.badge, background: statusColor.bg, color: statusColor.color }}>
                   {(org.subscription_status || 'unknown').toUpperCase()}
                 </span>
