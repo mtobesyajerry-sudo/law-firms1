@@ -158,11 +158,6 @@ export default function Auth() {
       }
     } catch (err) {
       await loginTrackingService.logLoginAttempt(email, false, null, err.message, false);
-      await auditService.logSecurityEvent(
-        'user_login_failure', 'warning',
-        `Failed login attempt for ${email}`,
-        { reason: err.message }
-      );
 
       if (err.message === 'Invalid login credentials') {
         const { data: pendingRequest } = await supabase

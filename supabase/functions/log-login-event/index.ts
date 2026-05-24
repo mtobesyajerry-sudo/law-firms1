@@ -101,6 +101,26 @@ Deno.serve(async (req: Request) => {
       }
     }
 
+    // On failed login: write audit_logs server-side with service role.
+    // Replaces the client-side auditService.logSecurityEvent call which returned 401
+    // because the browser has no session at the point of a failed login.
+    if (success !== true) {
+      try {
+        await supabaseAdmin.from("audit_logs").insert({
+          action_type: "login_failed",
+          event_category: "security",
+          entity_type: "auth.session",
+          action_description: `Failed login attempt for ${email}`,
+          severity: "warning",
+          ip_address: ipAddress,
+          user_agent,
+          changes: { reason: failure_reason },
+        });
+      } catch (auditErr) {
+        console.error("audit_logs write error:", auditErr);
+      }
+    }
+
     return new Response(JSON.stringify({ success: true }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
