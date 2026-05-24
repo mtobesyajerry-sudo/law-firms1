@@ -12,51 +12,32 @@ class LoginTrackingService {
 
   async logLoginAttempt(email, success, user = null, failureReason = null, mfaUsed = false) {
     try {
-      // Delegate to the Edge Function which reads IP from request headers server-side.
-      // This avoids the api.ipify.org fetch that Firefox ETP blocks in private browsing.
+      // Always call the Edge Function so it can capture the real server-side IP.
+      // On failed logins there is no session token — use the anon key as Bearer instead.
+      // log-login-event is deployed with verify_jwt=false so anon key is accepted.
       const { data: { session } } = await supabase.auth.getSession();
-      const token = session?.access_token;
+      const token = session?.access_token || SUPABASE_ANON_KEY;
 
-      if (token) {
-        try {
-          await fetch(`${SUPABASE_URL}/functions/v1/log-login-event`, {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${token}`,
-              'Content-Type': 'application/json',
-              'Apikey': SUPABASE_ANON_KEY,
-            },
-            body: JSON.stringify({
-              email,
-              success,
-              user_id: user?.id || null,
-              failure_reason: failureReason,
-              mfa_used: mfaUsed === true,
-              user_agent: navigator.userAgent,
-            }),
-          });
-        } catch (fetchErr) {
-          // Non-fatal — audit log failure should never block login
-          console.error(`[AUDIT] log-login-event fetch failed: ${fetchErr?.message}`);
-        }
-      } else {
-        // No session yet (failed login) — write directly without IP
-        const { error } = await supabase.from('login_history').insert([{
-          user_id: null,
-          email,
-          success: false,
-          failure_reason: failureReason,
-          ip_address: null,
-          user_agent: navigator.userAgent,
-          mfa_used: false,
-        }]);
-        if (error) {
-          console.error(`[AUDIT FAILURE] Insert to login_history rejected: ${error.message} | code: ${error.code} | email: ${email}`);
-        }
-      }
-
-      if (!success) {
-        await this.logFailedAttempt(email, null, failureReason);
+      try {
+        await fetch(`${SUPABASE_URL}/functions/v1/log-login-event`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+            'Apikey': SUPABASE_ANON_KEY,
+          },
+          body: JSON.stringify({
+            email,
+            success,
+            user_id: user?.id || null,
+            failure_reason: failureReason,
+            mfa_used: mfaUsed === true,
+            user_agent: navigator.userAgent,
+          }),
+        });
+      } catch (fetchErr) {
+        // Non-fatal — audit log failure should never block login
+        console.error(`[AUDIT] log-login-event fetch failed: ${fetchErr?.message}`);
       }
     } catch (err) {
       console.error(`[AUDIT FAILURE] Unexpected error in logLoginAttempt: ${err?.message ?? err}`);
