@@ -30,9 +30,3 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   }
 });
 
-// DEV/STAGING ONLY — remove window.__supabase before production deployment.
-// This enables DevTools-based security verification testing.
-// Not gated on import.meta.env.DEV because Bolt WebContainer sets DEV=false even in dev server mode.
-if (typeof window !== 'undefined') {
-  window.__supabase = supabase;
-}
