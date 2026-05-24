@@ -63,8 +63,7 @@ export async function getScreeningHistory({ status, page = 1, pageSize = 25 } = 
     .select(`
       id, screened_name, screened_dob, screened_nationality,
       match_count, highest_score, overall_risk, status, opensanctions_used,
-      screened_at, screened_by, client_id,
-      kyc_clients (id, client_name)
+      screened_at, screened_by, client_id
     `, { count: 'exact' })
     .order('screened_at', { ascending: false })
     .range((page - 1) * pageSize, page * pageSize - 1);
@@ -76,7 +75,23 @@ export async function getScreeningHistory({ status, page = 1, pageSize = 25 } = 
 
   const { data, count, error } = await query;
   if (error) throw error;
-  return { rows: data ?? [], total: count ?? 0 };
+
+  // Fetch decrypted client names separately (FK joins can't traverse views)
+  const clientIds = [...new Set((data ?? []).map(r => r.client_id).filter(Boolean))];
+  let clientNames = {};
+  if (clientIds.length > 0) {
+    const { data: clients } = await supabase
+      .from('kyc_clients_decrypted')
+      .select('id, client_name')
+      .in('id', clientIds);
+    clientNames = Object.fromEntries((clients ?? []).map(c => [c.id, c.client_name]));
+  }
+
+  const rows = (data ?? []).map(r => ({
+    ...r,
+    kyc_clients: r.client_id ? { id: r.client_id, client_name: clientNames[r.client_id] ?? null } : null
+  }));
+  return { rows, total: count ?? 0 };
 }
 
 // ---------------------------------------------------------------------
@@ -103,12 +118,24 @@ export async function getDashboardCounters() {
 // 5. Fetch full screening detail + matches
 // ---------------------------------------------------------------------
 export async function getScreeningDetail(screeningId) {
-  const { data: screening, error: e1 } = await supabase
+  const { data: screeningRaw, error: e1 } = await supabase
     .from('screening_results')
-    .select('*, kyc_clients(*)')
+    .select('*')
     .eq('id', screeningId)
     .single();
   if (e1) throw e1;
+
+  // Fetch decrypted client data separately (FK joins can't traverse views)
+  let kyc_clients = null;
+  if (screeningRaw?.client_id) {
+    const { data: clientData } = await supabase
+      .from('kyc_clients_decrypted')
+      .select('*')
+      .eq('id', screeningRaw.client_id)
+      .maybeSingle();
+    kyc_clients = clientData;
+  }
+  const screening = { ...screeningRaw, kyc_clients };
 
   const { data: matches, error: e2 } = await supabase
     .from('screening_matches')
@@ -302,21 +329,36 @@ export const screeningService = {
   async getClientScreeningResults(clientId) {
     const { data, error } = await supabase
       .from('screening_results')
-      .select('*, client:kyc_clients(id, client_name, client_type)')
+      .select('*')
       .eq('client_id', clientId)
       .order('screened_at', { ascending: false });
     if (error) throw error;
-    return data;
+    if (!data?.length) return data;
+    const { data: clientData } = await supabase
+      .from('kyc_clients_decrypted')
+      .select('id, client_name, client_type')
+      .eq('id', clientId)
+      .maybeSingle();
+    return data.map(r => ({ ...r, client: clientData ?? null }));
   },
 
   async getAllScreeningResults(organizationId) {
     const { data, error } = await supabase
       .from('screening_results')
-      .select('*, client:kyc_clients(id, client_name, client_type)')
+      .select('*')
       .eq('organization_id', organizationId)
       .order('screened_at', { ascending: false });
     if (error) throw error;
-    return data;
+    const clientIds = [...new Set((data ?? []).map(r => r.client_id).filter(Boolean))];
+    let clientMap = {};
+    if (clientIds.length > 0) {
+      const { data: clients } = await supabase
+        .from('kyc_clients_decrypted')
+        .select('id, client_name, client_type')
+        .in('id', clientIds);
+      clientMap = Object.fromEntries((clients ?? []).map(c => [c.id, c]));
+    }
+    return (data ?? []).map(r => ({ ...r, client: r.client_id ? (clientMap[r.client_id] ?? null) : null }));
   },
 
   async getScreeningStatistics(organizationId) {
@@ -339,15 +381,30 @@ export const screeningService = {
   async getPendingScreeningReviews(organizationId) {
     const { data, error } = await supabase
       .from('screening_matches')
-      .select(`
-        *, screening_results (id, screened_name, overall_risk, client_id,
-          kyc_clients (id, client_name, client_type, risk_level))
-      `)
+      .select('*, screening_results (id, screened_name, overall_risk, client_id)')
       .eq('organization_id', organizationId)
       .eq('status', 'pending_review')
       .order('match_score', { ascending: false });
     if (error) throw error;
-    return data;
+    // Fetch decrypted client names separately (FK joins can't traverse views)
+    const clientIds = [...new Set(
+      (data ?? []).map(r => r.screening_results?.client_id).filter(Boolean)
+    )];
+    let clientMap = {};
+    if (clientIds.length > 0) {
+      const { data: clients } = await supabase
+        .from('kyc_clients_decrypted')
+        .select('id, client_name, client_type')
+        .in('id', clientIds);
+      clientMap = Object.fromEntries((clients ?? []).map(c => [c.id, c]));
+    }
+    return (data ?? []).map(r => ({
+      ...r,
+      screening_results: r.screening_results ? {
+        ...r.screening_results,
+        kyc_clients: r.screening_results.client_id ? (clientMap[r.screening_results.client_id] ?? null) : null
+      } : null
+    }));
   },
 
   async addToContinuousScreening(clientId, frequency = 'monthly') {

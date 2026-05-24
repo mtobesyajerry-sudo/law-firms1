@@ -76,16 +76,7 @@ export default function StaffDashboard() {
       const [mattersRes, allMattersRes, clientsRes, allClientsRes, conflictsRes] = await Promise.all([
         supabase
           .from('matters')
-          .select(`
-            *,
-            client_matter_relationships (
-              kyc_clients (
-                id,
-                client_name,
-                current_risk_rating
-              )
-            )
-          `)
+          .select('*')
           .eq('organization_id', profile.organization_id)
           .eq('responsible_lawyer_id', user.id)
           .order('created_at', { ascending: false })

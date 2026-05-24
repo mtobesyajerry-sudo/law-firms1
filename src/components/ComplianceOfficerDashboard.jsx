@@ -151,18 +151,27 @@ export default function ComplianceOfficerDashboard() {
         conflictsPending: conflicts?.length || 0
       });
 
-      const { data: activity } = await supabase
+      const { data: activityRaw } = await supabase
         .from('client_red_flag_incidents')
-        .select(`
-          id,
-          incident_date,
-          incident_description,
-          investigation_status,
-          kyc_clients (client_name)
-        `)
+        .select('id, incident_date, incident_description, investigation_status, client_id')
         .eq('organization_id', profile.organization_id)
         .order('incident_date', { ascending: false })
         .limit(10);
+
+      // Fetch decrypted client names separately (FK joins can't traverse views)
+      const incidentClientIds = [...new Set((activityRaw ?? []).map(r => r.client_id).filter(Boolean))];
+      let incidentClientNames = {};
+      if (incidentClientIds.length > 0) {
+        const { data: incidentClients } = await supabase
+          .from('kyc_clients_decrypted')
+          .select('id, client_name')
+          .in('id', incidentClientIds);
+        incidentClientNames = Object.fromEntries((incidentClients ?? []).map(c => [c.id, c.client_name]));
+      }
+      const activity = (activityRaw ?? []).map(r => ({
+        ...r,
+        kyc_clients: r.client_id ? { client_name: incidentClientNames[r.client_id] ?? null } : null
+      }));
 
       setRecentActivity(activity || []);
 

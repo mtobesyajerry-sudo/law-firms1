@@ -111,12 +111,7 @@ export default function MatterManagement() {
           *,
           client_matter_relationships (
             client_id,
-            relationship_type,
-            kyc_clients (
-              id,
-              client_name,
-              current_risk_rating
-            )
+            relationship_type
           )
         `)
         .eq('organization_id', profile.organization_id);
@@ -126,9 +121,28 @@ export default function MatterManagement() {
       }
 
       const { data, error } = await query.order('created_at', { ascending: false });
-
       if (error) throw error;
-      setMatters(data || []);
+
+      // Fetch decrypted client names separately (FK joins can't traverse views)
+      const allClientIds = [...new Set(
+        (data ?? []).flatMap(m => (m.client_matter_relationships ?? []).map(r => r.client_id).filter(Boolean))
+      )];
+      let clientMap = {};
+      if (allClientIds.length > 0) {
+        const { data: clients } = await supabase
+          .from('kyc_clients_decrypted')
+          .select('id, client_name, client_type, current_risk_rating')
+          .in('id', allClientIds);
+        clientMap = Object.fromEntries((clients ?? []).map(c => [c.id, c]));
+      }
+
+      setMatters((data ?? []).map(m => ({
+        ...m,
+        client_matter_relationships: (m.client_matter_relationships ?? []).map(r => ({
+          ...r,
+          kyc_clients: clientMap[r.client_id] ?? null
+        }))
+      })));
     } catch (error) {
       console.error('Error loading matters:', error);
     } finally {

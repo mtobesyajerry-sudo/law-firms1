@@ -43,13 +43,22 @@ export default function MatterDetailView({ matter, onClose, onUpdate, activeTab:
 
       const { data: relationships, error: relError } = await supabase
         .from('client_matter_relationships')
-        .select('*, kyc_clients(*)')
+        .select('*')
         .eq('matter_id', matter.id);
 
       if (relError) {
         console.error('Error loading client relationships:', relError);
-      } else if (relationships) {
-        setRelatedClients(relationships);
+      } else if (relationships && relationships.length > 0) {
+        const clientIds = relationships.map(r => r.client_id).filter(Boolean);
+        let clientMap = {};
+        if (clientIds.length > 0) {
+          const { data: clients } = await supabase
+            .from('kyc_clients_decrypted')
+            .select('id, client_name, client_type, current_risk_rating, current_dd_level, pep_status')
+            .in('id', clientIds);
+          clientMap = Object.fromEntries((clients ?? []).map(c => [c.id, c]));
+        }
+        setRelatedClients(relationships.map(r => ({ ...r, kyc_clients: clientMap[r.client_id] ?? null })));
       }
 
       // matter_documents table doesn't exist yet, skip for now
