@@ -20,6 +20,7 @@ import IntegratedClientRiskView from './components/IntegratedClientRiskView';
 import LoadingSpinner from './components/LoadingSpinner';
 import TrialBanner from './components/TrialBanner';
 import TrialExpiredModal from './components/TrialExpiredModal';
+import PricingPage from './components/pricing/PricingPage';
 import { validatePassword } from './utils/security';
 
 // Shown when profile.password_change_required = true.
@@ -289,7 +290,6 @@ function ProtectedRoute({ children, adminOnly = false, managementOnly = false, s
   const [showMfaEnrollment, setShowMfaEnrollment] = React.useState(false);
   const [nudgeDismissed, setNudgeDismissed] = React.useState(false);
   const [trialBannerDismissed, setTrialBannerDismissed] = React.useState(false);
-  const [showSubscriptionModal, setShowSubscriptionModal] = React.useState(false);
 
   if (loading) {
     return <LoadingSpinner fullPage />;
@@ -452,10 +452,8 @@ function ProtectedRoute({ children, adminOnly = false, managementOnly = false, s
         <TrialBanner
           daysUntilTrialEnds={daysUntilTrialEnds}
           trialEndsAt={trialEndsAt}
-          onPayNow={() => setShowSubscriptionModal(true)}
         />
       )}
-      {showSubscriptionModal && <TrialExpiredModal />}
       {children}
     </>
   );
@@ -488,6 +486,8 @@ function AppRoutes() {
 
   return (
     <Routes>
+      {/* Public routes — no auth required */}
+      <Route path="/pricing" element={<PricingPage />} />
       {/* Keep /auth mounted while MFA challenge is pending — user is still null at that point
           and Auth.jsx owns the challenge UI. Only redirect once user is fully authenticated. */}
       <Route path="/auth" element={(user && !pendingMfaChallenge) ? <Navigate to="/" /> : <Auth />} />

@@ -19,7 +19,7 @@
  */
 
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
 import { validatePassword } from '../utils/security';
@@ -974,6 +974,9 @@ export default function ManagementDashboard() {
                 <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
               </svg>
             </button>
+            <Link to="/pricing" style={{ fontSize: '12px', fontWeight: '700', color: '#d4af37', textDecoration: 'none', alignSelf: 'center' }}>
+              Pricing →
+            </Link>
             <button
               onClick={async () => {
                 if (confirm('Are you sure you want to sign out?')) {

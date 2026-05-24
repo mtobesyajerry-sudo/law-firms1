@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../supabaseClient';
 import { institutionCategories } from '../data/assessmentData';
@@ -403,6 +403,11 @@ export default function Auth() {
   return (
     <div style={styles.container}>
       <div style={mode === 'register' ? styles.cardLarge : styles.card}>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '0 0 12px' }}>
+          <Link to="/pricing" style={{ fontSize: '13px', fontWeight: '700', color: '#d4af37', textDecoration: 'none' }}>
+            View Pricing →
+          </Link>
+        </div>
         <div style={styles.header}>
           <div style={styles.logoContainer}>
             <img

@@ -1,6 +1,7 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 
-export default function TrialBanner({ daysUntilTrialEnds, trialEndsAt, onPayNow }) {
+export default function TrialBanner({ daysUntilTrialEnds, trialEndsAt }) {
   const days = daysUntilTrialEnds ?? 0;
 
   let bg, border, textColor, label;
@@ -36,18 +37,18 @@ export default function TrialBanner({ daysUntilTrialEnds, trialEndsAt, onPayNow 
         {label}
         {days > 0 && days <= 7 && ` Subscribe now to keep access.`}
       </span>
-      <button
-        onClick={onPayNow}
+      <Link
+        to="/pricing"
         style={{
           padding: '6px 18px', fontSize: '13px', fontWeight: '700',
           color: '#0a1929',
           background: 'linear-gradient(135deg,#d4af37,#f4d03f)',
           border: 'none', borderRadius: '6px', cursor: 'pointer',
-          whiteSpace: 'nowrap',
+          whiteSpace: 'nowrap', textDecoration: 'none', display: 'inline-block',
         }}
       >
-        Subscribe now
-      </button>
+        See plans
+      </Link>
     </div>
   );
 }
