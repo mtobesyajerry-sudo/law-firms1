@@ -173,7 +173,7 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    const FROM_EMAIL = "security@alerts.iursperitis.co.tz";
+    const FROM_EMAIL = "onboarding@resend.dev";
     const sendResults: { email: string; status: number }[] = [];
 
     for (const recipient of recipients) {
