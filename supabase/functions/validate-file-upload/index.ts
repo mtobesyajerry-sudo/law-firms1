@@ -181,25 +181,33 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Audit log: record every invocation so we can verify the function fires
-    await supabaseAdmin.from('audit_logs').insert({
-      action_type: 'file_validation_attempt',
-      event_category: 'security',
-      entity_type: 'file_upload',
-      action_description: 'validate-file-upload Edge Function invoked',
-      severity: 'info',
-      user_id: user.id,
-      changes: {
-        user_email: user.email,
-        content_type: req.headers.get('content-type'),
-        user_agent: req.headers.get('user-agent'),
-      }
-    }).catch((e: Error) => console.error('audit log failed:', e));
-
-    // Parse multipart form data
+    // Parse multipart form data — must happen before audit log so we have file context
     const formData = await req.formData();
     const file = formData.get("file") as File;
     const declaredMimeType = formData.get("mimeType") as string;
+
+    // Audit log: record every invocation — wrapped in try/catch so logging NEVER causes a 500
+    try {
+      const { error: auditError } = await supabaseAdmin.from('audit_logs').insert({
+        action_type: 'file_validation_attempt',
+        event_category: 'security',
+        entity_type: 'file_upload',
+        action_description: `validate-file-upload invoked for file: ${file?.name ?? 'unknown'}`,
+        severity: 'info',
+        user_id: user.id,
+        changes: {
+          user_email: user.email,
+          file_name: file?.name ?? null,
+          file_size: file?.size ?? null,
+          declared_mime_type: declaredMimeType ?? null,
+          content_type: req.headers.get('content-type'),
+          user_agent: req.headers.get('user-agent'),
+        }
+      });
+      if (auditError) console.error('audit log insert error:', auditError.message);
+    } catch (auditErr) {
+      console.error('audit log threw unexpectedly:', auditErr);
+    }
 
     if (!file) {
       return new Response(
