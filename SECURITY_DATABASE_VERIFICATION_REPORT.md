@@ -205,7 +205,7 @@ This report documents a comprehensive cross-check between documented security re
 ✅ Security alerts: 3 years
 ```
 
-### GDPR Compliance:
+### Tanzania PDPA 2022 aligned with GDPR-compatible patterns:
 ```
 ✅ Right to Access: Users can view their data
 ✅ Right to Rectification: Users can correct data
@@ -305,11 +305,11 @@ Total RLS Policies: 178 policies
 ## 7. Security Implementation Verification Matrix
 
 ### Requirement 1: Secure Cloud Infrastructure ✅
-- [x] Hosted on Supabase (SOC 2 certified, AWS-backed)
+- [x] Hosted on Supabase (SOC 2 Type II-certified infrastructure; application-level attestation not pursued) + AWS-backed
 - [x] TLS 1.3 encryption enforced
 - [x] Network isolation via Supabase VPC
 - [x] DDoS protection automatic
-- [x] 99.9% uptime SLA
+- [x] 99.9% uptime SLA (Supabase infrastructure SLA)
 
 ### Requirement 2: Encryption and Secure Communications ✅
 - [x] HTTPS enforced (TLS 1.3)
@@ -420,9 +420,9 @@ Total RLS Policies: 178 policies
 - [x] Incident response procedures documented
 
 ### Requirement 15: Third-Party and Vendor Security ✅
-- [x] Supabase: SOC 2 Type II certified
-- [x] Vercel: SOC 2 Type II certified
-- [x] AWS: ISO 27001, SOC 1/2/3
+- [x] Supabase: SOC 2 Type II-certified infrastructure; application-level attestation not pursued
+- [x] Vercel: SOC 2 Type II-certified infrastructure
+- [x] AWS: ISO 27001-certified infrastructure, SOC 1/2/3
 - [x] Data Processing Agreements in place
 - [x] No third-party tracking (no Google Analytics)
 
@@ -513,7 +513,7 @@ Total RLS Policies: 178 policies
 - ✅ Suspicious activity reporting infrastructure
 - ✅ MLRO role and permissions
 
-### GDPR Compliance:
+### Tanzania PDPA 2022 aligned with GDPR-compatible patterns:
 - ✅ User consent tracking
 - ✅ Right to access (users view own data)
 - ✅ Right to erasure (deletion requests)
@@ -521,9 +521,9 @@ Total RLS Policies: 178 policies
 - ✅ Right to object (consent withdrawal)
 - ✅ Legal basis documented for all processing
 
-### Security Standards Readiness:
-- ✅ SOC 2 Type II ready (infrastructure certified)
-- ✅ ISO 27001 foundation in place
+### Security Standards:
+- ✅ SOC 2 Type II-certified infrastructure (Supabase/AWS); application-level attestation not pursued
+- ✅ ISO 27001-certified infrastructure (Supabase/AWS); application-level certification not pursued
 - ✅ Audit trail completeness
 - ✅ Access control maturity
 - ✅ Encryption standards met
@@ -670,7 +670,7 @@ WHERE user_id = '<user_id>';
 
 | Requirement Category | Status | Details |
 |---------------------|--------|---------|
-| Infrastructure | ✅ Complete | Supabase SOC 2 + Vercel |
+| Infrastructure | ✅ Complete | Supabase SOC 2-certified infra + Vercel |
 | Encryption | ✅ Complete | TLS 1.3 + AES-256 |
 | RBAC | ✅ Complete | 178 RLS policies |
 | Authentication | ✅ Complete | MFA ready, strong passwords |

@@ -134,7 +134,7 @@ This fix ensures:
 - ✓ Data isolation between organizations (GDPR, Tanzania Data Protection Act)
 - ✓ Confidentiality of client information (Professional ethics)
 - ✓ Audit trail integrity (AML/CFT regulations)
-- ✓ Access control enforcement (ISO 27001)
+- ✓ Access control enforcement (ISO 27001-certified infrastructure; application-level certification not pursued)
 
 ## Prevention Measures
 

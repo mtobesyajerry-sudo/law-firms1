@@ -19,7 +19,7 @@ This KYC/AML platform implements comprehensive, cost-effective security controls
 - ✅ Multi-factor authentication infrastructure ready
 - ✅ Document security and access controls
 - ✅ Suspicious activity detection and monitoring
-- ✅ Data lifecycle management and GDPR compliance
+- ✅ Data lifecycle management aligned with Tanzania PDPA 2022 and GDPR-compatible patterns
 - ✅ Incident response framework
 - ✅ Scalable for future enhancements
 
@@ -32,12 +32,12 @@ This KYC/AML platform implements comprehensive, cost-effective security controls
 **Cloud Provider**: Supabase (PostgreSQL on AWS infrastructure)
 
 #### Implemented Features:
-- **Hosting**: Supabase (SOC 2 Type II certified) + Vercel
+- **Hosting**: Supabase (SOC 2 Type II-certified infrastructure; application-level attestation not pursued) + Vercel
 - **Region**: Configurable via Supabase project (US/EU/Asia Pacific)
 - **No local storage**: All data stored in secure cloud infrastructure
 - **Network isolation**: Built-in VPC and network segmentation
 - **DDoS protection**: Automatic protection at infrastructure level
-- **99.9% uptime SLA**: Guaranteed by providers
+- **99.9% uptime SLA**: Supabase infrastructure SLA
 
 #### Infrastructure Security Controls:
 ```
@@ -499,7 +499,7 @@ LIMIT 10;
 
 ### Implementation Status: **COMPLETE**
 
-#### GDPR Compliance:
+#### Tanzania PDPA 2022 aligned with GDPR-compatible patterns:
 
 **User Rights**:
 - ✅ Right to Access: Users can view their data
@@ -625,28 +625,28 @@ LIMIT 10;
 #### Vetted Vendors:
 
 **Supabase** (Database & Auth):
-- SOC 2 Type II certified
-- ISO 27001 compliant
-- GDPR compliant
+- SOC 2 Type II-certified infrastructure; application-level attestation not pursued
+- ISO 27001-certified infrastructure; application-level certification not pursued
+- Tanzania PDPA 2022 aligned with GDPR-compatible patterns
 - Data Processing Agreement in place
 - Security documentation reviewed
 
 **Vercel** (Frontend Hosting):
-- SOC 2 Type II certified
-- GDPR compliant
+- SOC 2 Type II-certified infrastructure
+- Tanzania PDPA 2022 aligned with GDPR-compatible patterns
 - Automatic security updates
 - DDoS protection
 - Edge network security
 
 **AWS** (Underlying Infrastructure):
-- ISO 27001, SOC 1/2/3
+- ISO 27001-certified infrastructure, SOC 1/2/3
 - PCI DSS Level 1
 - HIPAA eligible
 - Multiple compliance certifications
 
 #### Vendor Security Requirements:
 - ✅ Reputable providers only
-- ✅ SOC 2 Type II minimum
+- ✅ SOC 2 Type II-certified infrastructure minimum
 - ✅ Data Processing Agreements signed
 - ✅ Security documentation reviewed
 - ✅ Regular security assessments
@@ -681,15 +681,15 @@ LIMIT 10;
 - [ ] Email notification system
 - [ ] Real-time security dashboards
 
-**Phase 3 (3-6 months)**:
+**Phase 3 (future)**:
 - [ ] External penetration testing
 - [ ] Third-party security audit
-- [ ] SOC 2 Type II certification preparation
+- [ ] SOC 2 Type II application-level attestation (under evaluation)
 - [ ] Advanced threat detection (ML-based)
 - [ ] IP whitelisting for enterprise clients
 
-**Phase 4 (6-12 months)**:
-- [ ] ISO 27001 certification
+**Phase 4 (future)**:
+- [ ] ISO 27001 application-level certification (under evaluation)
 - [ ] Bug bounty program launch
 - [ ] Red team exercises
 - [ ] Security automation expansion
@@ -770,7 +770,7 @@ SELECT * FROM role_permissions;
 | Audit Logging | Complete | A+ | 7-year retention |
 | Monitoring | Complete | A | Real-time dashboards |
 | Document Security | Complete | A | Infrastructure ready |
-| Privacy Compliance | Complete | A+ | GDPR compliant |
+| Privacy Compliance | Complete | A+ | Tanzania PDPA 2022 aligned |
 | Incident Response | Complete | A | Procedures documented |
 | Scalability | Ready | A | Future-proof architecture |
 
@@ -782,7 +782,7 @@ SELECT * FROM role_permissions;
 - ✅ Privacy-first design
 - ✅ 7-year data retention for AML compliance
 - ✅ Scalable cloud infrastructure
-- ✅ SOC 2 Type II certified vendors
+- ✅ SOC 2 Type II-certified infrastructure vendors (Supabase/AWS)
 
 ### Areas for Enhancement (Recommended):
 - 🔄 MFA UI completion (high priority)
@@ -798,15 +798,15 @@ SELECT * FROM role_permissions;
 ### Regulatory Alignment:
 
 **AML/CFT Compliance**:
-- ✅ FATF Recommendations aligned
+- ✅ FATF Risk-Based Approach methodology (Recommendations apply to countries, not products)
 - ✅ 7-year record retention
 - ✅ Complete audit trails
 - ✅ Suspicious activity reporting
 - ✅ MLRO role and controls
 
 **Data Protection**:
-- ✅ GDPR compliant
-- ✅ CCPA ready
+- ✅ Tanzania PDPA 2022 aligned with GDPR-compatible patterns
+- ✅ Privacy by design
 - ✅ Privacy by design
 - ✅ User rights supported
 - ✅ Consent management

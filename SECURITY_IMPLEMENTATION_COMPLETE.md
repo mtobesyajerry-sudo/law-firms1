@@ -27,7 +27,7 @@ This document outlines the complete security implementation for the KYC, AML, an
 - No data stored on local or personal servers
 - All data resides in secure AWS infrastructure
 - Supabase provides enterprise-grade cloud security
-- SOC 2 Type II certified infrastructure
+- SOC 2 Type II-certified infrastructure (Supabase/AWS); application-level attestation not pursued
 
 ---
 
@@ -658,14 +658,14 @@ INSERT INTO security_incidents (
 
 #### Primary Vendors
 1. **Supabase** (Database & Authentication)
-   - SOC 2 Type II certified
-   - ISO 27001 certified
-   - GDPR compliant
+   - SOC 2 Type II-certified infrastructure; application-level attestation not pursued
+   - ISO 27001-certified infrastructure; application-level certification not pursued
+   - Tanzania PDPA 2022 aligned with GDPR-compatible patterns
    - Built on AWS infrastructure
 
 2. **Vercel** (Hosting - Optional)
-   - SOC 2 certified
-   - ISO 27001 certified
+   - SOC 2-certified infrastructure
+   - ISO 27001-certified infrastructure
    - DDoS protection
    - CDN with edge caching
 

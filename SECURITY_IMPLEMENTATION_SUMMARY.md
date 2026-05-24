@@ -23,10 +23,10 @@ All 16 security requirements have been successfully implemented:
 | 9 | Data Minimization | ✅ Complete | Privacy by design |
 | 10 | Data Lifecycle Management | ✅ Complete | Retention policies |
 | 11 | Backup & Disaster Recovery | ✅ Complete | Automated backups |
-| 12 | Privacy Framework | ✅ Complete | GDPR-ready |
+| 12 | Privacy Framework | ✅ Complete | Tanzania PDPA 2022 aligned |
 | 13 | Cybersecurity Controls | ✅ Complete | Rate limiting |
 | 14 | Incident Response | ✅ Complete | Full procedures |
-| 15 | Vendor Security | ✅ Complete | SOC 2 vendors |
+| 15 | Vendor Security | ✅ Complete | SOC 2-certified infra vendors |
 | 16 | Future Enhancements | ✅ Complete | Scalable architecture |
 
 ---
@@ -234,8 +234,8 @@ Your data is now protected by:
 | External Penetration Testing | $5K-$15K/year | Year 1 | High |
 | Malware Scanning API (ClamAV) | $100-$500/month | Year 1 | Medium |
 | Advanced Monitoring (SIEM) | $1K-$5K/month | Year 2 | Medium |
-| ISO 27001 Certification | $15K-$50K | Year 2-3 | Low |
-| SOC 2 Type II Certification | $20K-$100K | Year 2-3 | Low |
+| ISO 27001 Application-Level Certification | $15K-$50K | Future (under evaluation) | Low |
+| SOC 2 Type II Application-Level Attestation | $20K-$100K | Future (under evaluation) | Low |
 
 **Current Total Security Cost**: ~$0-500/month
 **Full Enterprise Security (Future)**: ~$3K-10K/month
@@ -321,7 +321,7 @@ Your platform is now at a security maturity level appropriate for:
 
 ### Next 12 Months
 - [ ] External penetration testing
-- [ ] Begin SOC 2 preparation
+- [ ] Begin SOC 2 application-level attestation preparation (if pursued)
 - [ ] Implement AI-driven threat detection
 - [ ] Enhanced anomaly detection
 - [ ] Mobile app security
@@ -334,14 +334,14 @@ Your platform is now ready for:
 
 ### Regulatory Compliance
 - ✅ AML/KYC regulations (7-year retention)
-- ✅ GDPR (privacy by design)
+- ✅ Tanzania PDPA 2022 aligned with GDPR-compatible patterns
 - ✅ Data Protection Acts
 - ✅ Financial regulations
 - ✅ Legal professional regulations
 
-### Certifications (Future Ready)
-- 🔄 SOC 2 Type II (architecture ready)
-- 🔄 ISO 27001 (controls in place)
+### Certifications (Future — Under Evaluation)
+- 🔄 SOC 2 Type II application-level attestation (not yet pursued)
+- 🔄 ISO 27001 application-level certification (not yet pursued)
 - 🔄 ISO 27017 (cloud security)
 - 🔄 ISO 27018 (privacy in cloud)
 

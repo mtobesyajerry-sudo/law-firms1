@@ -138,7 +138,7 @@ await supabase.from('organizations').insert({
 
 ## Phase 2: Compliance & Governance (Week 3-6)
 
-### 2.1 GDPR Compliance
+### 2.1 Tanzania PDPA 2022 / GDPR-compatible Privacy Compliance
 
 **Requirements**:
 - ✅ Data Processing Agreement (DPA) with Supabase

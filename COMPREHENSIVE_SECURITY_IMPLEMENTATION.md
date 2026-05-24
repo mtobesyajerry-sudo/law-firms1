@@ -569,8 +569,8 @@ LIMIT 10;
 ### Regulatory Alignment
 1. **GDPR:** Security monitoring demonstrates due diligence
 2. **PCI DSS:** MFA enforcement, rate limiting, intrusion detection
-3. **SOC 2:** Comprehensive audit trail and incident response
-4. **ISO 27001:** Security event logging and threat management
+3. **SOC 2 Type II-certified infrastructure (Supabase/AWS); application-level attestation not pursued:** Comprehensive audit trail and incident response
+4. **ISO 27001-certified infrastructure (Supabase/AWS); application-level certification not pursued:** Security event logging and threat management
 5. **Tanzania AML Regulations:** Enhanced security for financial data
 
 ### Audit Trail

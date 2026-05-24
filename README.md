@@ -13,11 +13,11 @@ This system guides law firm advocates through a structured, risk-based assessmen
 This platform implements comprehensive security controls meeting all 16 mandatory requirements for handling sensitive KYC/AML data:
 
 - ✅ Bank-level encryption (TLS 1.3, AES-256)
-- ✅ Multi-factor authentication support
+- ✅ Multi-factor authentication (TOTP-based, AAL2 enforcement on privileged actions)
 - ✅ Complete audit trails (7-year retention)
-- ✅ Real-time threat detection
+- ✅ Scheduled threat detection (5-minute intervals)
 - ✅ Incident response procedures
-- ✅ GDPR-ready privacy controls
+- ✅ Privacy controls aligned with Tanzania PDPA 2022 (data subject erasure and portability functions, append-only audit trails)
 - ✅ Automated backups with disaster recovery
 
 **Security Documentation**:

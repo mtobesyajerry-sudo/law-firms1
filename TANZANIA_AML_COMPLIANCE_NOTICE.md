@@ -114,7 +114,7 @@ WHERE table_name IN ('kyc_clients', 'client_documents', 'assessments', 'matters'
 > Processing for archiving purposes in the public interest, scientific or historical research purposes or statistical purposes should be subject to appropriate safeguards for the rights and freedoms of the data subject.
 
 **Conclusion:**
-✅ **10-year retention is GDPR-compliant** when required by Tanzania law (AML Act Cap.423)
+✅ **10-year retention is consistent with Tanzania PDPA 2022 and GDPR-compatible patterns** when required by Tanzania law (AML Act Cap.423). Under GDPR Article 6(1)(c), processing necessary for legal obligation overrides the general data minimisation principle; this system uses that pattern.
 
 ---
 
@@ -208,7 +208,7 @@ This system has been updated to comply with:
 - ✅ Bank of Tanzania (Customer Due Diligence) Regulations, 2020
 - ✅ Financial Intelligence Unit Guidelines
 - ✅ Tanzania Data Protection Act, 2022
-- ✅ GDPR Article 6(1)(c) - Legal Obligation Exception
+- ✅ GDPR-compatible patterns (Tanzania PDPA 2022 alignment; GDPR Article 6(1)(c) legal obligation exception pattern applied)
 
 **Data Retention Period:** **10 YEARS** (3650 days)
 

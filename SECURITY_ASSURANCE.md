@@ -36,7 +36,7 @@ We believe in transparency. Here's what you need to know:
 - **Encryption in transit**: All data transmitted via HTTPS/TLS 1.3
 - **Encryption at rest**: Database encrypted with AES-256
 - **Row Level Security (RLS)**: Database-level access controls prevent unauthorized data access
-- **Secure hosting**: Infrastructure provided by Supabase (SOC 2 Type II certified) and Vercel
+- **Secure hosting**: Infrastructure provided by Supabase (SOC 2 Type II-certified infrastructure; application-level attestation not pursued) and Vercel
 
 ### ✅ Infrastructure Security
 - **Automatic SSL certificates** via Vercel
@@ -246,18 +246,18 @@ We believe in transparency. Here's what you need to know:
 ## Certifications & Compliance
 
 ### Infrastructure Provider Certifications:
-- **Supabase**: SOC 2 Type II, GDPR compliant, ISO 27001
-- **Vercel**: SOC 2 Type II, GDPR compliant
-- **AWS** (underlying infrastructure): ISO 27001, SOC 1/2/3, PCI DSS Level 1, HIPAA
+- **Supabase**: SOC 2 Type II-certified infrastructure; application-level attestation not pursued. ISO 27001-certified infrastructure; application-level certification not pursued. Tanzania PDPA 2022 aligned with GDPR-compatible patterns.
+- **Vercel**: SOC 2 Type II-certified infrastructure. Tanzania PDPA 2022 aligned with GDPR-compatible patterns.
+- **AWS** (underlying infrastructure): ISO 27001-certified infrastructure, SOC 1/2/3, PCI DSS Level 1, HIPAA
 
 ### Our Certifications:
-- ⏳ **Penetration Testing**: Scheduled for [Date]
-- ⏳ **SOC 2 Type II**: In progress (expected [Date])
-- ⏳ **ISO 27001**: Planned for [Year]
+- ⏳ **Penetration Testing**: Planned for a future operational phase; not yet conducted
+- ⏳ **SOC 2 Type II Application-Level Attestation**: Under evaluation; not yet pursued
+- ⏳ **ISO 27001 Application-Level Certification**: Under evaluation; not yet pursued
 
 ### Compliance Frameworks:
-- ✅ GDPR (General Data Protection Regulation) - Data protection requirements
-- 🔄 FATF Recommendations - AML/CFT requirements (in progress)
+- ✅ Tanzania PDPA 2022 aligned with GDPR-compatible patterns - Data protection requirements
+- 🔄 FATF Risk-Based Approach methodology - AML/CFT design (Recommendations apply to countries, not products)
 - 🔄 [Your local regulations] - [Country]-specific requirements
 
 ---

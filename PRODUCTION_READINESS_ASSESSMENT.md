@@ -216,8 +216,8 @@ CREATE TABLE document_access_requests (
 
 ### Strong Foundation:
 1. ✅ **Supabase Infrastructure Security**
-   - SOC 2 Type II certified
-   - ISO 27001 aligned
+   - SOC 2 Type II-certified infrastructure; application-level attestation not pursued
+   - ISO 27001-certified infrastructure (AWS); application-level certification not pursued
    - AWS infrastructure
    - AES-256 encryption at rest
    - TLS 1.3 in transit
@@ -304,7 +304,7 @@ CREATE TABLE document_access_requests (
    - Alert on bulk downloads (>20 documents)
    - Require additional auth for bulk operations
 
-4. **GDPR Compliance Tools**
+4. **Tanzania PDPA 2022 / GDPR-compatible Data Tools**
    - Right to erasure implementation
    - Data export functionality (PDF + JSON)
    - Breach notification workflow
@@ -369,11 +369,11 @@ CREATE TABLE document_access_requests (
 - ❌ **FAIL** - Insufficient access controls
 - ⚠️ **WARNING** - Backup procedures not documented/tested
 
-**GDPR Compliance (if serving EU clients):**
-- ❌ **FAIL** - No encryption of personal data (Article 32)
-- ❌ **FAIL** - No right to erasure implementation (Article 17)
-- ❌ **FAIL** - No data portability (Article 20)
-- ❌ **FAIL** - No breach notification procedure (Article 33)
+**Tanzania PDPA 2022 / GDPR-compatible patterns (historical pre-launch assessment):**
+- ❌ **FAIL** - No encryption of personal data (Article 32 pattern)
+- ❌ **FAIL** - No right to erasure implementation (Article 17 pattern)
+- ❌ **FAIL** - No data portability (Article 20 pattern)
+- ❌ **FAIL** - No breach notification procedure (Article 33 pattern)
 
 **Professional Liability:**
 - **HIGH RISK** - Law firms could be liable for data breaches
@@ -432,7 +432,7 @@ CREATE TABLE document_access_requests (
    - Implement document access approval workflow
    - Add malware scanning
    - Build DLP controls
-   - Create GDPR compliance tools
+   - Create Tanzania PDPA 2022 / GDPR-compatible privacy tools
 
 4. **Month 4:**
    - External security audit

@@ -1,3 +1,15 @@
+---
+ADDENDUM (added pre-launch, May 2026):
+
+This audit report represents the state of the system as of March 2026.
+Many findings flagged in this report have since been remediated through
+a 12-verification security review completed in May 2026. Current claims
+about ISO 27001, SOC 2, FATF, and other compliance frameworks are scoped
+in SECURITY_ATTESTATION_DOCUMENT.md, which represents the current
+verified state. This historical report should not be used as a current
+attestation.
+---
+
 # CRITICAL SECURITY CLAIMS AUDIT REPORT
 **Date:** March 2, 2026
 **Auditor:** System Integrity Verification
