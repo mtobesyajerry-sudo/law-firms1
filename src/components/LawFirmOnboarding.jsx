@@ -1,5 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import supabase from '../supabaseClient';
+
+const PLAN_DESCRIPTIONS = {
+  solo: { tagline: 'For individual practitioners', features: ['1 user', 'Core KYC/AML tools', 'Risk assessments'] },
+  small_firm: { tagline: 'For growing practices', features: ['Up to 10 users', 'Full KYC suite', 'Screening & alerts'] },
+  medium_firm: { tagline: 'For established firms', features: ['Up to 30 users', 'Advanced analytics', 'Priority support'] },
+  large_firm: { tagline: 'For large organisations', features: ['Unlimited users', 'Dedicated support', 'Custom integrations'] },
+};
 
 const practiceAreaOptions = [
   'Corporate and commercial law',
@@ -15,9 +22,27 @@ const practiceAreaOptions = [
 ];
 
 export default function LawFirmOnboarding({ organizationId, onComplete }) {
+  // Step 1 = plan picker; original steps 1-5 shift to 2-6
+  const TOTAL_STEPS = 6;
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [plans, setPlans] = useState([]);
+  const [selectedPlan, setSelectedPlan] = useState(null);
+
+  useEffect(() => {
+    supabase
+      .from('subscription_plans')
+      .select('id, name, display_name, price_monthly_tzs, trial_days, contact_sales, max_users')
+      .in('name', ['solo', 'small_firm', 'medium_firm', 'large_firm'])
+      .order('price_monthly_tzs', { ascending: true, nullsFirst: false })
+      .then(({ data }) => {
+        if (data) {
+          setPlans(data);
+          setSelectedPlan(data[0] ?? null);
+        }
+      });
+  }, []);
 
   const [formData, setFormData] = useState({
     number_of_advocates: '',
@@ -56,11 +81,19 @@ export default function LawFirmOnboarding({ organizationId, onComplete }) {
   };
 
   const handleNext = () => {
-    if (step === 1 && !formData.number_of_advocates) {
+    if (step === 1 && !selectedPlan) {
+      setError('Please select a plan to continue');
+      return;
+    }
+    if (step === 1 && selectedPlan?.contact_sales) {
+      setError('Please contact sales@iurisperitis.com for the Large Firm plan.');
+      return;
+    }
+    if (step === 2 && !formData.number_of_advocates) {
       setError('Please select firm size');
       return;
     }
-    if (step === 2 && formData.practice_areas.length === 0) {
+    if (step === 3 && formData.practice_areas.length === 0) {
       setError('Please select at least one practice area');
       return;
     }
@@ -89,6 +122,15 @@ export default function LawFirmOnboarding({ organizationId, onComplete }) {
 
       if (insertError) throw insertError;
 
+      // Start the 14-day free trial for the chosen plan
+      if (selectedPlan && !selectedPlan.contact_sales) {
+        const { error: trialError } = await supabase.rpc('start_trial', {
+          p_org_id: organizationId,
+          p_chosen_tier: selectedPlan.name,
+        });
+        if (trialError) console.error('Trial start error (non-fatal):', trialError);
+      }
+
       onComplete();
     } catch (err) {
       setError(err.message);
@@ -103,14 +145,57 @@ export default function LawFirmOnboarding({ organizationId, onComplete }) {
           <h2 style={styles.title}>Complete Your Firm Profile</h2>
           <p style={styles.subtitle}>Estimated time: 5 minutes</p>
           <div style={styles.progressBar}>
-            <div style={{ ...styles.progressFill, width: `${(step / 5) * 100}%` }} />
+            <div style={{ ...styles.progressFill, width: `${(step / TOTAL_STEPS) * 100}%` }} />
           </div>
         </div>
 
         <div style={styles.content}>
           {step === 1 && (
             <div style={styles.step}>
-              <h3 style={styles.stepTitle}>Step 1: Firm Size</h3>
+              <h3 style={styles.stepTitle}>Step 1: Choose Your Plan</h3>
+              <p style={styles.stepDescription}>Start with a free 14-day trial. No payment required upfront.</p>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '12px', marginBottom: '16px' }}>
+                {plans.map(plan => {
+                  const isSelected = selectedPlan?.id === plan.id;
+                  const desc = PLAN_DESCRIPTIONS[plan.name] || {};
+                  return (
+                    <button
+                      key={plan.id}
+                      type="button"
+                      onClick={() => setSelectedPlan(plan)}
+                      style={{
+                        padding: '16px', borderRadius: '10px', textAlign: 'left', cursor: 'pointer',
+                        border: isSelected ? '2px solid #d4af37' : '2px solid #e2e8f0',
+                        background: isSelected ? '#fffbeb' : '#f8fafc',
+                        boxShadow: isSelected ? '0 0 0 2px rgba(212,175,55,0.2)' : 'none',
+                        transition: 'all 0.15s',
+                      }}
+                    >
+                      <div style={{ fontWeight: '700', fontSize: '15px', color: '#0a1929', marginBottom: '4px' }}>
+                        {plan.display_name || plan.name}
+                      </div>
+                      <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '8px' }}>
+                        {desc.tagline || ''}
+                      </div>
+                      <div style={{ fontSize: '13px', fontWeight: '600', color: plan.contact_sales ? '#64748b' : '#1e40af', marginBottom: '8px' }}>
+                        {plan.contact_sales ? 'Contact sales' : plan.price_monthly_tzs ? `TZS ${Number(plan.price_monthly_tzs).toLocaleString()} / mo` : 'Free'}
+                      </div>
+                      {(desc.features || []).map(f => (
+                        <div key={f} style={{ fontSize: '12px', color: '#475569', lineHeight: 1.6 }}>• {f}</div>
+                      ))}
+                    </button>
+                  );
+                })}
+              </div>
+              <div style={{ padding: '12px 16px', background: '#f0fdf4', border: '1px solid #86efac', borderRadius: '8px', fontSize: '13px', color: '#166534' }}>
+                Your 14-day free trial begins when you complete this setup. No credit card required.
+              </div>
+            </div>
+          )}
+
+          {step === 2 && (
+            <div style={styles.step}>
+              <h3 style={styles.stepTitle}>Step 2: Firm Size</h3>
               <p style={styles.stepDescription}>Number of Advocates and Professionals</p>
 
               <div style={styles.formGroup}>
@@ -130,9 +215,9 @@ export default function LawFirmOnboarding({ organizationId, onComplete }) {
             </div>
           )}
 
-          {step === 2 && (
+          {step === 3 && (
             <div style={styles.step}>
-              <h3 style={styles.stepTitle}>Step 2: Practice Areas</h3>
+              <h3 style={styles.stepTitle}>Step 3: Practice Areas</h3>
               <p style={styles.stepDescription}>Select all that apply</p>
 
               <div style={styles.checkboxGrid}>
@@ -151,9 +236,9 @@ export default function LawFirmOnboarding({ organizationId, onComplete }) {
             </div>
           )}
 
-          {step === 3 && (
+          {step === 4 && (
             <div style={styles.step}>
-              <h3 style={styles.stepTitle}>Step 3: Client Profile</h3>
+              <h3 style={styles.stepTitle}>Step 4: Client Profile</h3>
               <p style={styles.stepDescription}>Does the firm serve:</p>
 
               <div style={styles.checkboxList}>
@@ -180,9 +265,9 @@ export default function LawFirmOnboarding({ organizationId, onComplete }) {
             </div>
           )}
 
-          {step === 4 && (
+          {step === 5 && (
             <div style={styles.step}>
-              <h3 style={styles.stepTitle}>Step 4: Risk Exposure</h3>
+              <h3 style={styles.stepTitle}>Step 5: Risk Exposure</h3>
               <p style={styles.stepDescription}>Does the firm:</p>
 
               <div style={styles.checkboxList}>
@@ -209,9 +294,9 @@ export default function LawFirmOnboarding({ organizationId, onComplete }) {
             </div>
           )}
 
-          {step === 5 && (
+          {step === 6 && (
             <div style={styles.step}>
-              <h3 style={styles.stepTitle}>Step 5: Geographic Exposure</h3>
+              <h3 style={styles.stepTitle}>Step 6: Geographic Exposure</h3>
               <p style={styles.stepDescription}>Does the firm:</p>
 
               <div style={styles.checkboxList}>
@@ -245,7 +330,7 @@ export default function LawFirmOnboarding({ organizationId, onComplete }) {
             </button>
           )}
           <div style={{ flex: 1 }} />
-          {step < 5 ? (
+          {step < TOTAL_STEPS ? (
             <button onClick={handleNext} style={styles.buttonPrimary} disabled={loading}>
               Next
             </button>

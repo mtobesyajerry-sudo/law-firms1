@@ -300,12 +300,31 @@ export const AuthProvider = ({ children }) => {
     }
   }, [loadUserProfile]);
 
+  // --- Trial state derived from organization ---
+  const isTrialing = organization?.is_trialing === true;
+  const trialEndsAt = organization?.trial_ends_at ?? null;
+  const daysUntilTrialEnds = trialEndsAt
+    ? Math.max(0, Math.ceil((new Date(trialEndsAt) - Date.now()) / 86400000))
+    : null;
+  // Trial expired and no active paid subscription — show upgrade modal
+  const trialExpiredNeedPayment = useMemo(() => {
+    if (!organization) return false;
+    if (!organization.has_used_trial) return false;
+    if (organization.is_trialing) return false;
+    // If subscription_expiry_date is null, treat as unlimited access (legacy)
+    if (!organization.subscription_expiry_date) return false;
+    return new Date(organization.subscription_expiry_date) <= new Date();
+  }, [organization]);
+
   const hasActiveSubscription = useMemo(() => {
     if (!profile) return false;
     if (profile?.role === 'admin') return true;
 
     if (!organization) return false;
     if (!organization.is_active) return false;
+
+    // Active trial counts as having subscription access
+    if (organization.is_trialing) return true;
 
     // NULL subscription_expiry_date means unlimited/trial access
     if (!organization.subscription_expiry_date) return true;
@@ -359,6 +378,11 @@ export const AuthProvider = ({ children }) => {
     refreshProfile,
     revokedMessage,
     requiresPasswordChange: profile?.password_change_required === true,
+    // Trial state
+    isTrialing,
+    trialEndsAt,
+    daysUntilTrialEnds,
+    trialExpiredNeedPayment,
     // MFA
     mfaEnrolled,
     mfaAssuranceLevel,
@@ -370,7 +394,7 @@ export const AuthProvider = ({ children }) => {
     // MFA challenge gate — true while user has aal1 session and needs TOTP to reach aal2
     pendingMfaChallenge,
     completeMfaChallenge,
-  }), [user, profile, organization, loading, signUp, signIn, signOut, isEarlyClient, hasActiveSubscription, hasAccess, refreshProfile, revokedMessage, mfaEnrolled, mfaAssuranceLevel, mfaGracePeriodEnds, mfaGraceExpired, requiresMfaEnrollment, showMfaNudge, checkMfaState, pendingMfaChallenge, completeMfaChallenge]);
+  }), [user, profile, organization, loading, signUp, signIn, signOut, isEarlyClient, hasActiveSubscription, hasAccess, refreshProfile, revokedMessage, isTrialing, trialEndsAt, daysUntilTrialEnds, trialExpiredNeedPayment, mfaEnrolled, mfaAssuranceLevel, mfaGracePeriodEnds, mfaGraceExpired, requiresMfaEnrollment, showMfaNudge, checkMfaState, pendingMfaChallenge, completeMfaChallenge]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

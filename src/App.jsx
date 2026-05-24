@@ -18,6 +18,8 @@ import STRAlertDashboard from './components/STRAlertDashboard';
 import ControlAssessmentForm from './components/ControlAssessmentForm';
 import IntegratedClientRiskView from './components/IntegratedClientRiskView';
 import LoadingSpinner from './components/LoadingSpinner';
+import TrialBanner from './components/TrialBanner';
+import TrialExpiredModal from './components/TrialExpiredModal';
 import { validatePassword } from './utils/security';
 
 // Shown when profile.password_change_required = true.
@@ -282,9 +284,12 @@ function MfaSettingsPage() {
 
 function ProtectedRoute({ children, adminOnly = false, managementOnly = false, staffOnly = false, complianceOnly = false }) {
   const { user, profile, loading, signOut, isEarlyClient, requiresPasswordChange,
-    requiresMfaEnrollment, showMfaNudge, mfaGracePeriodEnds, refreshMfaState } = useAuth();
+    requiresMfaEnrollment, showMfaNudge, mfaGracePeriodEnds, refreshMfaState,
+    isTrialing, trialEndsAt, daysUntilTrialEnds, trialExpiredNeedPayment } = useAuth();
   const [showMfaEnrollment, setShowMfaEnrollment] = React.useState(false);
   const [nudgeDismissed, setNudgeDismissed] = React.useState(false);
+  const [trialBannerDismissed, setTrialBannerDismissed] = React.useState(false);
+  const [showSubscriptionModal, setShowSubscriptionModal] = React.useState(false);
 
   if (loading) {
     return <LoadingSpinner fullPage />;
@@ -422,6 +427,11 @@ function ProtectedRoute({ children, adminOnly = false, managementOnly = false, s
     return <Navigate to="/client/dashboard" replace />;
   }
 
+  // Trial expired — non-dismissible modal (admins bypass)
+  if (trialExpiredNeedPayment && profile?.role !== 'admin') {
+    return <TrialExpiredModal />;
+  }
+
   return (
     <>
       {showMfaNudge && !nudgeDismissed && mfaGracePeriodEnds && (
@@ -438,6 +448,14 @@ function ProtectedRoute({ children, adminOnly = false, managementOnly = false, s
           onSkip={() => setShowMfaEnrollment(false)}
         />
       )}
+      {isTrialing && !trialBannerDismissed && profile?.role !== 'admin' && (
+        <TrialBanner
+          daysUntilTrialEnds={daysUntilTrialEnds}
+          trialEndsAt={trialEndsAt}
+          onPayNow={() => setShowSubscriptionModal(true)}
+        />
+      )}
+      {showSubscriptionModal && <TrialExpiredModal />}
       {children}
     </>
   );
