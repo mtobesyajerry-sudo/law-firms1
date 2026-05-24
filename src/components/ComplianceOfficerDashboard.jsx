@@ -183,7 +183,7 @@ export default function ComplianceOfficerDashboard() {
           .limit(100),
 
         supabase
-          .from('kyc_clients')
+          .from('kyc_clients_decrypted')
           .select('id, client_name, current_risk_rating, pep_status, screening_status, created_at')
           .eq('organization_id', profile.organization_id)
           .order('created_at', { ascending: false })

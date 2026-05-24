@@ -432,7 +432,7 @@ function NewClientModal({ onClose, onSuccess, organizationId, userId }) {
       const clientData = {
         organization_id: organizationId,
         client_type: formData.client_type,
-        client_name: formData.client_name,
+        client_name_plain: formData.client_name,
         national_id_plain: formData.national_id_plain || null,
         date_of_birth: formData.date_of_birth || null,
         nationality: formData.nationality || null,

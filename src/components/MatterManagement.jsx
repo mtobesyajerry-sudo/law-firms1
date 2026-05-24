@@ -139,7 +139,7 @@ export default function MatterManagement() {
   const loadClients = async () => {
     try {
       let query = supabase
-        .from('kyc_clients')
+        .from('kyc_clients_decrypted')
         .select('id, client_name, client_type')
         .eq('organization_id', profile.organization_id);
 

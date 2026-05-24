@@ -22,7 +22,7 @@ function ClientRiskProfilesSection({ organizationId }) {
     try {
       setLoading(true);
       const { data, error } = await supabase
-        .from('kyc_clients')
+        .from('kyc_clients_decrypted')
         .select('id, client_name, client_type, current_risk_rating, current_dd_level, alert_count, created_at')
         .eq('organization_id', organizationId)
         .order('created_at', { ascending: false })

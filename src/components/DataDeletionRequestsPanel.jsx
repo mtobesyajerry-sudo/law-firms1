@@ -232,9 +232,8 @@ export default function DataDeletionRequestsPanel({ orgId }) {
 
   async function loadClients() {
     const query = supabase
-      .from('kyc_clients')
+      .from('kyc_clients_decrypted')
       .select('id, client_name, email, current_risk_rating')
-      .is('deleted_at', null)
       .order('client_name');
     if (orgId) query.eq('organization_id', orgId);
     const { data } = await query;

@@ -50,7 +50,7 @@ export default function ScreeningMatchReview() {
       const { data: { user } } = await supabase.auth.getUser();
 
       const { data: clients } = await supabase
-        .from('kyc_clients')
+        .from('kyc_clients_decrypted')
         .select('id, client_name, client_type, risk_level, nationality')
         .eq('organization_id', organizationId)
         .limit(5);

@@ -39,7 +39,7 @@ export default function ScreeningDashboard() {
       setOrganizationId(profile.organization_id);
 
       const { data: clientsData } = await supabase
-        .from('kyc_clients')
+        .from('kyc_clients_decrypted')
         .select('id, client_name, client_type, risk_level, is_pep, is_sanctioned, last_screening_date, nationality')
         .eq('organization_id', profile.organization_id)
         .order('client_name');

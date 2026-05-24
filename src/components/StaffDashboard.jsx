@@ -98,7 +98,7 @@ export default function StaffDashboard() {
           .eq('responsible_lawyer_id', user.id),
 
         supabase
-          .from('kyc_clients')
+          .from('kyc_clients_decrypted')
           .select(`
             *,
             client_matter_relationships (
@@ -803,7 +803,7 @@ function OverdueReviewsList({ organizationId, userId }) {
       const today = new Date().toISOString().split('T')[0];
 
       const { data, error } = await supabase
-        .from('kyc_clients')
+        .from('kyc_clients_decrypted')
         .select('*')
         .eq('organization_id', organizationId)
         .eq('relationship_manager_id', userId)

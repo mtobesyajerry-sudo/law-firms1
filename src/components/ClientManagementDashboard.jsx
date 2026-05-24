@@ -102,7 +102,7 @@ export default function ClientManagementDashboard() {
 
       const [clientsRes, mattersRes, assessmentsRes, roleRequestsRes, newUserRequestsRes, approvalsRes, usersRes] = await Promise.all([
         supabase
-          .from('kyc_clients')
+          .from('kyc_clients_decrypted')
           .select('id, client_name, current_risk_rating, pep_status, created_at, screening_status')
           .eq('organization_id', organization.id)
           .order('created_at', { ascending: false }),

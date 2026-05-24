@@ -4,7 +4,7 @@ export const integrationService = {
   async getClientCompleteProfile(clientId) {
     try {
       const { data: client, error: clientError } = await supabase
-        .from('kyc_clients')
+        .from('kyc_clients_decrypted')
         .select(`
           *,
           client_matter_relationships (

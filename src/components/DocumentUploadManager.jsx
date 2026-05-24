@@ -30,7 +30,7 @@ export default function DocumentUploadManager({
 
       // Load client to get DD level and client type
       const { data: clientData, error: clientError } = await supabase
-        .from('kyc_clients')
+        .from('kyc_clients_decrypted')
         .select('id, client_name, current_dd_level, client_type')
         .eq('id', clientId)
         .single();
