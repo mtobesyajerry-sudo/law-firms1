@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
 
 const TIER_META = {
-  solo:        { label: 'Solo',         bg: '#dbeafe', color: '#1e40af' },
   small_firm:  { label: 'Small Firm',   bg: '#d1fae5', color: '#065f46' },
   medium_firm: { label: 'Medium Firm',  bg: '#e0f2fe', color: '#0c4a6e' },
   large_firm:  { label: 'Large Firm',   bg: '#fce7f3', color: '#9d174d' },
@@ -10,15 +9,10 @@ const TIER_META = {
 
 const PAYMENT_METHODS = [
   { value: 'mpesa',               label: 'M-Pesa' },
-  { value: 'tigo_pesa',           label: 'Tigo Pesa' },
+  { value: 'mixx_by_yas',         label: 'Mixx by Yas' },
   { value: 'airtel_money',        label: 'Airtel Money' },
+  { value: 'halopesa',            label: 'HaloPesa' },
   { value: 'bank_transfer_crdb',  label: 'CRDB Bank Transfer' },
-  { value: 'bank_transfer_nmb',   label: 'NMB Bank Transfer' },
-  { value: 'bank_transfer_stanbic', label: 'Stanbic Bank Transfer' },
-  { value: 'bank_transfer_other', label: 'Other Bank Transfer' },
-  { value: 'card_visa',           label: 'Visa Card' },
-  { value: 'card_mastercard',     label: 'Mastercard' },
-  { value: 'manual_admin',        label: 'Manual (Admin)' },
 ];
 
 export default function SubscriptionManagement() {
@@ -52,7 +46,7 @@ export default function SubscriptionManagement() {
     }
   };
 
-  const getTierMeta = (tier) => TIER_META[tier] || TIER_META.trial;
+  const getTierMeta = (tier) => TIER_META[tier] || { label: tier, bg: '#f1f5f9', color: '#475569' };
 
   const getStatusColor = (status) => {
     const map = {

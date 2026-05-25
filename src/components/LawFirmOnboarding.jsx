@@ -2,10 +2,8 @@ import React, { useState, useEffect } from 'react';
 import supabase from '../supabaseClient';
 
 const PLAN_DESCRIPTIONS = {
-  solo: { tagline: 'For individual practitioners', features: ['1 user', 'Core KYC/AML tools', 'Risk assessments'] },
-  small_firm: { tagline: 'For growing practices', features: ['Up to 10 users', 'Full KYC suite', 'Screening & alerts'] },
-  medium_firm: { tagline: 'For established firms', features: ['Up to 30 users', 'Advanced analytics', 'Priority support'] },
-  large_firm: { tagline: 'For large organisations', features: ['Unlimited users', 'Dedicated support', 'Custom integrations'] },
+  small_firm: { tagline: 'For firms with up to 10 advocates', features: ['Up to 10 users', 'KYC/CDD + IRAs (4/yr)', 'Quarterly Maturity', 'WhatsApp & email support'] },
+  medium_firm: { tagline: 'For firms with 11–30 advocates', features: ['Up to 30 users', 'Unlimited IRAs', 'Premium sanctions screening', 'Priority phone support'] },
 };
 
 const practiceAreaOptions = [
@@ -34,7 +32,7 @@ export default function LawFirmOnboarding({ organizationId, onComplete }) {
     supabase
       .from('subscription_plans')
       .select('id, tier, name, display_name, price_monthly_tzs, trial_days, contact_sales, max_users')
-      .in('tier', ['solo', 'small_firm', 'medium_firm', 'large_firm'])
+      .in('tier', ['small_firm', 'medium_firm'])
       .order('price_monthly_tzs', { ascending: true, nullsFirst: false })
       .then(({ data }) => {
         if (data) {
@@ -86,7 +84,7 @@ export default function LawFirmOnboarding({ organizationId, onComplete }) {
       return;
     }
     if (step === 1 && selectedPlan?.contact_sales) {
-      setError('Please contact sales@iurisperitis.com for the Large Firm plan.');
+      setError('Please contact sales for the Large Firm plan.');
       return;
     }
     if (step === 2 && !formData.number_of_advocates) {

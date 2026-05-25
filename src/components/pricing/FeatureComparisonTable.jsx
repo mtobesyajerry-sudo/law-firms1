@@ -5,40 +5,34 @@ const CROSS = <span style={{ color: '#cbd5e0', fontWeight: '700', fontSize: '16p
 
 const ROWS = [
   { section: 'Capacity' },
-  { label: 'Maximum users', values: ['3', '12', '30', 'Unlimited'] },
-  { label: 'Maximum KYC clients', values: ['75', '300', '1,000', 'Unlimited'] },
-  { label: 'Maximum active matters', values: ['100', '500', '2,000', 'Unlimited'] },
-  { label: 'Document storage', values: ['5 GB', '25 GB', '100 GB', '500+ GB'] },
-  { label: 'Maximum branches', values: ['1', '1', '3', 'Unlimited'] },
+  { label: 'Maximum advocates', values: ['Up to 10', 'Up to 30', 'Unlimited'] },
+  { label: 'Maximum KYC clients', values: ['300', '1,000', 'Unlimited'] },
+  { label: 'Maximum active matters', values: ['500', '2,000', 'Unlimited'] },
+  { label: 'Document storage', values: ['25 GB', '100 GB', 'Unlimited'] },
   { section: 'Compliance Assessments' },
-  { label: 'Finalized IRAs per year', values: ['2', '4', 'Unlimited', 'Unlimited'] },
-  { label: 'Maturity Assessment', values: ['Annual', 'Quarterly', 'Monthly + trending', 'Continuous + benchmarking'] },
-  { label: 'Compliance cases per year', values: ['25', '100', '500', 'Unlimited'] },
-  { label: 'Screenings per month', values: ['200', '1,000', '5,000', 'Unlimited'] },
-  { section: 'Features' },
-  { label: 'Client KYC/CDD management', values: [CHECK, CHECK, CHECK, CHECK] },
-  { label: 'Matter-based AML flagging', values: [CHECK, CHECK, CHECK, CHECK] },
-  { label: 'STR documentation', values: [CHECK, CHECK, CHECK, CHECK] },
-  { label: 'STR bulk filing', values: [CROSS, CROSS, CHECK, CHECK] },
-  { label: 'Workflow automation', values: [CROSS, CROSS, CHECK, CHECK] },
-  { label: 'Multi-branch consolidation', values: [CROSS, CROSS, CHECK, CHECK] },
-  { label: 'White-label reports', values: [CROSS, CROSS, CROSS, CHECK] },
+  { label: 'Institutional Risk Assessments / year', values: ['4', 'Unlimited', 'Unlimited'] },
+  { label: 'Maturity Assessment cadence', values: ['Quarterly', 'Monthly + trending', 'Continuous'] },
+  { label: 'Compliance cases / year', values: ['100', '500', 'Unlimited'] },
+  { section: 'Screening' },
+  { label: 'Screenings / month', values: ['1,000', '5,000', 'Unlimited'] },
+  { label: 'OFAC / UN / EU / UK list screening', values: [CHECK, CHECK, CHECK] },
+  { label: 'Premium screening (OpenSanctions)', values: [CROSS, CHECK, CHECK] },
+  { section: 'Core Features' },
+  { label: 'Client KYC/CDD management', values: [CHECK, CHECK, CHECK] },
+  { label: 'Matter-based AML flagging', values: [CHECK, CHECK, CHECK] },
+  { label: 'STR documentation & filing tracking', values: [CHECK, CHECK, CHECK] },
+  { label: 'NIDA & BRELA verification ready', values: [CHECK, CHECK, CHECK] },
   { section: 'Security' },
-  { label: 'MFA enforcement', values: ['Optional', 'Recommended', 'Required', 'Required'] },
-  { label: 'Security monitoring dashboard', values: ['View only', CHECK, CHECK, CHECK] },
-  { label: 'Intrusion detection', values: [CROSS, CHECK, CHECK, '✓ + custom rules'] },
-  { label: 'Audit log retention', values: ['5 years', '7 years', '10 years', '10+ years'] },
-  { section: 'Integration' },
-  { label: 'NIDA / BRELA integration ready', values: [CHECK, CHECK, CHECK, CHECK] },
-  { label: 'API access', values: [CROSS, 'Read-only', 'Full', 'Full + webhooks'] },
-  { label: 'Custom integrations', values: [CROSS, CROSS, CROSS, CHECK] },
+  { label: 'MFA support', values: [CHECK, CHECK, CHECK] },
+  { label: 'Security monitoring dashboard', values: [CHECK, CHECK, CHECK] },
+  { label: 'Audit log retention', values: ['7 years', '10 years', '10 years'] },
   { section: 'Support' },
-  { label: 'Response time', values: ['24 hr', '12 hr', '4 hr', '1 hr (SLA)'] },
-  { label: 'Channels', values: ['Email', 'Email + WhatsApp', '+ Phone', '+ Dedicated CSM'] },
-  { label: 'Onboarding', values: ['Video walkthrough', '1-day virtual', '2-day on-site', 'Custom program'] },
+  { label: 'Response time', values: ['12 hr', '4 hr', '1 hr (SLA)'] },
+  { label: 'Channels', values: ['WhatsApp + email', 'Phone + WhatsApp', '+ Dedicated CSM'] },
+  { label: 'Onboarding', values: ['Video walkthrough', '2-day virtual', 'Custom program'] },
 ];
 
-const TIERS = ['Solo Advocate', 'Small Firm', 'Medium Firm', 'Large Firm'];
+const TIERS = ['Small Firm', 'Medium Firm', 'Large Firm'];
 
 export default function FeatureComparisonTable({ onTrackEvent }) {
   const [expanded, setExpanded] = useState(false);
@@ -72,10 +66,10 @@ export default function FeatureComparisonTable({ onTrackEvent }) {
 
       {expanded && (
         <div style={{ overflowX: 'auto', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '640px' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '560px' }}>
             <thead>
               <tr style={{ background: '#0a1929' }}>
-                <th style={{ ...th, width: '30%', textAlign: 'left', paddingLeft: '24px' }}>Feature</th>
+                <th style={{ ...th, width: '35%', textAlign: 'left', paddingLeft: '24px' }}>Feature</th>
                 {TIERS.map((t, i) => (
                   <th key={t} style={{
                     ...th,
@@ -90,7 +84,7 @@ export default function FeatureComparisonTable({ onTrackEvent }) {
                 if (row.section) {
                   return (
                     <tr key={i} style={{ background: '#f8fafc' }}>
-                      <td colSpan={5} style={{
+                      <td colSpan={4} style={{
                         padding: '12px 24px', fontSize: '12px', fontWeight: '800',
                         color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.8px',
                         borderBottom: '1px solid #e2e8f0',

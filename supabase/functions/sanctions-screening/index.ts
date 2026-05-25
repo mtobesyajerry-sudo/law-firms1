@@ -181,9 +181,18 @@ Deno.serve(async (req) => {
       .select("id, list_source, last_synced_at, entry_count")
       .or(`is_global.eq.true,organization_id.eq.${organizationId}`);
 
+    // Server-side tier gate: only medium_firm and large_firm may use premium screening
+    let premiumAllowed = false;
+    if (request.use_premium) {
+      const { data: canUse } = await serviceClient.rpc("can_use_premium_screening", {
+        p_org_id: organizationId,
+      });
+      premiumAllowed = canUse === true;
+    }
+
     // Optional premium screening
     let opensanctionsResult: any = null;
-    if (request.use_premium) {
+    if (premiumAllowed) {
       opensanctionsResult = await callOpenSanctions(request);
     }
 

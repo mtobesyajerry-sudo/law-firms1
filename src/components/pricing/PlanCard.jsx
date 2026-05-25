@@ -2,40 +2,31 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 const TIER_FEATURES = {
-  solo: [
-    'Client KYC/CDD management',
-    '2 finalized IRAs per year',
-    'Annual Maturity Assessment',
-    'STR documentation & filing tracking',
-    'NIDA & BRELA integration ready',
-    'Email support (24hr response)',
-  ],
   small_firm: [
-    'Everything in Solo',
-    '4 finalized IRAs per year',
-    'Quarterly Maturity reviews',
-    'Security monitoring + intrusion detection',
-    'Read-only API access',
-    'WhatsApp + email support (12hr response)',
-    'MLRO and Senior Partner roles',
+    'Client KYC/CDD management',
+    'Matter-based AML flagging',
+    'STR documentation & filing tracking',
+    'Institutional Risk Assessment (up to 4/yr)',
+    'Maturity Assessment (quarterly)',
+    'Security monitoring dashboard',
+    'NIDA & BRELA verification ready',
+    'WhatsApp & email support',
   ],
   medium_firm: [
     'Everything in Small Firm',
-    'Unlimited finalized IRAs',
-    'Monthly Maturity with trending',
-    'Multi-branch support (up to 3)',
-    'Full API access',
-    'Workflow automation',
-    'Priority phone support (4hr response)',
+    'Unlimited Institutional Risk Assessments',
+    'Maturity Assessment (monthly + trending)',
+    'Premium sanctions screening (OpenSanctions)',
+    'Compliance case management (up to 500/yr)',
+    'Priority support — phone + WhatsApp, 4hr response',
   ],
   large_firm: [
     'Everything in Medium Firm',
-    'Unlimited users, clients, matters',
-    'Unlimited branches',
+    'Unlimited users, clients & matters',
     'Dedicated Customer Success Manager',
-    '99.9% SLA-backed support',
-    'Custom integrations & workflows',
-    'White-label reports',
+    'Custom onboarding & staff training',
+    '99.9% uptime SLA',
+    'Bespoke implementation support',
   ],
 };
 
@@ -51,7 +42,7 @@ function roundToThousand(n) {
 export default function PlanCard({ plan, billingPeriod, user, profile, organization, onContactSales, onTrackEvent }) {
   const navigate = useNavigate();
   const [hovered, setHovered] = useState(false);
-  const isMostPopular = plan.tier === 'small_firm';
+  const isMostPopular = plan.tier === 'medium_firm';
   const isCurrent = organization?.subscription_tier === plan.tier && !organization?.is_trialing;
   const isCurrentTrial = organization?.is_trialing && organization?.subscription_tier === plan.tier;
 

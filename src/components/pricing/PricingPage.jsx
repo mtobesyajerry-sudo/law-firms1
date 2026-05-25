@@ -10,13 +10,10 @@ import ContactSalesModal from './ContactSalesModal';
 
 const PAYMENT_METHODS = [
   { label: 'M-Pesa', color: '#00a651' },
-  { label: 'Tigo Pesa', color: '#e4002b' },
+  { label: 'Mixx by Yas', color: '#e4002b' },
   { label: 'Airtel Money', color: '#e40000' },
-  { label: 'CRDB Bank', color: '#005f9e' },
-  { label: 'NMB Bank', color: '#00538e' },
-  { label: 'Stanbic Bank', color: '#009de0' },
-  { label: 'Visa', color: '#1a1f71' },
-  { label: 'Mastercard', color: '#eb001b' },
+  { label: 'HaloPesa', color: '#f59e0b' },
+  { label: 'CRDB Bank Transfer', color: '#005f9e' },
 ];
 
 function trackEvent(name, data = {}) {
@@ -102,7 +99,7 @@ export default function PricingPage() {
             Pricing for Tanzanian Advocates
           </h1>
           <p style={{ margin: '0 0 36px', fontSize: 'clamp(16px, 2vw, 19px)', color: 'rgba(255,255,255,0.75)', lineHeight: 1.6, maxWidth: '560px', marginLeft: 'auto', marginRight: 'auto' }}>
-            Two compliance systems in one — Client KYC and Institutional Risk Assessment, built for AMLA Cap. 423.
+            Three compliance systems in one — Client KYC/CDD, Institutional Risk Assessment, and Sanctions Screening, built for AMLA Cap. 423.
           </p>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '24px', justifyContent: 'center' }}>
             {[
@@ -169,7 +166,7 @@ export default function PricingPage() {
         <section style={{ marginBottom: '64px', textAlign: 'center' }}>
           <h2 style={{ fontSize: '18px', fontWeight: '700', color: '#0a1929', marginBottom: '8px' }}>Payment methods we accept</h2>
           <p style={{ fontSize: '14px', color: '#64748b', margin: '0 0 24px' }}>
-            All prices in Tanzanian Shillings (TZS), VAT-inclusive at 18%. Invoices issued on every payment.
+            All prices in Tanzanian Shillings (TZS), VAT-inclusive at 18%. We issue a formal invoice on every payment.
           </p>
           <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '12px' }}>
             {PAYMENT_METHODS.map(({ label, color }) => (

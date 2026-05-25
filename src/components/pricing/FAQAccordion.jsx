@@ -3,15 +3,7 @@ import React, { useState } from 'react';
 const FAQS = [
   {
     q: "What's included in the 14-day free trial?",
-    a: "Full access to the plan you choose — Solo, Small Firm, or Medium Firm. All features unlocked, no card required. After 14 days, you choose whether to pay and continue. If you don't, your data is preserved for 30 days in read-only mode.",
-  },
-  {
-    q: "Do I need a credit card to start the trial?",
-    a: "No. Start your trial with just your email. We only ask for payment if you decide to continue after day 14.",
-  },
-  {
-    q: "Can I change plans during my trial?",
-    a: "Yes. You can upgrade anytime — your remaining trial days carry over. You can downgrade once during the trial.",
+    a: "Full access to the plan you choose — Small Firm or Medium Firm. All features unlocked, no credit card required. After 14 days you choose whether to subscribe. If you don't, your data is preserved for 30 days in read-only mode.",
   },
   {
     q: "How does Tanzania VAT work?",
@@ -19,35 +11,15 @@ const FAQS = [
   },
   {
     q: "What payment methods do you accept?",
-    a: "M-Pesa, Tigo Pesa, Airtel Money, bank transfers from CRDB / NMB / Stanbic, and Visa or Mastercard. Mobile money is the fastest — payments confirm within seconds.",
+    a: "M-Pesa, Mixx by Yas, Airtel Money, HaloPesa, and CRDB Bank Transfer. Mobile money payments confirm within seconds.",
   },
   {
-    q: "Can I get a refund?",
-    a: "Annual subscriptions are eligible for a pro-rata refund within the first 60 days of payment if you're not satisfied. Monthly subscriptions can be cancelled at any time and won't auto-renew.",
+    q: "What is Premium Sanctions Screening?",
+    a: "Premium screening cross-checks your clients against the global OpenSanctions dataset — covering OFAC, UN, EU, UK, and hundreds of national watchlists, plus PEP databases. It is available on Medium Firm and Large Firm plans only, enforced server-side.",
   },
   {
-    q: "Does Iuris Peritis comply with Tanzania AML Act (Cap. 423)?",
-    a: "Yes. The system is built specifically for AMLA Cap. 423 and aligned with FATF Recommendations and FIU guidelines. We update the platform whenever regulations change at no additional cost.",
-  },
-  {
-    q: "Is my data secure?",
-    a: "Yes. We use row-level security at the database layer, encrypted document storage, comprehensive audit logging, and optional MFA enforcement. Data is hosted in geographically redundant data centres.",
-  },
-  {
-    q: "What if I outgrow my plan?",
-    a: "Upgrade anytime from your billing settings. Your data stays intact and the new limits apply immediately. We'll pro-rate the difference for monthly plans, or apply credit on annual plans.",
-  },
-  {
-    q: "Can I cancel my subscription?",
-    a: "Yes. Cancel from your billing settings at any time. You'll keep access until the end of your current billing period. Your data is preserved for 30 days after cancellation in case you change your mind.",
-  },
-  {
-    q: "Do you offer training for our staff?",
-    a: "Solo and Small Firm plans include onboarding. Medium Firm includes a 2-day training session. We also offer a paid AMLA Cap. 423 staff training session (1 day, up to 20 attendees) as an add-on for TZS 2,500,000.",
-  },
-  {
-    q: "I need a custom plan or have more than 30 advocates. What do I do?",
-    a: 'Choose "Contact sales" on the Large Firm plan. We\'ll set up a call to discuss your needs and create a custom quote.',
+    q: "Can I cancel or change plans?",
+    a: "Yes. Cancel or upgrade at any time from your billing settings. Monthly subscriptions won't auto-renew after cancellation. Annual subscriptions are eligible for a pro-rata refund within the first 60 days.",
   },
 ];
 

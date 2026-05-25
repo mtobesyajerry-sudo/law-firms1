@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
 
 const TIER_LABELS = {
-  solo: 'Solo Practitioner',
   small_firm: 'Small Firm',
   medium_firm: 'Medium Firm',
   large_firm: 'Large Firm',
@@ -11,13 +11,10 @@ const TIER_LABELS = {
 
 const PAYMENT_METHODS = [
   { value: 'mpesa', label: 'M-Pesa' },
-  { value: 'tigo_pesa', label: 'Tigo Pesa' },
+  { value: 'mixx_by_yas', label: 'Mixx by Yas' },
   { value: 'airtel_money', label: 'Airtel Money' },
-  { value: 'bank_transfer_crdb', label: 'Bank Transfer (CRDB)' },
-  { value: 'bank_transfer_nmb', label: 'Bank Transfer (NMB)' },
-  { value: 'bank_transfer_nbk', label: 'Bank Transfer (NBC)' },
-  { value: 'cash', label: 'Cash' },
-  { value: 'card', label: 'Card' },
+  { value: 'halopesa', label: 'HaloPesa' },
+  { value: 'bank_transfer_crdb', label: 'CRDB Bank Transfer' },
 ];
 
 function formatTZS(amount) {
@@ -40,7 +37,7 @@ export default function TrialExpiredModal() {
     supabase
       .from('subscription_plans')
       .select('id, tier, name, display_name, price_monthly_tzs, price_annual_tzs, max_users, max_matters, contact_sales')
-      .in('tier', ['solo', 'small_firm', 'medium_firm', 'large_firm'])
+      .in('tier', ['small_firm', 'medium_firm', 'large_firm'])
       .order('price_monthly_tzs', { ascending: true, nullsFirst: false })
       .then(({ data }) => {
         if (data) {
@@ -244,13 +241,33 @@ export default function TrialExpiredModal() {
 
           {error && <p style={{ color: '#b91c1c', fontSize: '14px', marginBottom: '16px', fontWeight: '500' }}>{error}</p>}
 
-          <button
-            type="submit"
-            disabled={submitting || !selectedPlan || selectedPlan?.contact_sales}
-            style={{ ...styles.primaryBtn, opacity: (submitting || !selectedPlan || selectedPlan?.contact_sales) ? 0.6 : 1 }}
-          >
-            {submitting ? 'Recording payment…' : 'Submit payment & continue'}
-          </button>
+          {selectedPlan?.contact_sales ? (
+            <div style={{ marginBottom: '10px' }}>
+              <p style={{ fontSize: '14px', color: '#374151', marginBottom: '12px', textAlign: 'center' }}>
+                The Large Firm plan requires a custom quote.
+              </p>
+              <Link
+                to="/pricing"
+                style={{
+                  display: 'block', width: '100%', padding: '13px', textAlign: 'center',
+                  background: 'linear-gradient(135deg, #d4af37, #b8941f)',
+                  color: '#0a1929', border: 'none', borderRadius: '8px',
+                  fontWeight: '700', fontSize: '15px', textDecoration: 'none',
+                  boxSizing: 'border-box',
+                }}
+              >
+                Contact sales on pricing page
+              </Link>
+            </div>
+          ) : (
+            <button
+              type="submit"
+              disabled={submitting || !selectedPlan}
+              style={{ ...styles.primaryBtn, opacity: (submitting || !selectedPlan) ? 0.6 : 1 }}
+            >
+              {submitting ? 'Recording payment…' : 'Submit payment & continue'}
+            </button>
+          )}
 
           <button
             type="button"

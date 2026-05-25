@@ -4,6 +4,7 @@
 
 import { useState } from "react";
 import { runScreening } from "../services/screeningService";
+import { useAuth } from "../contexts/AuthContext";
 
 const COLORS = {
   gold: "#d4af37",
@@ -137,6 +138,9 @@ const styles = {
 };
 
 export default function NewScreeningModal({ onClose, onSaved, clientId, prefill }) {
+  const { organization } = useAuth();
+  const canUsePremium = ['medium_firm', 'large_firm'].includes(organization?.subscription_tier);
+
   const [form, setForm] = useState({
     fullName: prefill?.fullName ?? "",
     dateOfBirth: prefill?.dateOfBirth ?? "",
@@ -237,14 +241,21 @@ export default function NewScreeningModal({ onClose, onSaved, clientId, prefill 
             </div>
           </div>
 
-          <div style={styles.toggleRow}>
+          <div style={{ ...styles.toggleRow, opacity: canUsePremium ? 1 : 0.55 }}>
             <input
               type="checkbox" style={styles.toggle}
-              checked={form.usePremium} onChange={handleChange("usePremium")}
+              checked={form.usePremium && canUsePremium}
+              onChange={canUsePremium ? handleChange("usePremium") : undefined}
+              disabled={!canUsePremium}
               id="premium-toggle"
             />
-            <label htmlFor="premium-toggle" style={styles.toggleLabel}>
+            <label htmlFor="premium-toggle" style={{ ...styles.toggleLabel, cursor: canUsePremium ? 'pointer' : 'default' }}>
               <strong>Premium screening</strong> — also check global PEPs &amp; adverse media via OpenSanctions
+              {!canUsePremium && (
+                <span style={{ display: 'block', fontSize: 11, color: '#64748b', marginTop: 2 }}>
+                  Available on Medium Firm and Large Firm plans
+                </span>
+              )}
             </label>
             <span style={styles.premiumBadge}>PRO</span>
           </div>
