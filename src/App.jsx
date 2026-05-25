@@ -21,6 +21,7 @@ import LoadingSpinner from './components/LoadingSpinner';
 import TrialBanner from './components/TrialBanner';
 import TrialExpiredModal from './components/TrialExpiredModal';
 import PricingPage from './components/pricing/PricingPage';
+import BillingPage from './components/BillingPage';
 import { validatePassword } from './utils/security';
 
 // Shown when profile.password_change_required = true.
@@ -488,6 +489,14 @@ function AppRoutes() {
     <Routes>
       {/* Public routes — no auth required */}
       <Route path="/pricing" element={<PricingPage />} />
+      <Route
+        path="/billing"
+        element={
+          <ProtectedRoute>
+            <BillingPage />
+          </ProtectedRoute>
+        }
+      />
       {/* Keep /auth mounted while MFA challenge is pending — user is still null at that point
           and Auth.jsx owns the challenge UI. Only redirect once user is fully authenticated. */}
       <Route path="/auth" element={(user && !pendingMfaChallenge) ? <Navigate to="/" /> : <Auth />} />
