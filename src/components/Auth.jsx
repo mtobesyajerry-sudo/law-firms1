@@ -416,7 +416,6 @@ export default function Auth() {
               style={styles.logo}
             />
           </div>
-          <h1 style={styles.title}>Law Firm AML Compliance System</h1>
           <p style={styles.subtitle}>Comprehensive AML/CFT Compliance Management for Legal Professionals</p>
         </div>
 
