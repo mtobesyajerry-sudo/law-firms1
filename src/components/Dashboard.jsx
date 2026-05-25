@@ -389,7 +389,7 @@ export default function Dashboard() {
           <div>
             <div style={styles.logoContainer}>
               <img
-                src="/Iuris_Peritis_logo_(edit).png"
+                src="/ChatGPT_Image_May_25,_2026,_11_01_20_PM.png"
                 alt=""
                 style={styles.logo}
               />
