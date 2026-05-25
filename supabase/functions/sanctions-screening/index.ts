@@ -303,6 +303,8 @@ Deno.serve(async (req) => {
         highest_score: highestScore,
         overall_risk: risk,
         matches: allMatches,
+        premium_used: !!opensanctionsResult,
+        premium_available_on_tier: premiumAllowed,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );

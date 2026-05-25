@@ -13,6 +13,7 @@ const PAYMENT_METHODS = [
   { value: 'airtel_money',        label: 'Airtel Money' },
   { value: 'halopesa',            label: 'HaloPesa' },
   { value: 'bank_transfer_crdb',  label: 'CRDB Bank Transfer' },
+  { value: 'manual_admin',        label: 'Manual (admin)' },
 ];
 
 export default function SubscriptionManagement() {
