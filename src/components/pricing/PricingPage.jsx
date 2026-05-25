@@ -8,6 +8,109 @@ import FeatureComparisonTable from './FeatureComparisonTable';
 import FAQAccordion from './FAQAccordion';
 import ContactSalesModal from './ContactSalesModal';
 
+const ADDON_CATEGORY_LABELS = {
+  capacity: 'Capacity',
+  feature: 'Features',
+  service: 'Professional Services',
+  integration: 'Integrations',
+};
+
+const PRICING_MODEL_LABELS = {
+  monthly_recurring: '/month',
+  annual_recurring: '/year',
+  per_unit: '/unit',
+  one_time: 'one-time',
+};
+
+function AddonsSection({ onContactSales }) {
+  const [addons, setAddons] = useState([]);
+  const [expanded, setExpanded] = useState(false);
+
+  useEffect(() => {
+    supabase
+      .from('subscription_addons')
+      .select('addon_code, name, description, category, pricing_model, price_tzs, unit_label, display_order')
+      .eq('is_active', true)
+      .order('display_order', { ascending: true })
+      .then(({ data }) => setAddons(data || []));
+  }, []);
+
+  if (addons.length === 0) return null;
+
+  const grouped = addons.reduce((acc, a) => {
+    if (!acc[a.category]) acc[a.category] = [];
+    acc[a.category].push(a);
+    return acc;
+  }, {});
+
+  return (
+    <section style={{ marginBottom: '64px' }}>
+      <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+        <button
+          type="button"
+          onClick={() => setExpanded(e => !e)}
+          style={{
+            padding: '14px 32px', borderRadius: '10px',
+            border: '2px solid #0a1929', background: expanded ? '#0a1929' : 'white',
+            color: expanded ? 'white' : '#0a1929',
+            fontWeight: '700', fontSize: '15px', cursor: 'pointer',
+            transition: 'all 0.2s',
+            display: 'inline-flex', alignItems: 'center', gap: '10px',
+          }}
+        >
+          {expanded ? 'Hide' : 'See optional add-ons & professional services'}
+          <span style={{ fontSize: '18px', transition: 'transform 0.2s', transform: expanded ? 'rotate(180deg)' : 'none', lineHeight: 1 }}>↓</span>
+        </button>
+      </div>
+
+      {expanded && (
+        <div>
+          <p style={{ textAlign: 'center', fontSize: '14px', color: '#64748b', marginBottom: '32px' }}>
+            Extend any plan with additional capacity, features, or professional services. All prices VAT-inclusive.
+          </p>
+          {Object.entries(grouped).map(([category, items]) => (
+            <div key={category} style={{ marginBottom: '32px' }}>
+              <h3 style={{ fontSize: '13px', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '16px' }}>
+                {ADDON_CATEGORY_LABELS[category] || category}
+              </h3>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '16px' }}>
+                {items.map(addon => (
+                  <div key={addon.addon_code} style={{
+                    background: 'white', borderRadius: '12px', border: '1px solid #e2e8f0',
+                    padding: '20px 22px',
+                    boxShadow: '0 1px 4px rgba(0,0,0,0.05)',
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px', marginBottom: '8px' }}>
+                      <h4 style={{ margin: 0, fontSize: '15px', fontWeight: '700', color: '#0a1929', lineHeight: 1.35 }}>{addon.name}</h4>
+                      <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                        {addon.pricing_model === 'one_time' && addon.name.toLowerCase().includes('integration') ? (
+                          <button type="button" onClick={onContactSales} style={{ background: 'none', border: 'none', color: '#d4af37', fontWeight: '700', fontSize: '13px', cursor: 'pointer', padding: 0 }}>
+                            Contact sales
+                          </button>
+                        ) : (
+                          <>
+                            <div style={{ fontSize: '16px', fontWeight: '800', color: '#0a1929' }}>
+                              TZS {Number(addon.price_tzs).toLocaleString('en-TZ')}
+                            </div>
+                            <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '1px' }}>
+                              {addon.unit_label || PRICING_MODEL_LABELS[addon.pricing_model]}
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                    <p style={{ margin: 0, fontSize: '13px', color: '#64748b', lineHeight: 1.55 }}>{addon.description}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
 const PAYMENT_METHODS = [
   { label: 'M-Pesa', color: '#00a651' },
   { label: 'Mixx by Yas', color: '#e4002b' },
@@ -161,6 +264,9 @@ export default function PricingPage() {
         <section style={{ marginBottom: '64px' }}>
           <FeatureComparisonTable onTrackEvent={trackEvent} />
         </section>
+
+        {/* Add-ons */}
+        <AddonsSection onContactSales={() => { setShowContactModal(true); trackEvent('contact_sales_modal_opened', { source: 'addons' }); }} />
 
         {/* Payment methods */}
         <section style={{ marginBottom: '64px', textAlign: 'center' }}>

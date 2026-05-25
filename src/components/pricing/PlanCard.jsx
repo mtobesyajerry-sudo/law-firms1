@@ -71,8 +71,8 @@ export default function PlanCard({ plan, billingPeriod, user, profile, organizat
     }
     if (organization?.has_used_trial && !organization?.is_trialing) {
       // Trial expired or paying customer
-      const currentTierOrder = ['solo', 'small_firm', 'medium_firm', 'large_firm'].indexOf(organization.subscription_tier);
-      const thisTierOrder = ['solo', 'small_firm', 'medium_firm', 'large_firm'].indexOf(plan.tier);
+      const currentTierOrder = ['small_firm', 'medium_firm', 'large_firm'].indexOf(organization.subscription_tier);
+      const thisTierOrder = ['small_firm', 'medium_firm', 'large_firm'].indexOf(plan.tier);
       if (thisTierOrder > currentTierOrder) {
         return { label: 'Upgrade to this plan', action: 'upgrade', disabled: false };
       }
@@ -186,7 +186,9 @@ export default function PlanCard({ plan, billingPeriod, user, profile, organizat
         {[
           { label: 'Advocates', value: plan.max_users != null ? `Up to ${plan.max_users}` : 'Unlimited' },
           { label: 'KYC clients', value: plan.max_clients != null ? `Up to ${Number(plan.max_clients).toLocaleString()}` : 'Unlimited' },
+          { label: 'Active matters', value: plan.max_matters != null ? `Up to ${Number(plan.max_matters).toLocaleString()}` : 'Unlimited' },
           { label: 'IRAs/year', value: plan.max_iras_per_year != null ? plan.max_iras_per_year : 'Unlimited' },
+          { label: 'Screenings/month', value: plan.max_screenings_per_month != null ? Number(plan.max_screenings_per_month).toLocaleString() : 'Unlimited' },
           { label: 'Storage', value: plan.storage_gb != null ? `${plan.storage_gb} GB` : '500+ GB' },
         ].map(({ label, value }) => (
           <div key={label} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', borderBottom: '1px solid #f1f5f9' }}>
