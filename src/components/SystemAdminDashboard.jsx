@@ -52,11 +52,16 @@ export default function SystemAdminDashboard() {
     pendingRegistrations: 0,
     pendingRoleUpgrades: 0,
     pendingNewUserRequests: 0,
+    newEnquiries: 0,
   });
   const [recentActivity, setRecentActivity] = useState([]);
   const [organizations, setOrganizations] = useState([]);
   const [users, setUsers] = useState([]);
   const [registrationRequests, setRegistrationRequests] = useState([]);
+  const [salesEnquiries, setSalesEnquiries] = useState([]);
+  const [selectedEnquiry, setSelectedEnquiry] = useState(null);
+  const [enquiryNotes, setEnquiryNotes] = useState('');
+  const [savingEnquiry, setSavingEnquiry] = useState(false);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
   const { signOut, profile, showMfaNudge, mfaGracePeriodEnds, refreshMfaState } = useAuth();
@@ -84,7 +89,9 @@ export default function SystemAdminDashboard() {
         { data: orgsData },
         { data: usersData },
         { data: activityData },
-        { data: regRequestsData }
+        { data: regRequestsData },
+        { data: enquiriesData },
+        { count: newEnquiryCount }
       ] = await Promise.all([
         supabase.from('user_profiles').select('*', { count: 'exact', head: true }),
         supabase.from('organizations').select('*', { count: 'exact', head: true }),
@@ -96,7 +103,9 @@ export default function SystemAdminDashboard() {
         supabase.from('organizations').select('*').order('created_at', { ascending: false }).limit(10),
         supabase.from('user_profiles').select('*, organizations(name)').order('created_at', { ascending: false }).limit(20),
         supabase.from('audit_logs').select('*').order('created_at', { ascending: false }).limit(50),
-        supabase.from('management_user_registrations').select('*').eq('registration_status', 'pending').order('created_at', { ascending: false })
+        supabase.from('management_user_registrations').select('*').eq('registration_status', 'pending').order('created_at', { ascending: false }),
+        supabase.from('sales_enquiries').select('*').order('created_at', { ascending: false }),
+        supabase.from('sales_enquiries').select('*', { count: 'exact', head: true }).eq('status', 'new'),
       ]);
 
       setStats({
@@ -108,7 +117,9 @@ export default function SystemAdminDashboard() {
         pendingRegistrations: pendingRegs || 0,
         pendingRoleUpgrades: pendingUpgrades || 0,
         pendingNewUserRequests: 0,
+        newEnquiries: newEnquiryCount || 0,
       });
+      setSalesEnquiries(enquiriesData || []);
 
       // Enrich organizations with management user count
       const enrichedOrgs = await Promise.all(
@@ -444,6 +455,19 @@ export default function SystemAdminDashboard() {
             }}
           >
             Data Erasure
+          </button>
+          <button
+            onClick={() => setActiveTab('enquiries')}
+            style={{
+              ...styles.tab,
+              ...(activeTab === 'enquiries' ? styles.activeTab : {}),
+              position: 'relative',
+            }}
+          >
+            Sales Enquiries
+            {stats.newEnquiries > 0 && (
+              <span style={styles.badge}>{stats.newEnquiries}</span>
+            )}
           </button>
         </div>
 
@@ -883,6 +907,30 @@ export default function SystemAdminDashboard() {
           <DataDeletionRequestsPanel />
         )}
 
+        {activeTab === 'enquiries' && (
+          <SalesEnquiriesTab
+            enquiries={salesEnquiries}
+            selectedEnquiry={selectedEnquiry}
+            setSelectedEnquiry={(enq) => {
+              setSelectedEnquiry(enq);
+              setEnquiryNotes(enq?.internal_notes || '');
+            }}
+            enquiryNotes={enquiryNotes}
+            setEnquiryNotes={setEnquiryNotes}
+            savingEnquiry={savingEnquiry}
+            onSaveEnquiry={async (id, updates) => {
+              setSavingEnquiry(true);
+              try {
+                await supabase.from('sales_enquiries').update(updates).eq('id', id);
+                setSalesEnquiries(prev => prev.map(e => e.id === id ? { ...e, ...updates } : e));
+                setSelectedEnquiry(prev => prev ? { ...prev, ...updates } : prev);
+              } finally {
+                setSavingEnquiry(false);
+              }
+            }}
+          />
+        )}
+
         {activeTab === 'policies' && (
           <div style={styles.sectionCard}>
             <div style={{ marginBottom: '24px' }}>
@@ -969,6 +1017,204 @@ export default function SystemAdminDashboard() {
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+const STATUS_OPTIONS = ['new', 'contacted', 'qualified', 'proposal_sent', 'closed_won', 'closed_lost'];
+const STATUS_COLORS = {
+  new: { bg: '#dbeafe', color: '#1e40af' },
+  contacted: { bg: '#e0f2fe', color: '#0369a1' },
+  qualified: { bg: '#d1fae5', color: '#065f46' },
+  proposal_sent: { bg: '#fef9c3', color: '#92400e' },
+  closed_won: { bg: '#d1fae5', color: '#065f46' },
+  closed_lost: { bg: '#fee2e2', color: '#991b1b' },
+};
+const TIMELINE_LABELS = {
+  asap: 'ASAP', '1_month': '1 month', '3_months': '3 months',
+  '6_months': '6 months', exploring: 'Just exploring',
+};
+
+function SalesEnquiriesTab({ enquiries, selectedEnquiry, setSelectedEnquiry, enquiryNotes, setEnquiryNotes, savingEnquiry, onSaveEnquiry }) {
+  const [statusFilter, setStatusFilter] = useState('all');
+
+  const filtered = statusFilter === 'all' ? enquiries : enquiries.filter(e => e.status === statusFilter);
+
+  if (selectedEnquiry) {
+    const e = selectedEnquiry;
+    const sc = STATUS_COLORS[e.status] || { bg: '#f1f5f9', color: '#475569' };
+    return (
+      <div style={{ maxWidth: '800px' }}>
+        <button type="button" onClick={() => setSelectedEnquiry(null)} style={{ background: 'none', border: 'none', color: '#64748b', fontSize: '14px', fontWeight: '600', cursor: 'pointer', padding: '0 0 20px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+          ← Back to enquiries
+        </button>
+        <div style={{ background: 'white', borderRadius: '14px', border: '1px solid #e2e8f0', overflow: 'hidden' }}>
+          <div style={{ padding: '24px 28px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '16px', flexWrap: 'wrap' }}>
+            <div>
+              <h2 style={{ margin: '0 0 4px', fontSize: '20px', fontWeight: '800', color: '#0a1929' }}>{e.firm_name}</h2>
+              <p style={{ margin: 0, fontSize: '14px', color: '#64748b' }}>{e.contact_name} — {e.email}{e.phone ? ` — ${e.phone}` : ''}</p>
+            </div>
+            <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+              <select
+                value={e.status || 'new'}
+                onChange={async (ev) => onSaveEnquiry(e.id, { status: ev.target.value })}
+                style={{ padding: '6px 12px', borderRadius: '8px', border: '1.5px solid #e2e8f0', fontSize: '13px', fontWeight: '700', background: sc.bg, color: sc.color, cursor: 'pointer' }}
+              >
+                {STATUS_OPTIONS.map(s => <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>)}
+              </select>
+              <span style={{ fontSize: '12px', color: '#94a3b8' }}>{new Date(e.created_at).toLocaleDateString()}</span>
+            </div>
+          </div>
+          <div style={{ padding: '24px 28px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+            {[
+              ['Advocates', e.advocate_count],
+              ['Office', e.office_location],
+              ['Expected users', e.expected_system_users],
+              ['Last compliance review', e.last_compliance_review?.replace(/_/g, ' ')],
+              ['Current AML approach', e.current_aml_approach?.replace(/_/g, ' ')],
+              ['Current tool', e.current_aml_tool_name],
+              ['Has MLRO', e.has_dedicated_mlro === true ? 'Yes' : e.has_dedicated_mlro === false ? 'No' : '—'],
+              ['MLRO name', e.mlro_name],
+              ['Timeline', TIMELINE_LABELS[e.desired_timeline] || e.desired_timeline],
+              ['Source', e.source],
+            ].map(([label, value]) => value ? (
+              <div key={label}>
+                <p style={{ margin: '0 0 2px', fontSize: '11px', fontWeight: '700', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.6px' }}>{label}</p>
+                <p style={{ margin: 0, fontSize: '14px', color: '#1a202c', fontWeight: '500' }}>{value}</p>
+              </div>
+            ) : null)}
+          </div>
+          {e.primary_practice_areas?.length > 0 && (
+            <div style={{ padding: '0 28px 20px' }}>
+              <p style={{ margin: '0 0 8px', fontSize: '11px', fontWeight: '700', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.6px' }}>Practice areas</p>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                {e.primary_practice_areas.map(a => (
+                  <span key={a} style={{ padding: '4px 10px', borderRadius: '16px', background: '#f1f5f9', fontSize: '12px', fontWeight: '600', color: '#475569' }}>{a}</span>
+                ))}
+              </div>
+            </div>
+          )}
+          {e.reason_for_change && (
+            <div style={{ padding: '0 28px 20px' }}>
+              <p style={{ margin: '0 0 6px', fontSize: '11px', fontWeight: '700', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.6px' }}>Reason for change</p>
+              <p style={{ margin: 0, fontSize: '14px', color: '#374151', lineHeight: 1.6, background: '#f8fafc', padding: '12px 14px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>{e.reason_for_change}</p>
+            </div>
+          )}
+          {e.additional_notes && (
+            <div style={{ padding: '0 28px 20px' }}>
+              <p style={{ margin: '0 0 6px', fontSize: '11px', fontWeight: '700', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.6px' }}>Additional notes</p>
+              <p style={{ margin: 0, fontSize: '14px', color: '#374151', lineHeight: 1.6, background: '#f8fafc', padding: '12px 14px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>{e.additional_notes}</p>
+            </div>
+          )}
+          <div style={{ padding: '0 28px 28px', borderTop: '1px solid #f1f5f9' }}>
+            <p style={{ margin: '20px 0 8px', fontSize: '11px', fontWeight: '700', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.6px' }}>Internal notes</p>
+            <textarea
+              value={enquiryNotes}
+              onChange={ev => setEnquiryNotes(ev.target.value)}
+              rows={4}
+              placeholder="Add internal notes, follow-up actions, call summaries…"
+              style={{ width: '100%', padding: '10px 12px', border: '1.5px solid #e2e8f0', borderRadius: '8px', fontSize: '14px', color: '#1a202c', boxSizing: 'border-box', resize: 'vertical' }}
+            />
+            <div style={{ display: 'flex', gap: '10px', marginTop: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                disabled={savingEnquiry}
+                onClick={() => onSaveEnquiry(e.id, { internal_notes: enquiryNotes, last_contacted_at: new Date().toISOString() })}
+                style={{ padding: '8px 18px', borderRadius: '8px', fontSize: '13px', fontWeight: '700', background: 'linear-gradient(135deg, #d4af37, #b8941f)', color: '#0a1929', border: 'none', cursor: 'pointer', opacity: savingEnquiry ? 0.7 : 1 }}
+              >
+                {savingEnquiry ? 'Saving…' : 'Save notes'}
+              </button>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <label style={{ fontSize: '12px', fontWeight: '700', color: '#64748b' }}>Next follow-up:</label>
+                <input
+                  type="date"
+                  defaultValue={e.next_follow_up_at ? e.next_follow_up_at.split('T')[0] : ''}
+                  onBlur={ev => { if (ev.target.value) onSaveEnquiry(e.id, { next_follow_up_at: new Date(ev.target.value).toISOString() }); }}
+                  style={{ padding: '6px 10px', border: '1.5px solid #e2e8f0', borderRadius: '8px', fontSize: '13px' }}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
+        <h3 style={{ margin: 0, fontSize: '20px', fontWeight: '800', color: '#0a1929' }}>
+          Sales Enquiries
+          {enquiries.filter(e => e.status === 'new').length > 0 && (
+            <span style={{ marginLeft: '10px', padding: '2px 10px', borderRadius: '12px', background: '#dbeafe', color: '#1e40af', fontSize: '13px', fontWeight: '700' }}>
+              {enquiries.filter(e => e.status === 'new').length} new
+            </span>
+          )}
+        </h3>
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+          {['all', ...STATUS_OPTIONS].map(s => (
+            <button
+              key={s} type="button" onClick={() => setStatusFilter(s)}
+              style={{
+                padding: '6px 14px', borderRadius: '20px', fontSize: '12px', fontWeight: '700', cursor: 'pointer', transition: 'all 0.15s',
+                background: statusFilter === s ? '#0a1929' : '#f1f5f9',
+                color: statusFilter === s ? 'white' : '#64748b',
+                border: statusFilter === s ? '1.5px solid #0a1929' : '1.5px solid #e2e8f0',
+              }}
+            >
+              {s === 'all' ? 'All' : s.replace(/_/g, ' ')}
+            </button>
+          ))}
+        </div>
+      </div>
+      {filtered.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: '60px 24px', background: 'white', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+          <p style={{ margin: 0, color: '#94a3b8', fontSize: '15px' }}>No enquiries{statusFilter !== 'all' ? ` with status "${statusFilter.replace(/_/g, ' ')}"` : ''}</p>
+        </div>
+      ) : (
+        <div style={{ background: 'white', borderRadius: '12px', border: '1px solid #e2e8f0', overflow: 'hidden' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0' }}>
+                {['Received', 'Firm', 'Contact', 'Advocates', 'Timeline', 'Status', ''].map(h => (
+                  <th key={h} style={{ padding: '12px 16px', textAlign: 'left', fontSize: '11px', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.6px' }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((enq) => {
+                const sc = STATUS_COLORS[enq.status] || { bg: '#f1f5f9', color: '#475569' };
+                return (
+                  <tr key={enq.id} style={{ borderBottom: '1px solid #f1f5f9', transition: 'background 0.1s' }}
+                    onMouseEnter={e => e.currentTarget.style.background = '#fafafa'}
+                    onMouseLeave={e => e.currentTarget.style.background = 'white'}
+                  >
+                    <td style={{ padding: '14px 16px', fontSize: '13px', color: '#64748b', whiteSpace: 'nowrap' }}>{new Date(enq.created_at).toLocaleDateString()}</td>
+                    <td style={{ padding: '14px 16px', fontSize: '14px', fontWeight: '700', color: '#0a1929' }}>{enq.firm_name}</td>
+                    <td style={{ padding: '14px 16px', fontSize: '13px', color: '#374151' }}>{enq.contact_name}</td>
+                    <td style={{ padding: '14px 16px', fontSize: '13px', color: '#374151' }}>{enq.advocate_count || '—'}</td>
+                    <td style={{ padding: '14px 16px', fontSize: '12px', color: '#64748b' }}>{TIMELINE_LABELS[enq.desired_timeline] || enq.desired_timeline || '—'}</td>
+                    <td style={{ padding: '14px 16px' }}>
+                      <span style={{ padding: '3px 10px', borderRadius: '12px', fontSize: '12px', fontWeight: '700', background: sc.bg, color: sc.color }}>
+                        {(enq.status || 'new').replace(/_/g, ' ')}
+                      </span>
+                    </td>
+                    <td style={{ padding: '14px 16px' }}>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedEnquiry(enq)}
+                        style={{ padding: '6px 14px', borderRadius: '8px', fontSize: '12px', fontWeight: '700', background: 'transparent', border: '1.5px solid #e2e8f0', color: '#0a1929', cursor: 'pointer' }}
+                      >
+                        Open
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }
