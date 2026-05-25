@@ -188,7 +188,7 @@ export default function PricingPage() {
 
       {/* Hero */}
       <section style={{ background: 'linear-gradient(135deg, #0a1929 0%, #0d2137 60%, #0a1929 100%)', padding: '80px 40px 72px' }}>
-        <div style={{ maxWidth: '760px', margin: '0 auto', textAlign: 'center' }}>
+        <div style={{ maxWidth: '1100px', margin: '0 auto', textAlign: 'center' }}>
           <div style={{
             display: 'inline-block', background: 'rgba(212,175,55,0.15)',
             border: '1px solid rgba(212,175,55,0.3)', borderRadius: '20px',
@@ -198,10 +198,10 @@ export default function PricingPage() {
           }}>
             Built for AMLA Cap. 423
           </div>
-          <h1 style={{ margin: '0 0 20px', fontSize: 'clamp(32px, 5vw, 52px)', fontWeight: '800', color: 'white', lineHeight: 1.15 }}>
+          <h1 style={{ margin: '0 0 16px', fontSize: 'clamp(28px, 3.5vw, 42px)', fontWeight: '800', color: 'white', lineHeight: 1.15, whiteSpace: 'nowrap' }}>
             Pricing for Tanzanian Advocates
           </h1>
-          <p style={{ margin: '0 0 36px', fontSize: 'clamp(16px, 2vw, 19px)', color: 'rgba(255,255,255,0.75)', lineHeight: 1.6, maxWidth: '560px', marginLeft: 'auto', marginRight: 'auto' }}>
+          <p style={{ margin: '0 0 36px', fontSize: 'clamp(14px, 1.4vw, 17px)', color: 'rgba(255,255,255,0.75)', lineHeight: 1.5, whiteSpace: 'nowrap' }}>
             Three compliance systems in one — Client KYC/CDD, Institutional Risk Assessment, and Sanctions Screening, built for AMLA Cap. 423.
           </p>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '24px', justifyContent: 'center' }}>
