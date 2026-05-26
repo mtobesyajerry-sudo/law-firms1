@@ -389,7 +389,7 @@ export default function Dashboard() {
           <div>
             <div style={styles.logoContainer}>
               <img
-                src="/ChatGPT_Image_May_25,_2026,_11_01_20_PM.png"
+                src="/iuris-compliance-logo.svg"
                 alt=""
                 style={styles.logo}
               />

@@ -168,7 +168,7 @@ export default function PricingPage() {
         height: '64px', position: 'sticky', top: 0, zIndex: 100,
       }}>
         <Link to={user ? '/' : '/auth'} style={{ display: 'flex', alignItems: 'center', gap: '12px', textDecoration: 'none' }}>
-          <img src="/ChatGPT_Image_May_25,_2026,_11_01_20_PM.png" alt="Iuris Compliance" style={{ height: '48px', width: 'auto', borderRadius: '6px' }} />
+          <img src="/iuris-compliance-logo.svg" alt="Iuris Compliance" style={{ height: '52px', width: 'auto' }} />
         </Link>
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
           {user ? (
