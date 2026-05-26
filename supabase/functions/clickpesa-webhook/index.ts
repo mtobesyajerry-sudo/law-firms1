@@ -3,7 +3,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Client-Info, Apikey",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Client-Info, Apikey, x-clickpesa-signature",
 };
 
 // Maximum age of a webhook event before it is rejected as stale.
@@ -19,49 +19,36 @@ interface ClickPesaWebhookPayload {
   createdAt: string;
   updatedAt?: string;
   failureReason?: string;
-  checksum?: string;        // HMAC sent by ClickPesa inside the body
-  checksumMethod?: string;  // typically "HMAC-SHA256"
+  checksum?: string;
+  checksumMethod?: string;
 }
 
-// Recursively sort all object keys alphabetically at every nesting level.
-// Arrays preserve element order. Matches ClickPesa's canonicalisation spec.
-function canonicalize(obj: unknown): unknown {
-  if (obj === null || typeof obj !== "object") return obj;
-  if (Array.isArray(obj)) return obj.map(canonicalize);
-  const sortedKeys = Object.keys(obj as Record<string, unknown>).sort();
-  const result: Record<string, unknown> = {};
-  for (const k of sortedKeys) {
-    result[k] = canonicalize((obj as Record<string, unknown>)[k]);
-  }
-  return result;
-}
-
+// HMAC-SHA256 over the raw request body; signature arrives in x-clickpesa-signature header.
+// Falls back to CLICKPESA_CHECKSUM_KEY if CLICKPESA_WEBHOOK_SECRET is absent.
 async function verifyWebhookSignature(
-  payload: Record<string, unknown>
-): Promise<{ valid: boolean; reason?: string }> {
-  const secret = Deno.env.get("CLICKPESA_WEBHOOK_SECRET");
+  rawBody: string,
+  providedSignatureHex: string
+): Promise<boolean> {
+  const secret =
+    Deno.env.get("CLICKPESA_WEBHOOK_SECRET") ||
+    Deno.env.get("CLICKPESA_CHECKSUM_KEY");
   if (!secret) {
-    console.error("CLICKPESA_WEBHOOK_SECRET not configured");
-    return { valid: false, reason: "secret_not_configured" };
+    console.error("CLICKPESA_WEBHOOK_SECRET/CHECKSUM_KEY not configured");
+    return false;
+  }
+  if (!providedSignatureHex || typeof providedSignatureHex !== "string") {
+    return false;
   }
 
-  const providedChecksum = payload.checksum;
-  if (typeof providedChecksum !== "string" || !providedChecksum) {
-    return { valid: false, reason: "missing_checksum_field" };
-  }
-
-  const cleanHex = providedChecksum.trim().toLowerCase();
+  const cleanHex = providedSignatureHex.trim().toLowerCase().replace(/^sha256=/, "");
   if (!/^[0-9a-f]+$/.test(cleanHex) || cleanHex.length % 2 !== 0) {
-    return { valid: false, reason: "malformed_checksum" };
+    return false;
   }
 
-  // Strip checksum and checksumMethod, then canonicalise remaining fields
-  const payloadForValidation = { ...payload };
-  delete payloadForValidation.checksum;
-  delete payloadForValidation.checksumMethod;
-
-  const canonicalPayload = canonicalize(payloadForValidation);
-  const payloadString = JSON.stringify(canonicalPayload);
+  const sigBytes = new Uint8Array(cleanHex.length / 2);
+  for (let i = 0; i < sigBytes.length; i++) {
+    sigBytes[i] = parseInt(cleanHex.slice(i * 2, i * 2 + 2), 16);
+  }
 
   const enc = new TextEncoder();
   const key = await crypto.subtle.importKey(
@@ -72,20 +59,8 @@ async function verifyWebhookSignature(
     ["verify"]
   );
 
-  const sigBytes = new Uint8Array(cleanHex.length / 2);
-  for (let i = 0; i < sigBytes.length; i++) {
-    sigBytes[i] = parseInt(cleanHex.slice(i * 2, i * 2 + 2), 16);
-  }
-
   // crypto.subtle.verify is constant-time by Web Crypto spec
-  const isValid = await crypto.subtle.verify(
-    "HMAC",
-    key,
-    sigBytes,
-    enc.encode(payloadString)
-  );
-
-  return { valid: isValid };
+  return await crypto.subtle.verify("HMAC", key, sigBytes, enc.encode(rawBody));
 }
 
 Deno.serve(async (req: Request) => {
@@ -98,9 +73,19 @@ Deno.serve(async (req: Request) => {
 
   try {
     const rawBody = await req.text();
+    const signature = req.headers.get("x-clickpesa-signature") || "";
 
-    // Parse JSON first — the signature is INSIDE the body, not a header
-    let payload: ClickPesaWebhookPayload & Record<string, unknown>;
+    // Capture source IP for audit purposes
+    const sourceIp =
+      req.headers.get("x-forwarded-for")?.split(",")[0].trim() ||
+      req.headers.get("x-real-ip") ||
+      null;
+
+    // --- Step 1: Verify signature BEFORE touching the database ---
+    const isValid = await verifyWebhookSignature(rawBody, signature);
+
+    // Parse JSON regardless so we can extract minimal identifiers for logging
+    let payload: ClickPesaWebhookPayload;
     try {
       payload = JSON.parse(rawBody);
     } catch {
@@ -114,29 +99,28 @@ Deno.serve(async (req: Request) => {
       { auth: { autoRefreshToken: false, persistSession: false } }
     );
 
-    // --- Step 1: Verify embedded checksum BEFORE touching business data ---
-    const sigResult = await verifyWebhookSignature(payload);
-
-    if (!sigResult.valid) {
-      console.error(`Invalid webhook signature: reason=${sigResult.reason}, order=${payload.orderReference}`);
+    // --- Step 2: Reject invalid signature — log minimal entry, no payload content ---
+    if (!isValid) {
+      console.error("Invalid webhook signature for order:", payload.orderReference);
       await supabaseAdmin
         .from("clickpesa_webhook_log")
         .insert({
           transaction_id: payload.id || "unknown",
           order_reference: payload.orderReference || "unknown",
           status: payload.status || "unknown",
-          raw_payload: { rejected: true, reason: sigResult.reason || "invalid_signature" },
+          raw_payload: { rejected: true, reason: "invalid_signature" },
           signature_valid: false,
           processed: true,
           processed_at: new Date().toISOString(),
-          processing_error: sigResult.reason || "Invalid signature",
+          processing_error: "Invalid signature",
+          source_ip: sourceIp,
         })
         .select()
         .maybeSingle();
       return new Response("Invalid signature", { status: 401 });
     }
 
-    // --- Step 2: Timestamp window check ---
+    // --- Step 3: Timestamp window check — rejects stale AND future-dated events ---
     const eventTimestamp = payload.updatedAt || payload.createdAt;
     if (!eventTimestamp) {
       console.error(`Missing timestamp for order=${payload.orderReference}`);
@@ -151,6 +135,7 @@ Deno.serve(async (req: Request) => {
           processed: true,
           processed_at: new Date().toISOString(),
           processing_error: "Missing createdAt/updatedAt timestamp",
+          source_ip: sourceIp,
         })
         .maybeSingle();
       return new Response("stale", { status: 401 });
@@ -170,12 +155,14 @@ Deno.serve(async (req: Request) => {
           processed: true,
           processed_at: new Date().toISOString(),
           processing_error: `Unparseable timestamp: ${eventTimestamp}`,
+          source_ip: sourceIp,
         })
         .maybeSingle();
       return new Response("stale", { status: 401 });
     }
 
     const eventAgeMs = Date.now() - eventMs;
+    // Reject if more than 10 minutes old OR more than 10 minutes in the future
     if (Math.abs(eventAgeMs) > WEBHOOK_MAX_AGE_MS) {
       const reason = eventAgeMs > 0 ? "stale_timestamp" : "future_timestamp";
       console.error(
@@ -192,12 +179,13 @@ Deno.serve(async (req: Request) => {
           processed: true,
           processed_at: new Date().toISOString(),
           processing_error: `Timestamp out of window (${reason}): skew=${Math.round(eventAgeMs / 1000)}s`,
+          source_ip: sourceIp,
         })
         .maybeSingle();
       return new Response("stale", { status: 401 });
     }
 
-    // --- Step 3: Log valid webhook — UNIQUE(transaction_id, status) deduplicates retries ---
+    // --- Step 4: Log valid webhook — UNIQUE(transaction_id, status) deduplicates retries ---
     const { data: logEntry, error: logError } = await supabaseAdmin
       .from("clickpesa_webhook_log")
       .insert({
@@ -207,6 +195,7 @@ Deno.serve(async (req: Request) => {
         raw_payload: payload,
         signature_valid: true,
         processed: false,
+        source_ip: sourceIp,
       })
       .select()
       .single();
@@ -220,7 +209,7 @@ Deno.serve(async (req: Request) => {
       return new Response("Log error", { status: 500 });
     }
 
-    // --- Step 4: Find matching payment record ---
+    // --- Step 5: Find matching payment record ---
     const { data: payment } = await supabaseAdmin
       .from("subscription_payments")
       .select("*")
@@ -236,7 +225,7 @@ Deno.serve(async (req: Request) => {
       return new Response("OK", { status: 200 });
     }
 
-    // --- Step 5: Update payment status ---
+    // --- Step 6: Update payment status ---
     const updates: Record<string, unknown> = {
       clickpesa_status: payload.status,
       clickpesa_channel: payload.channel,
@@ -255,7 +244,7 @@ Deno.serve(async (req: Request) => {
 
     await supabaseAdmin.from("subscription_payments").update(updates).eq("id", payment.id);
 
-    // --- Step 6: Activate subscription on success ---
+    // --- Step 7: Activate subscription on success ---
     if (payload.status === "SUCCESS") {
       const { error: activationError } = await supabaseAdmin.rpc(
         "activate_subscription_after_payment",
