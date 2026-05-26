@@ -226,27 +226,39 @@ Deno.serve(async (req: Request) => {
   }
 });
 
-async function verifyWebhookSignature(rawBody: string, signature: string): Promise<boolean> {
+async function verifyWebhookSignature(
+  rawBody: string,
+  providedSignatureHex: string
+): Promise<boolean> {
   const secret = Deno.env.get("CLICKPESA_WEBHOOK_SECRET");
   if (!secret) {
     console.error("CLICKPESA_WEBHOOK_SECRET not configured");
     return false;
   }
-  try {
-    const key = await crypto.subtle.importKey(
-      "raw",
-      new TextEncoder().encode(secret),
-      { name: "HMAC", hash: "SHA-256" },
-      false,
-      ["sign"]
-    );
-    const computedSig = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(rawBody));
-    const computedHex = Array.from(new Uint8Array(computedSig))
-      .map((b) => b.toString(16).padStart(2, "0"))
-      .join("");
-    return computedHex === signature.toLowerCase();
-  } catch (err) {
-    console.error("Signature verification error:", err);
+  if (!providedSignatureHex || typeof providedSignatureHex !== "string") {
     return false;
   }
+
+  // Normalise the provided signature: trim, lowercase, strip an optional "sha256=" prefix
+  const cleanHex = providedSignatureHex.trim().toLowerCase().replace(/^sha256=/, "");
+  if (!/^[0-9a-f]+$/.test(cleanHex) || cleanHex.length % 2 !== 0) {
+    return false;
+  }
+
+  const sigBytes = new Uint8Array(cleanHex.length / 2);
+  for (let i = 0; i < sigBytes.length; i++) {
+    sigBytes[i] = parseInt(cleanHex.slice(i * 2, i * 2 + 2), 16);
+  }
+
+  const enc = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    "raw",
+    enc.encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["verify"]
+  );
+
+  // crypto.subtle.verify is constant-time by Web Crypto spec
+  return await crypto.subtle.verify("HMAC", key, sigBytes, enc.encode(rawBody));
 }
