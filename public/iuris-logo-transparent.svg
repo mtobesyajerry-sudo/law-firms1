@@ -1,99 +1,115 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 400" width="480" height="400">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 410" width="480" height="410">
   <!--
-    Iuris Compliance logo — transparent background
-    Faithful recreation of the uploaded design.
-    Navy: #0D2340  |  Gold gradient: #C9A84C → #E8D080 → #9A6F1E
+    Iuris Compliance — transparent background
+    Matches the uploaded logo composition:
+      1. IC monogram (navy I serif + gold gradient C arc, overlapping)
+      2. "Iuris Compliance" large serif wordmark in navy
+      3. "AML/CFT Compliance Management System" small caption in navy
+    No background fill — fully transparent.
   -->
   <defs>
-    <linearGradient id="gGold" x1="0.1" y1="0" x2="0.9" y2="1">
-      <stop offset="0%"   stop-color="#BF9030"/>
-      <stop offset="30%"  stop-color="#E8D585"/>
-      <stop offset="60%"  stop-color="#C49828"/>
-      <stop offset="100%" stop-color="#8A6010"/>
+    <!-- Gold gradient: warm antique gold, darker at edges, bright highlight at center -->
+    <linearGradient id="goldArc" x1="0.15" y1="0" x2="0.85" y2="1">
+      <stop offset="0%"   stop-color="#A07820"/>
+      <stop offset="25%"  stop-color="#D4AA45"/>
+      <stop offset="50%"  stop-color="#F0DC90"/>
+      <stop offset="75%"  stop-color="#C49030"/>
+      <stop offset="100%" stop-color="#7A5510"/>
     </linearGradient>
-    <linearGradient id="gGold2" x1="0.3" y1="0" x2="0.7" y2="1">
-      <stop offset="0%"   stop-color="#D4B855"/>
-      <stop offset="50%"  stop-color="#F5E598"/>
-      <stop offset="100%" stop-color="#B08020"/>
+
+    <!-- Slightly cooler gold for the inner C face to give depth -->
+    <linearGradient id="goldInner" x1="0.2" y1="0" x2="0.8" y2="1">
+      <stop offset="0%"   stop-color="#BF9428"/>
+      <stop offset="50%"  stop-color="#E8CE70"/>
+      <stop offset="100%" stop-color="#8C6015"/>
     </linearGradient>
   </defs>
 
   <!--
-    ═══════════════════════════
-    C ARC  (gold gradient)
-    Center: 242, 148
-    Outer: rx=112, ry=106
-    Inner: rx=84,  ry=79
-    Tip angle: 30°
+    ══════════════════════════════════════════
+    C ARC — gold gradient
+    Filled region between two concentric ellipses,
+    pinched to a sharp tip at both open ends.
 
-    Outer tip top:    242+112·cos30=242+97.0=339, 148-106·sin30=148-53=95
-    Outer tip bottom: 339, 148+53=201
-    Inner tip top:    242+84·cos30=242+72.7=315,  148-79·sin30=148-39.5=108.5
-    Inner tip bottom: 315, 148+39.5=187.5
-    Shared tips: avg → top=(327, 101.8)  bottom=(327, 194.3)
-    Outer apex: 242-112=130, 148
-    Inner apex: 242-84=158,  148
-    ═══════════════════════════
+    Arc center:  cx=242, cy=148
+    Outer ellipse: rx=118, ry=110
+    Inner ellipse: rx=86,  ry=80
+
+    Open angle from horizontal: 28°
+
+    Outer tip top:    x=242+118·cos28=242+104.2=346.2,  y=148−110·sin28=148−51.6=96.4
+    Outer tip bottom: x=346.2,                            y=148+51.6=199.6
+    Inner tip top:    x=242+86·cos28 =242+75.9=317.9,   y=148−80·sin28 =148−37.6=110.4
+    Inner tip bottom: x=317.9,                            y=148+37.6=185.6
+    Shared tip top:    avg → (332.1, 103.4)
+    Shared tip bottom: avg → (332.1, 192.6)
+    Outer apex (180°): 242−118=124, 148
+    Inner apex (180°): 242−86=156,  148
+    ══════════════════════════════════════════
   -->
   <path
-    d="M 327,101.8
-       A 112,106  0  1  0  327,194.3
-       A 84,79    0  1  1  327,101.8
+    d="M 332.1,103.4
+       A 118,110  0  1  0  332.1,192.6
+       A 86,80    0  1  1  332.1,103.4
        Z"
-    fill="url(#gGold)"
+    fill="url(#goldArc)"
   />
 
   <!--
-    ═══════════════════════════
-    I LETTERFORM  (navy)
-    Center x=228, y 45→255
-    Wide slab serifs, slight stem taper
-    ═══════════════════════════
+    ══════════════════════════════════════════
+    I LETTERFORM — deep navy #0D2340
+    Classical capital serif I
+    Center x=228, vertical span y=42 → y=258
+    Slab serifs top & bottom, slight stem taper for optical weight
+    ══════════════════════════════════════════
   -->
-  <!-- Top serif wings (thin extended) -->
-  <rect x="181" y="45"  width="94" height="7"  rx="1.5" fill="#0D2340"/>
-  <!-- Top slab serif (thick block) -->
-  <rect x="192" y="45"  width="72" height="19" rx="2"   fill="#0D2340"/>
-  <!-- Stem: trapezoid slightly wider at center -->
+
+  <!-- Top serif — thin extended wings -->
+  <rect x="178" y="42"  width="100" height="7"  rx="1.5" fill="#0D2340"/>
+  <!-- Top slab (thick block) -->
+  <rect x="190" y="42"  width="76"  height="21" rx="2"   fill="#0D2340"/>
+
+  <!-- Vertical stem — trapezoid: wider at mid for optical weight -->
   <polygon
-    points="205,64  251,64  254,148  254,158  251,255  205,255  208,158  208,148"
+    points="204,63  252,63  255,148  255,158  252,258  204,258  207,158  207,148"
     fill="#0D2340"
   />
-  <!-- Bottom slab serif -->
-  <rect x="192" y="236" width="72" height="19" rx="2"   fill="#0D2340"/>
+
+  <!-- Bottom slab -->
+  <rect x="190" y="237" width="76"  height="21" rx="2"   fill="#0D2340"/>
   <!-- Bottom serif wings -->
-  <rect x="181" y="248" width="94" height="7"  rx="1.5" fill="#0D2340"/>
+  <rect x="178" y="251" width="100" height="7"  rx="1.5" fill="#0D2340"/>
 
   <!--
-    ═══════════════════════════
+    ══════════════════════════════════════════
     WORDMARK: "Iuris Compliance"
-    One line, large classical serif, navy
-    ═══════════════════════════
+    Large classical serif, navy, single line
+    ══════════════════════════════════════════
   -->
   <text
     x="240"
     y="316"
     text-anchor="middle"
-    font-family="'Trajan Pro', 'Cinzel', 'Cormorant Garamond', 'EB Garamond', Georgia, serif"
-    font-size="50"
+    font-family="'Trajan Pro', 'Cinzel', 'Cormorant Garamond', 'EB Garamond', Georgia, 'Times New Roman', serif"
+    font-size="52"
     font-weight="400"
-    letter-spacing="1.5"
+    letter-spacing="1"
     fill="#0D2340"
   >Iuris Compliance</text>
 
   <!--
-    ═══════════════════════════
-    Descriptor: smaller, tracking
-    ═══════════════════════════
+    ══════════════════════════════════════════
+    DESCRIPTOR: caption line
+    ══════════════════════════════════════════
   -->
   <text
     x="240"
-    y="352"
+    y="354"
     text-anchor="middle"
     font-family="'Helvetica Neue', Helvetica, Arial, sans-serif"
-    font-size="15"
+    font-size="15.5"
     font-weight="400"
-    letter-spacing="0.8"
+    letter-spacing="0.6"
     fill="#0D2340"
   >AML/CFT Compliance Management System</text>
 
