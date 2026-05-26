@@ -3,23 +3,23 @@ import React, { useState } from 'react';
 const FAQS = [
   {
     q: "What's included in the 14-day free trial?",
-    a: "Full access to the plan you choose — Small Firm or Medium Firm. All features unlocked, no credit card required. After 14 days you choose whether to subscribe. If you don't, your data is preserved for 30 days in read-only mode.",
+    a: "Full access to the plan you choose — Small Firm or Medium Firm. All features unlocked, no card required. After 14 days you choose whether to subscribe. If you don't, your data is preserved for 30 days in read-only mode. Large Firm plans start with a guided demo instead of a self-serve trial.",
   },
   {
     q: "How does Tanzania VAT work?",
     a: "All prices shown are VAT-inclusive at 18%. Your invoices show the net amount, VAT amount, and gross total separately for your records and TRA compliance.",
   },
   {
-    q: "What payment methods do you accept?",
-    a: "M-Pesa, Mixx by Yas, Airtel Money, HaloPesa, and CRDB Bank Transfer. Mobile money payments confirm within seconds.",
-  },
-  {
     q: "What is Premium Sanctions Screening?",
-    a: "Premium screening cross-checks your clients against the global OpenSanctions dataset — covering OFAC, UN, EU, UK, and hundreds of national watchlists, plus PEP databases. It is available on Medium Firm and Large Firm plans only, enforced server-side.",
+    a: "Premium screening cross-checks your clients against the global OpenSanctions dataset — covering OFAC, UN, EU, UK, and hundreds of national watchlists, plus PEP databases and adverse media. It is available on Medium Firm and Large Firm plans only, enforced server-side.",
   },
   {
     q: "Can I cancel or change plans?",
-    a: "Yes. Cancel or upgrade at any time from your billing settings. Monthly subscriptions won't auto-renew after cancellation. Annual subscriptions are eligible for a pro-rata refund within the first 60 days.",
+    a: "Yes. Cancel or upgrade at any time from your billing settings. Monthly subscriptions won't auto-renew after cancellation. Annual subscriptions are eligible for a pro-rata refund within the first 60 days. Your data is retained for 30 days after cancellation before permanent deletion.",
+  },
+  {
+    q: "What payment methods do you accept?",
+    a: "M-Pesa, Mixx by Yas, Airtel Money, HaloPesa, and bank transfer to CRDB Bank. Mobile money payments confirm within seconds.",
   },
 ];
 

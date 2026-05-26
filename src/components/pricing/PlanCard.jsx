@@ -3,56 +3,47 @@ import { useNavigate } from 'react-router-dom';
 
 const TIER_FEATURES = {
   small_firm: [
-    'Client KYC/CDD management',
-    'Matter-based AML flagging',
-    'STR documentation & filing tracking',
-    'Institutional Risk Assessment (up to 4/yr)',
-    'Maturity Assessment (quarterly)',
-    'Security monitoring dashboard',
-    'NIDA & BRELA verification ready',
-    'WhatsApp & email support',
+    'Run client KYC/CDD the way AMLA Cap. 423 requires',
+    'Automatically screen clients against UN, EU, UK, and OFAC sanctions lists, refreshed daily',
+    'Manage matters with automatic AML trigger flagging across 10 matter types',
+    'Generate your annual Institutional Risk Assessment automatically',
+    '47-control Maturity Assessment across 9 weighted AML/CFT domains',
+    'Track suspicious activity and document STR filings with multi-level approval',
+    'Secure document storage with dual-control verification and SHA-256 integrity',
+    'MFA-protected accounts with backup codes',
+    '10-year audit trail per AMLA retention requirement',
   ],
   medium_firm: [
     'Everything in Small Firm',
-    'Unlimited Institutional Risk Assessments',
-    'Maturity Assessment (monthly + trending)',
-    'Premium sanctions screening (OpenSanctions)',
-    'Compliance case management (up to 500/yr)',
-    'Priority support — phone + WhatsApp, 4hr response',
+    'Premium PEP and adverse media screening via OpenSanctions',
+    'Quarterly Institutional Risk Assessment reviews instead of annual',
+    'Up to 30 system users (advocates, paralegals, staff, compliance)',
+    'Required MFA enforcement with session elevation for sensitive actions',
+    'Priority email, WhatsApp, and phone support (4-hour response)',
+    'Quarterly compliance review session with our team',
   ],
   large_firm: [
     'Everything in Medium Firm',
-    'Unlimited users, clients & matters',
-    'Dedicated Customer Success Manager',
-    'Custom onboarding & staff training',
-    '99.9% uptime SLA',
-    'Bespoke implementation support',
+    'Unlimited users, clients, matters, assessments, and screenings',
+    'Dedicated account manager who knows your firm',
+    'Custom onboarding program tailored to your structure',
+    'Quarterly training sessions (virtual or on-site)',
+    'Quarterly compliance review with written report for board reporting',
+    'Priority response SLA (1-hour during business hours)',
   ],
 };
 
 function formatTZS(n) {
   if (!n) return null;
-  return `TZS ${Number(n).toLocaleString('en-TZ')}`;
+  return Number(n).toLocaleString('en-TZ');
 }
 
-function roundToThousand(n) {
-  return Math.round(n / 1000) * 1000;
-}
-
-export default function PlanCard({ plan, billingPeriod, user, profile, organization, onContactSales, onTrackEvent }) {
+export default function PlanCard({ plan, user, profile, organization, onContactSales, onTrackEvent }) {
   const navigate = useNavigate();
   const [hovered, setHovered] = useState(false);
-  const isMostPopular = plan.tier === 'medium_firm';
   const isCurrent = organization?.subscription_tier === plan.tier && !organization?.is_trialing;
   const isCurrentTrial = organization?.is_trialing && organization?.subscription_tier === plan.tier;
 
-  const monthlyEquiv = plan.price_annual_tzs
-    ? roundToThousand(plan.price_annual_tzs / 12)
-    : null;
-  const displayPrice = billingPeriod === 'annual' ? monthlyEquiv : plan.price_monthly_tzs;
-  const annualTotal = plan.price_annual_tzs;
-
-  // CTA logic
   const getCta = () => {
     if (plan.contact_sales) {
       return { label: 'Contact sales', action: 'contact_sales', disabled: false };
@@ -70,15 +61,10 @@ export default function PlanCard({ plan, billingPeriod, user, profile, organizat
       return { label: 'Current plan ✓', action: null, disabled: true };
     }
     if (organization?.has_used_trial && !organization?.is_trialing) {
-      // Trial expired or paying customer
       const currentTierOrder = ['small_firm', 'medium_firm', 'large_firm'].indexOf(organization.subscription_tier);
       const thisTierOrder = ['small_firm', 'medium_firm', 'large_firm'].indexOf(plan.tier);
-      if (thisTierOrder > currentTierOrder) {
-        return { label: 'Upgrade to this plan', action: 'upgrade', disabled: false };
-      }
-      if (thisTierOrder < currentTierOrder) {
-        return { label: 'Downgrade', action: 'downgrade', disabled: false };
-      }
+      if (thisTierOrder > currentTierOrder) return { label: 'Upgrade to this plan', action: 'upgrade', disabled: false };
+      if (thisTierOrder < currentTierOrder) return { label: 'Downgrade', action: 'downgrade', disabled: false };
       return { label: 'Pay to activate', action: 'checkout', disabled: false };
     }
     if (organization?.is_trialing) {
@@ -91,13 +77,25 @@ export default function PlanCard({ plan, billingPeriod, user, profile, organizat
 
   const handleCta = () => {
     if (cta.disabled || !cta.action) return;
-    if (onTrackEvent) onTrackEvent('plan_card_cta_clicked', { tier: plan.tier, billing_period: billingPeriod, action: cta.action });
+    if (onTrackEvent) onTrackEvent('plan_card_cta_clicked', { tier: plan.tier, action: cta.action });
     if (cta.action === 'contact_sales') { onContactSales(); return; }
     if (cta.action === 'signup') { navigate(`/auth?plan=${plan.tier}`); return; }
-    if (cta.action === 'checkout') { navigate(`/billing/checkout?plan=${plan.tier}&period=${billingPeriod}`); return; }
+    if (cta.action === 'checkout') { navigate(`/billing/checkout?plan=${plan.tier}`); return; }
     if (cta.action === 'upgrade') { navigate(`/billing/upgrade?plan=${plan.tier}`); return; }
     if (cta.action === 'downgrade') { navigate(`/billing/downgrade?plan=${plan.tier}`); return; }
   };
+
+  const advocateRange = plan.features?.advocate_range;
+
+  const capacityRows = [
+    { label: 'Advocates', value: advocateRange ? (advocateRange === '16+' ? '16+' : `Up to ${advocateRange.split('-')[1]}`) : '—' },
+    { label: 'System users', value: plan.max_users != null ? `Up to ${plan.max_users}` : 'Unlimited' },
+    { label: 'KYC clients', value: plan.max_clients != null ? `Up to ${Number(plan.max_clients).toLocaleString()}` : 'Unlimited' },
+    { label: 'Active matters', value: plan.max_matters != null ? `Up to ${Number(plan.max_matters).toLocaleString()}` : 'Unlimited' },
+    { label: 'IRAs/year', value: plan.max_iras_per_year != null ? plan.max_iras_per_year : 'Unlimited' },
+    { label: 'Screenings/month', value: plan.max_screenings_per_month != null ? Number(plan.max_screenings_per_month).toLocaleString() : 'Unlimited' },
+    { label: 'Storage', value: plan.storage_gb != null ? `${plan.storage_gb} GB` : 'Unlimited' },
+  ];
 
   const features = TIER_FEATURES[plan.tier] || [];
 
@@ -108,31 +106,16 @@ export default function PlanCard({ plan, billingPeriod, user, profile, organizat
       style={{
         background: 'white',
         borderRadius: '16px',
-        border: isMostPopular ? '2px solid #d4af37' : '1px solid #e2e8f0',
+        border: '1px solid #e2e8f0',
         padding: '32px 28px',
         display: 'flex',
         flexDirection: 'column',
         position: 'relative',
         transition: 'transform 0.2s, box-shadow 0.2s',
         transform: hovered ? 'translateY(-4px)' : 'translateY(0)',
-        boxShadow: hovered
-          ? '0 16px 40px rgba(0,0,0,0.12)'
-          : isMostPopular
-            ? '0 4px 16px rgba(212,175,55,0.15)'
-            : '0 2px 8px rgba(0,0,0,0.06)',
+        boxShadow: hovered ? '0 16px 40px rgba(0,0,0,0.12)' : '0 2px 8px rgba(0,0,0,0.06)',
       }}
     >
-      {isMostPopular && (
-        <div style={{
-          position: 'absolute', top: '-14px', left: '50%', transform: 'translateX(-50%)',
-          background: '#d4af37', color: '#0a1929',
-          padding: '4px 18px', borderRadius: '20px',
-          fontSize: '11px', fontWeight: '800', letterSpacing: '0.8px', whiteSpace: 'nowrap',
-        }}>
-          MOST POPULAR
-        </div>
-      )}
-
       {/* Header */}
       <div style={{ marginBottom: '24px' }}>
         <h3 style={{ margin: '0 0 8px', fontSize: '20px', fontWeight: '800', color: '#0a1929' }}>
@@ -144,53 +127,40 @@ export default function PlanCard({ plan, billingPeriod, user, profile, organizat
       </div>
 
       {/* Price block */}
-      <div style={{ marginBottom: '28px', minHeight: '80px' }}>
+      <div style={{ marginBottom: '28px', minHeight: '88px' }}>
         {plan.contact_sales ? (
           <>
-            <div style={{ fontSize: '40px', fontWeight: '800', color: '#0a1929', lineHeight: 1 }}>Custom</div>
-            <div style={{ fontSize: '13px', color: '#64748b', marginTop: '6px' }}>For firms with 30+ advocates</div>
+            <div style={{ fontSize: '40px', fontWeight: '800', color: '#0a1929', lineHeight: 1 }}>Let's talk</div>
+            <div style={{ fontSize: '13px', color: '#64748b', marginTop: '8px' }}>We'll build you a quote</div>
           </>
         ) : (
           <>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
-              {billingPeriod === 'annual' && plan.price_monthly_tzs && (
-                <span style={{ fontSize: '16px', color: '#94a3b8', textDecoration: 'line-through', fontWeight: '500' }}>
-                  {formatTZS(plan.price_monthly_tzs)}
-                </span>
-              )}
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px', flexWrap: 'wrap' }}>
+              <span style={{ fontSize: '13px', fontWeight: '700', color: '#64748b' }}>TZS</span>
               <span style={{ fontSize: '36px', fontWeight: '800', color: '#0a1929', lineHeight: 1 }}>
-                {formatTZS(displayPrice)}
+                {formatTZS(plan.price_monthly_tzs)}
               </span>
-              <span style={{ fontSize: '14px', color: '#64748b' }}>/mo</span>
-              {billingPeriod === 'annual' && (
+              <span style={{ fontSize: '14px', color: '#64748b' }}>/month</span>
+            </div>
+            {plan.price_annual_tzs && (
+              <div style={{ fontSize: '13px', color: '#64748b', marginTop: '6px', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                or <strong style={{ color: '#0a1929' }}>TZS {formatTZS(plan.price_annual_tzs)}/year</strong>
                 <span style={{
                   background: '#d1fae5', color: '#065f46',
                   fontSize: '11px', fontWeight: '800', padding: '2px 8px', borderRadius: '20px',
                 }}>
-                  SAVE 17%
+                  save 17%
                 </span>
-              )}
-            </div>
-            {billingPeriod === 'annual' && annualTotal && (
-              <div style={{ fontSize: '12px', color: '#64748b', marginTop: '4px' }}>
-                Billed annually as {formatTZS(annualTotal)}
               </div>
             )}
-            <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '4px' }}>VAT inclusive</div>
+            <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '5px' }}>VAT inclusive</div>
           </>
         )}
       </div>
 
-      {/* Limits */}
+      {/* Capacity table */}
       <div style={{ background: '#f8fafc', borderRadius: '10px', padding: '14px 16px', marginBottom: '24px', fontSize: '13px' }}>
-        {[
-          { label: 'Advocates', value: plan.max_users != null ? `Up to ${plan.max_users}` : 'Unlimited' },
-          { label: 'KYC clients', value: plan.max_clients != null ? `Up to ${Number(plan.max_clients).toLocaleString()}` : 'Unlimited' },
-          { label: 'Active matters', value: plan.max_matters != null ? `Up to ${Number(plan.max_matters).toLocaleString()}` : 'Unlimited' },
-          { label: 'IRAs/year', value: plan.max_iras_per_year != null ? plan.max_iras_per_year : 'Unlimited' },
-          { label: 'Screenings/month', value: plan.max_screenings_per_month != null ? Number(plan.max_screenings_per_month).toLocaleString() : 'Unlimited' },
-          { label: 'Storage', value: plan.storage_gb != null ? `${plan.storage_gb} GB` : '500+ GB' },
-        ].map(({ label, value }) => (
+        {capacityRows.map(({ label, value }) => (
           <div key={label} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', borderBottom: '1px solid #f1f5f9' }}>
             <span style={{ color: '#64748b', fontWeight: '500' }}>{label}</span>
             <span style={{ color: '#0a1929', fontWeight: '700' }}>{value}</span>
@@ -218,12 +188,8 @@ export default function PlanCard({ plan, billingPeriod, user, profile, organizat
           borderRadius: '10px', border: 'none',
           fontWeight: '700', fontSize: '15px',
           cursor: cta.disabled ? 'default' : 'pointer',
-          background: cta.disabled
-            ? '#e2e8f0'
-            : isMostPopular
-              ? 'linear-gradient(135deg, #d4af37, #b8941f)'
-              : '#0a1929',
-          color: cta.disabled ? '#94a3b8' : isMostPopular ? '#0a1929' : 'white',
+          background: cta.disabled ? '#e2e8f0' : '#0a1929',
+          color: cta.disabled ? '#94a3b8' : 'white',
           transition: 'opacity 0.15s',
         }}
       >

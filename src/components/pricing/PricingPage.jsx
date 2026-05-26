@@ -2,9 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../../supabaseClient';
 import { useAuth } from '../../contexts/AuthContext';
-import BillingToggle from './BillingToggle';
 import PlanCard from './PlanCard';
-import FeatureComparisonTable from './FeatureComparisonTable';
 import FAQAccordion from './FAQAccordion';
 import ContactSalesModal from './ContactSalesModal';
 
@@ -112,22 +110,20 @@ function AddonsSection({ onContactSales }) {
 }
 
 const PAYMENT_METHODS = [
-  { label: 'M-Pesa', color: '#00a651' },
-  { label: 'Mixx by Yas', color: '#e4002b' },
-  { label: 'Airtel Money', color: '#e40000' },
-  { label: 'HaloPesa', color: '#f59e0b' },
-  { label: 'CRDB Bank Transfer', color: '#005f9e' },
+  'M-Pesa',
+  'Mixx by Yas',
+  'Airtel Money',
+  'HaloPesa',
+  'CRDB Bank Transfer',
 ];
 
 function trackEvent(name, data = {}) {
-  // Log to console for now; wire to analytics later
   console.log('[pricing_event]', name, data);
 }
 
 export default function PricingPage() {
   const { user, profile, organization } = useAuth();
   const navigate = useNavigate();
-  const [billingPeriod, setBillingPeriod] = useState('annual');
   const [plans, setPlans] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -150,11 +146,6 @@ export default function PricingPage() {
     if (err) { setError(err.message); }
     else { setPlans(data || []); }
     setLoading(false);
-  };
-
-  const handleBillingToggle = (v) => {
-    setBillingPeriod(v);
-    trackEvent('billing_toggle_changed', { value: v });
   };
 
   const visiblePlans = plans.filter(p => p.tier !== 'trial');
@@ -198,16 +189,16 @@ export default function PricingPage() {
           }}>
             Built for AMLA Cap. 423
           </div>
-          <h1 style={{ margin: '0 0 16px', fontSize: 'clamp(28px, 3.5vw, 42px)', fontWeight: '800', color: 'white', lineHeight: 1.15, whiteSpace: 'nowrap' }}>
+          <h1 style={{ margin: '0 0 16px', fontSize: 'clamp(28px, 3.5vw, 42px)', fontWeight: '800', color: 'white', lineHeight: 1.15 }}>
             Pricing for Tanzanian Advocates
           </h1>
-          <p style={{ margin: '0 0 36px', fontSize: 'clamp(14px, 1.4vw, 17px)', color: 'rgba(255,255,255,0.75)', lineHeight: 1.5, whiteSpace: 'nowrap' }}>
+          <p style={{ margin: '0 0 36px', fontSize: 'clamp(14px, 1.4vw, 17px)', color: 'rgba(255,255,255,0.75)', lineHeight: 1.5 }}>
             Three compliance systems in one — Client KYC/CDD, Institutional Risk Assessment, and Sanctions Screening, built for AMLA Cap. 423.
           </p>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '24px', justifyContent: 'center' }}>
             {[
-              '14-day free trial on all paid plans',
-              'No credit card required',
+              '14-day free trial on Small Firm and Medium Firm',
+              'No card required to start',
               'Cancel anytime',
             ].map(item => (
               <div key={item} style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#d4af37', fontSize: '15px', fontWeight: '600' }}>
@@ -220,11 +211,6 @@ export default function PricingPage() {
 
       {/* Main content */}
       <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '64px 24px 80px' }}>
-        {/* Billing toggle */}
-        <div style={{ marginBottom: '48px' }}>
-          <BillingToggle value={billingPeriod} onChange={handleBillingToggle} />
-        </div>
-
         {/* Plan cards */}
         {loading ? (
           <PlanCardSkeleton />
@@ -240,7 +226,7 @@ export default function PricingPage() {
         ) : (
           <div style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
             gap: '24px',
             marginBottom: '64px',
             alignItems: 'start',
@@ -249,7 +235,6 @@ export default function PricingPage() {
               <PlanCard
                 key={plan.tier}
                 plan={plan}
-                billingPeriod={billingPeriod}
                 user={user}
                 profile={profile}
                 organization={organization}
@@ -259,11 +244,6 @@ export default function PricingPage() {
             ))}
           </div>
         )}
-
-        {/* Feature comparison */}
-        <section style={{ marginBottom: '64px' }}>
-          <FeatureComparisonTable onTrackEvent={trackEvent} />
-        </section>
 
         {/* Add-ons */}
         <AddonsSection onContactSales={() => { setShowContactModal(true); trackEvent('contact_sales_modal_opened', { source: 'addons' }); }} />
@@ -275,11 +255,11 @@ export default function PricingPage() {
             All prices in Tanzanian Shillings (TZS), VAT-inclusive at 18%. We issue a formal invoice on every payment.
           </p>
           <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '12px' }}>
-            {PAYMENT_METHODS.map(({ label, color }) => (
+            {PAYMENT_METHODS.map(label => (
               <div key={label} style={{
                 padding: '8px 18px', borderRadius: '8px',
-                border: '1.5px solid #e2e8f0', background: 'white',
-                fontSize: '13px', fontWeight: '700', color,
+                border: '1px solid #0a1929', background: 'white',
+                fontSize: '13px', fontWeight: '700', color: '#0a1929',
                 boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
               }}>
                 {label}
@@ -334,10 +314,10 @@ export default function PricingPage() {
 
 function PlanCardSkeleton() {
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '24px', marginBottom: '64px' }}>
-      {[1, 2, 3, 4].map(i => (
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '24px', marginBottom: '64px' }}>
+      {[1, 2, 3].map(i => (
         <div key={i} style={{ background: 'white', borderRadius: '16px', border: '1px solid #e2e8f0', padding: '32px 28px', height: '480px' }}>
-          <div style={{ background: '#f1f5f9', borderRadius: '8px', height: '24px', marginBottom: '12px', animation: 'pulse 1.5s infinite' }} />
+          <div style={{ background: '#f1f5f9', borderRadius: '8px', height: '24px', marginBottom: '12px' }} />
           <div style={{ background: '#f1f5f9', borderRadius: '8px', height: '16px', width: '70%', marginBottom: '32px' }} />
           <div style={{ background: '#f1f5f9', borderRadius: '8px', height: '48px', marginBottom: '24px' }} />
           {[1, 2, 3, 4, 5].map(j => (
