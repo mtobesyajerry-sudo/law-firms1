@@ -1,238 +1,237 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 560 460" width="560" height="460">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 420" width="600" height="420">
   <defs>
 
-    <!-- ═══════════════════════════════════════════
-         GOLD gradients — warm metallic, bevel effect
-         ═══════════════════════════════════════════ -->
-    <linearGradient id="goldV" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%"   stop-color="#FFF0A0"/>
-      <stop offset="18%"  stop-color="#E8C84A"/>
-      <stop offset="38%"  stop-color="#C9971A"/>
-      <stop offset="55%"  stop-color="#F0D060"/>
-      <stop offset="72%"  stop-color="#B8820A"/>
-      <stop offset="88%"  stop-color="#D4AA30"/>
-      <stop offset="100%" stop-color="#8A5E00"/>
+    <!-- Gold vertical gradient (for I stem and serifs) -->
+    <linearGradient id="gGoldV" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="#FFF5B0"/>
+      <stop offset="12%"  stop-color="#E8C84A"/>
+      <stop offset="30%"  stop-color="#B8860B"/>
+      <stop offset="48%"  stop-color="#F0D060"/>
+      <stop offset="65%"  stop-color="#C9971A"/>
+      <stop offset="82%"  stop-color="#DAA520"/>
+      <stop offset="100%" stop-color="#7A5200"/>
     </linearGradient>
 
-    <linearGradient id="goldH" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0%"   stop-color="#8A5E00"/>
-      <stop offset="20%"  stop-color="#D4AA30"/>
-      <stop offset="40%"  stop-color="#F0D060"/>
-      <stop offset="55%"  stop-color="#FFF0A0"/>
-      <stop offset="70%"  stop-color="#E8C84A"/>
-      <stop offset="85%"  stop-color="#C9971A"/>
-      <stop offset="100%" stop-color="#9A6E05"/>
+    <!-- Gold horizontal gradient (for serifs) -->
+    <linearGradient id="gGoldH" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%"   stop-color="#7A5200"/>
+      <stop offset="15%"  stop-color="#DAA520"/>
+      <stop offset="35%"  stop-color="#FFF5B0"/>
+      <stop offset="55%"  stop-color="#E8C84A"/>
+      <stop offset="75%"  stop-color="#B8860B"/>
+      <stop offset="90%"  stop-color="#DAA520"/>
+      <stop offset="100%" stop-color="#9A6800"/>
     </linearGradient>
 
-    <!-- Gold stroke for letterform outlines -->
-    <linearGradient id="goldStroke" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%"   stop-color="#C9A020"/>
-      <stop offset="50%"  stop-color="#705000"/>
-      <stop offset="100%" stop-color="#C9A020"/>
-    </linearGradient>
-
-    <!-- ═══════════════════════════════════════════
-         SILVER gradients — for C arc
-         ═══════════════════════════════════════════ -->
-    <linearGradient id="silverArc" x1="0.1" y1="0" x2="0.9" y2="1">
-      <stop offset="0%"   stop-color="#E8E8E8"/>
-      <stop offset="15%"  stop-color="#C0C0C0"/>
-      <stop offset="35%"  stop-color="#F8F8F8"/>
-      <stop offset="50%"  stop-color="#D0D0D0"/>
-      <stop offset="65%"  stop-color="#A8A8A8"/>
-      <stop offset="80%"  stop-color="#E0E0E0"/>
-      <stop offset="100%" stop-color="#909090"/>
-    </linearGradient>
-
-    <linearGradient id="silverEdge" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0%"   stop-color="#707070"/>
-      <stop offset="30%"  stop-color="#C8C8C8"/>
-      <stop offset="60%"  stop-color="#FFFFFF"/>
-      <stop offset="100%" stop-color="#909090"/>
-    </linearGradient>
-
-    <!-- Drop shadow filter for monogram -->
-    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
-      <feDropShadow dx="3" dy="5" stdDeviation="4" flood-color="rgba(0,0,0,0.4)"/>
-    </filter>
-
-    <!-- Subtle inner glow on gold I -->
-    <filter id="glow">
-      <feGaussianBlur stdDeviation="2" result="blur"/>
-      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
-    </filter>
-
-    <!-- Gold wordmark gradient — horizontal -->
-    <linearGradient id="goldWord" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%"   stop-color="#FFF0A0"/>
-      <stop offset="25%"  stop-color="#D4AA30"/>
-      <stop offset="50%"  stop-color="#A07010"/>
-      <stop offset="75%"  stop-color="#D4AA30"/>
-      <stop offset="100%" stop-color="#8A5E00"/>
-    </linearGradient>
-
-    <!-- Silver wordmark gradient -->
-    <linearGradient id="silverWord" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%"   stop-color="#E8E8E8"/>
-      <stop offset="30%"  stop-color="#B0B0B0"/>
-      <stop offset="55%"  stop-color="#F0F0F0"/>
-      <stop offset="80%"  stop-color="#A0A0A0"/>
+    <!-- Silver gradient for C arc body -->
+    <linearGradient id="gSilverArc" x1="0.2" y1="0" x2="0.8" y2="1">
+      <stop offset="0%"   stop-color="#FFFFFF"/>
+      <stop offset="10%"  stop-color="#D8D8D8"/>
+      <stop offset="28%"  stop-color="#F5F5F5"/>
+      <stop offset="45%"  stop-color="#B0B0B0"/>
+      <stop offset="60%"  stop-color="#E8E8E8"/>
+      <stop offset="78%"  stop-color="#989898"/>
+      <stop offset="92%"  stop-color="#C8C8C8"/>
       <stop offset="100%" stop-color="#707070"/>
     </linearGradient>
 
-    <!-- Gold rule gradient -->
-    <linearGradient id="goldRule" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0%"   stop-color="rgba(180,130,0,0)"/>
-      <stop offset="20%"  stop-color="#C9A020"/>
-      <stop offset="50%"  stop-color="#F0D060"/>
-      <stop offset="80%"  stop-color="#C9A020"/>
-      <stop offset="100%" stop-color="rgba(180,130,0,0)"/>
+    <!-- Silver edge/stroke gradient -->
+    <linearGradient id="gSilverEdge" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%"   stop-color="#888888"/>
+      <stop offset="40%"  stop-color="#DDDDDD"/>
+      <stop offset="70%"  stop-color="#AAAAAA"/>
+      <stop offset="100%" stop-color="#666666"/>
     </linearGradient>
+
+    <!-- Gold text gradient -->
+    <linearGradient id="gGoldText" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="#FFF0A0"/>
+      <stop offset="20%"  stop-color="#E8C030"/>
+      <stop offset="45%"  stop-color="#9A6800"/>
+      <stop offset="65%"  stop-color="#D4A820"/>
+      <stop offset="85%"  stop-color="#C09010"/>
+      <stop offset="100%" stop-color="#7A5200"/>
+    </linearGradient>
+
+    <!-- Silver text gradient -->
+    <linearGradient id="gSilverText" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="#EBEBEB"/>
+      <stop offset="25%"  stop-color="#ACACAC"/>
+      <stop offset="50%"  stop-color="#E0E0E0"/>
+      <stop offset="75%"  stop-color="#989898"/>
+      <stop offset="100%" stop-color="#686868"/>
+    </linearGradient>
+
+    <!-- Gold rule gradient -->
+    <linearGradient id="gRule" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%"   stop-color="rgba(160,110,0,0)"/>
+      <stop offset="15%"  stop-color="#C8A020"/>
+      <stop offset="50%"  stop-color="#E8D060"/>
+      <stop offset="85%"  stop-color="#C8A020"/>
+      <stop offset="100%" stop-color="rgba(160,110,0,0)"/>
+    </linearGradient>
+
+    <!-- Drop shadow for monogram -->
+    <filter id="fShadow" x="-15%" y="-15%" width="130%" height="130%">
+      <feDropShadow dx="2" dy="4" stdDeviation="5" flood-color="rgba(0,0,0,0.35)"/>
+    </filter>
+
+    <!-- Subtle glow for gold I -->
+    <filter id="fGoldGlow" x="-10%" y="-10%" width="120%" height="120%">
+      <feGaussianBlur stdDeviation="1.5" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
 
   </defs>
 
-  <!-- ═══════════════════════════════════════════════════
-       MONOGRAM — centred at x=280, top area
-       C arc (silver) behind, I letterform (gold) in front
-       ═══════════════════════════════════════════════════ -->
+  <!-- =====================================================
+       MONOGRAM — centred at x=300, y spans ~15 to 270
+       Silver C behind, Gold I in front
+       ===================================================== -->
 
-  <g filter="url(#shadow)">
+  <g filter="url(#fShadow)">
 
-    <!-- ── SILVER C ARC ──
-         Thick crescent path:
-         Outer arc: cx=280 cy=148 rx=118 ry=118
-         Inner arc: cx=280 cy=148 rx=82  ry=82
-         Open on right side (tips point right ~30° from horizontal)
+    <!--
+      SILVER C ARC
+      A thick open crescent. Think of it as a donut sector.
 
-         Outer tip top:    280+118·cos30=280+102=382,  148−118·sin30=148−59=89
-         Outer tip bot:    382, 148+59=207
-         Inner tip top:    280+82·cos30=280+71=351,    148−82·sin30=148−41=107
-         Inner tip bot:    351, 148+41=189
-         Outer left apex:  280-118=162, 148
-         Inner left apex:  280-82=198,  148
+      Centre: cx=300, cy=148
+      Outer radius R=115, inner radius r=76
+      The C opens to the right. Tips angle ≈ 40° from horizontal.
+
+      Outer arc top tip:  300 + 115·cos40 = 300+88 = 388,  148 - 115·sin40 = 148-74 = 74
+      Outer arc bot tip:  388,  148+74 = 222
+      Inner arc top tip:  300 + 76·cos40 = 300+58 = 358,   148 - 76·sin40 = 148-49 = 99
+      Inner arc bot tip:  358,  148+49 = 197
     -->
     <path
-      d="M 382,89
-         A 118,118 0 1 0 382,207
-         L 351,189
-         A 82,82   0 1 1 351,107
+      d="M 388,74
+         A 115,115 0 1 0 388,222
+         L 358,197
+         A 76,76   0 1 1 358,99
          Z"
-      fill="url(#silverArc)"
-      stroke="url(#silverEdge)"
-      stroke-width="1.5"
+      fill="url(#gSilverArc)"
+      stroke="url(#gSilverEdge)"
+      stroke-width="1.2"
     />
 
   </g>
 
-  <!-- ── GOLD SERIF I ──
-       Classical capital I with thick slab serifs and tapered stem.
-       Centred at x=277, vertical span y=30 → y=268.
-       The stem is deliberately wide and bold to match the 3D rendered look.
+  <!-- GOLD SERIF I
+       Tall classical capital I.
+       Total height: y=18 to y=275 (257px tall)
+       Stem width: 54px centred at x=295 (x=268 to x=322)
+
+       Top serif:    wide slab,  y=18  h=22  centred
+       Neck top:     narrow band y=40  h=14
+       Stem:         y=54  to y=240
+       Neck bot:     narrow band y=240 h=14
+       Bot serif:    wide slab,  y=254 h=22
+
+       Serif width: 120px (x=235 to x=355)
+       Stem width:  54px  (x=268 to x=322)
   -->
-  <g filter="url(#shadow)">
+  <g filter="url(#fGoldGlow)">
 
-    <!-- Top cap serif (wide slab) -->
-    <rect x="224" y="30"  width="106" height="28" rx="3" fill="url(#goldH)" stroke="url(#goldStroke)" stroke-width="1"/>
-    <!-- Top cap serif thin wings extending further -->
-    <rect x="210" y="30"  width="134" height="14" rx="2" fill="url(#goldH)" stroke="url(#goldStroke)" stroke-width="0.5"/>
+    <!-- TOP SERIF SLAB — outermost wide bar -->
+    <rect x="232" y="18"  width="126" height="12" rx="2" fill="url(#gGoldH)"/>
+    <!-- TOP SERIF main block -->
+    <rect x="242" y="28"  width="106" height="16" rx="2" fill="url(#gGoldH)" stroke="rgba(100,60,0,0.4)" stroke-width="0.5"/>
 
-    <!-- Upper stem band (joins cap to main stem) -->
-    <rect x="240" y="55"  width="74"  height="18" rx="1" fill="url(#goldV)"/>
+    <!-- NECK top — tapers from serif to stem -->
+    <polygon points="268,44 322,44 316,58 274,58" fill="url(#gGoldV)"/>
 
-    <!-- Main stem — trapezoid, wider at mid for 3D look -->
-    <polygon
-      points="247,73  311,73  316,148  316,162  311,268  247,268  252,162  252,148"
-      fill="url(#goldV)"
-      stroke="url(#goldStroke)"
-      stroke-width="1"
-    />
+    <!-- MAIN STEM -->
+    <rect x="268" y="56"  width="54"  height="188" fill="url(#gGoldV)" stroke="rgba(80,40,0,0.3)" stroke-width="0.5"/>
 
-    <!-- Lower stem band -->
-    <rect x="240" y="240" width="74"  height="18" rx="1" fill="url(#goldV)"/>
+    <!-- Bevel highlight on left of stem -->
+    <rect x="268" y="56"  width="10"  height="188" fill="rgba(255,240,150,0.30)" rx="1"/>
+    <!-- Bevel shadow on right of stem -->
+    <rect x="312" y="56"  width="10"  height="188" fill="rgba(60,20,0,0.20)"     rx="1"/>
 
-    <!-- Bottom cap serif (wide slab) -->
-    <rect x="210" y="254" width="134" height="14" rx="2" fill="url(#goldH)" stroke="url(#goldStroke)" stroke-width="0.5"/>
-    <rect x="224" y="240" width="106" height="28" rx="3" fill="url(#goldH)" stroke="url(#goldStroke)" stroke-width="1"/>
+    <!-- NECK bottom — tapers from stem back out to serif -->
+    <polygon points="274,244 316,244 322,258 268,258" fill="url(#gGoldV)"/>
 
-    <!-- Highlight strip on left face of I (bevel) -->
-    <rect x="247" y="73"  width="8"   height="195" rx="2" fill="rgba(255,240,140,0.45)"/>
-    <!-- Shadow strip on right face -->
-    <rect x="303" y="73"  width="8"   height="195" rx="2" fill="rgba(80,40,0,0.25)"/>
+    <!-- BOT SERIF main block -->
+    <rect x="242" y="256" width="106" height="16" rx="2" fill="url(#gGoldH)" stroke="rgba(100,60,0,0.4)" stroke-width="0.5"/>
+    <!-- BOT SERIF outermost wide bar -->
+    <rect x="232" y="270" width="126" height="12" rx="2" fill="url(#gGoldH)"/>
 
   </g>
 
-  <!-- ═══════════════════════════════════════════════════
-       WORDMARK — "Iuris Compliance"
-       "I" in gold, rest of "uris" in silver,
-       space, "C" in gold, "ompliance" in silver
-       Uses two <text> blocks with tspan for color switching
-       ═══════════════════════════════════════════════════ -->
+  <!-- =====================================================
+       WORDMARK — "IURIS COMPLIANCE"
+       Using two <text> elements, gold over silver trick:
+       First render full text in silver, then overlay first
+       char of each word in gold.
+       Font: large serif caps
 
-  <!-- Wordmark outer text — silver fill (base layer) -->
+       Baseline y=345, centred at x=300
+       ===================================================== -->
+
+  <!-- Full wordmark in silver -->
   <text
-    x="280" y="336"
+    x="300" y="345"
     text-anchor="middle"
-    font-family="'Trajan Pro','Cinzel','Cormorant SC','EB Garamond SC',Georgia,serif"
-    font-size="58"
+    font-family="'Cinzel','Trajan Pro','EB Garamond','Times New Roman',serif"
+    font-size="56"
     font-weight="700"
-    letter-spacing="2"
-    fill="url(#silverWord)"
-    stroke="rgba(80,60,0,0.3)"
-    stroke-width="0.5"
+    letter-spacing="1"
+    fill="url(#gSilverText)"
   >Iuris Compliance</text>
 
-  <!-- Overlay: gold tints on first letters of each word for the mixed look -->
-  <!-- "I" (first char) -->
+  <!-- Gold overlay on "I" — first char of "Iuris" -->
+  <!-- Cinzel: at font-size 56, "I" is narrow ~18px. Left edge of full text:
+       300 - (half of "Iuris Compliance" width ~386px / 2) ≈ 300-193 = 107 -->
   <text
-    x="51" y="336"
+    x="107" y="345"
     text-anchor="start"
-    font-family="'Trajan Pro','Cinzel','Cormorant SC','EB Garamond SC',Georgia,serif"
-    font-size="58"
+    font-family="'Cinzel','Trajan Pro','EB Garamond','Times New Roman',serif"
+    font-size="56"
     font-weight="700"
-    fill="url(#goldWord)"
-    stroke="rgba(80,40,0,0.3)"
-    stroke-width="0.5"
+    fill="url(#gGoldText)"
   >I</text>
-  <!-- "C" of Compliance — positioned by measuring roughly -->
+
+  <!-- Gold overlay on "C" — first char of "Compliance"
+       "Iuris " in Cinzel at size 56 with letter-spacing 1 ≈ 172px wide
+       so "C" starts at x ≈ 107 + 172 = 279 -->
   <text
-    x="311" y="336"
+    x="284" y="345"
     text-anchor="start"
-    font-family="'Trajan Pro','Cinzel','Cormorant SC','EB Garamond SC',Georgia,serif"
-    font-size="58"
+    font-family="'Cinzel','Trajan Pro','EB Garamond','Times New Roman',serif"
+    font-size="56"
     font-weight="700"
-    fill="url(#goldWord)"
-    stroke="rgba(80,40,0,0.3)"
-    stroke-width="0.5"
+    fill="url(#gGoldText)"
   >C</text>
 
-  <!-- ═══════════════════════════════════════════════════
-       GOLD RULE — thin horizontal line with diamond centre
-       ═══════════════════════════════════════════════════ -->
+  <!-- =====================================================
+       GOLD RULE + DIAMOND
+       y=365
+       ===================================================== -->
 
-  <!-- Left rule -->
-  <rect x="60"  y="358" width="195" height="1.5" fill="url(#goldRule)" rx="1"/>
-  <!-- Right rule -->
-  <rect x="305" y="358" width="195" height="1.5" fill="url(#goldRule)" rx="1"/>
+  <!-- Left rule segment -->
+  <rect x="55"  y="364" width="210" height="1.5" rx="1" fill="url(#gRule)"/>
+  <!-- Right rule segment -->
+  <rect x="335" y="364" width="210" height="1.5" rx="1" fill="url(#gRule)"/>
 
-  <!-- Diamond gem at centre -->
+  <!-- Diamond at centre -->
   <polygon
-    points="280,350  288,358  280,366  272,358"
-    fill="url(#goldWord)"
-    stroke="#A07010"
-    stroke-width="1"
+    points="300,356  309,364  300,372  291,364"
+    fill="url(#gGoldText)"
+    stroke="#9A7010"
+    stroke-width="0.8"
   />
 
-  <!-- ═══════════════════════════════════════════════════
-       CAPTION — "AML COMPLIANCE MANAGEMENT SYSTEM"
-       Spaced small caps in dark slate
-       ═══════════════════════════════════════════════════ -->
+  <!-- =====================================================
+       CAPTION
+       ===================================================== -->
   <text
-    x="280" y="400"
+    x="300" y="400"
     text-anchor="middle"
     font-family="'Helvetica Neue',Helvetica,Arial,sans-serif"
-    font-size="15"
-    font-weight="500"
-    letter-spacing="3.5"
+    font-size="13.5"
+    font-weight="400"
+    letter-spacing="3"
     fill="#4A5568"
   >AML COMPLIANCE MANAGEMENT SYSTEM</text>
 
