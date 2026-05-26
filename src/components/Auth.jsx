@@ -409,13 +409,6 @@ export default function Auth() {
           </Link>
         </div>
         <div style={styles.header}>
-          <div style={styles.logoContainer}>
-            <img
-              src="/iuris-logo-transparent.svg"
-              alt=""
-              style={styles.logo}
-            />
-          </div>
           <p style={styles.subtitle}>Comprehensive AML/CFT Compliance Management for Legal Professionals</p>
         </div>
 
@@ -825,15 +818,6 @@ const styles = {
     marginBottom: '24px',
     borderBottom: '2px solid #d4af37',
     paddingBottom: '20px',
-  },
-  logoContainer: {
-    display: 'flex',
-    justifyContent: 'center',
-    marginBottom: '20px',
-  },
-  logo: {
-    maxWidth: '280px',
-    height: 'auto',
   },
   title: {
     fontSize: '28px',
