@@ -6,6 +6,9 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "content-type, x-clickpesa-signature",
 };
 
+// Maximum age of a webhook event before it is rejected as stale.
+const WEBHOOK_MAX_AGE_MS = 10 * 60 * 1000; // 10 minutes
+
 interface ClickPesaWebhookPayload {
   id: string;
   status: string;
@@ -30,8 +33,10 @@ Deno.serve(async (req: Request) => {
     const rawBody = await req.text();
     const signature = req.headers.get("x-clickpesa-signature") || "";
 
+    // --- Step 1: Verify signature BEFORE touching the database ---
     const isValid = await verifyWebhookSignature(rawBody, signature);
 
+    // Parse JSON regardless so we can extract minimal identifiers for logging
     let payload: ClickPesaWebhookPayload;
     try {
       payload = JSON.parse(rawBody);
@@ -46,7 +51,54 @@ Deno.serve(async (req: Request) => {
       { auth: { autoRefreshToken: false, persistSession: false } }
     );
 
-    // Log webhook — UNIQUE(transaction_id, status) deduplicates retries
+    // --- Step 2: Reject invalid signature immediately, log minimal entry ---
+    if (!isValid) {
+      console.error("Invalid webhook signature for order:", payload.orderReference);
+      await supabaseAdmin
+        .from("clickpesa_webhook_log")
+        .insert({
+          transaction_id: payload.id || "unknown",
+          order_reference: payload.orderReference || "unknown",
+          status: payload.status || "unknown",
+          // Store no payload content for unsigned requests — only metadata
+          raw_payload: { rejected: true, reason: "invalid_signature" },
+          signature_valid: false,
+          processed: true,
+          processed_at: new Date().toISOString(),
+          processing_error: "Invalid signature",
+        })
+        // Ignore unique-constraint conflicts for repeated invalid attempts
+        .select()
+        .maybeSingle();
+      return new Response("Invalid signature", { status: 401 });
+    }
+
+    // --- Step 3: Timestamp window check — reject stale events ---
+    const eventTimestamp = payload.updatedAt || payload.createdAt;
+    if (eventTimestamp) {
+      const eventAgeMs = Date.now() - new Date(eventTimestamp).getTime();
+      if (eventAgeMs > WEBHOOK_MAX_AGE_MS) {
+        console.error(
+          `Stale webhook rejected: order=${payload.orderReference} age=${Math.round(eventAgeMs / 1000)}s`
+        );
+        await supabaseAdmin
+          .from("clickpesa_webhook_log")
+          .insert({
+            transaction_id: payload.id,
+            order_reference: payload.orderReference,
+            status: payload.status,
+            raw_payload: { rejected: true, reason: "stale_timestamp", event_age_seconds: Math.round(eventAgeMs / 1000) },
+            signature_valid: true,
+            processed: true,
+            processed_at: new Date().toISOString(),
+            processing_error: `Stale event: ${Math.round(eventAgeMs / 60000)} minutes old`,
+          })
+          .maybeSingle();
+        return new Response("stale", { status: 401 });
+      }
+    }
+
+    // --- Step 4: Log valid webhook — UNIQUE(transaction_id, status) deduplicates retries ---
     const { data: logEntry, error: logError } = await supabaseAdmin
       .from("clickpesa_webhook_log")
       .insert({
@@ -54,7 +106,7 @@ Deno.serve(async (req: Request) => {
         order_reference: payload.orderReference,
         status: payload.status,
         raw_payload: payload,
-        signature_valid: isValid,
+        signature_valid: true,
         processed: false,
       })
       .select()
@@ -69,16 +121,7 @@ Deno.serve(async (req: Request) => {
       return new Response("Log error", { status: 500 });
     }
 
-    if (!isValid) {
-      console.error("Invalid webhook signature:", payload.orderReference);
-      await supabaseAdmin
-        .from("clickpesa_webhook_log")
-        .update({ processing_error: "Invalid signature", processed: true, processed_at: new Date().toISOString() })
-        .eq("id", logEntry.id);
-      return new Response("Invalid signature", { status: 401 });
-    }
-
-    // Find matching payment record
+    // --- Step 5: Find matching payment record ---
     const { data: payment } = await supabaseAdmin
       .from("subscription_payments")
       .select("*")
@@ -94,7 +137,7 @@ Deno.serve(async (req: Request) => {
       return new Response("OK", { status: 200 });
     }
 
-    // Update payment status
+    // --- Step 6: Update payment status ---
     const updates: Record<string, unknown> = {
       clickpesa_status: payload.status,
       clickpesa_channel: payload.channel,
@@ -113,7 +156,7 @@ Deno.serve(async (req: Request) => {
 
     await supabaseAdmin.from("subscription_payments").update(updates).eq("id", payment.id);
 
-    // On success, activate the subscription
+    // --- Step 7: Activate subscription on success ---
     if (payload.status === "SUCCESS") {
       const { error: activationError } = await supabaseAdmin.rpc(
         "activate_subscription_after_payment",
