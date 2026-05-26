@@ -73,29 +73,64 @@ Deno.serve(async (req: Request) => {
       return new Response("Invalid signature", { status: 401 });
     }
 
-    // --- Step 3: Timestamp window check — reject stale events ---
+    // --- Step 3: Timestamp window check — reject missing, unparseable, stale, or future-dated events ---
     const eventTimestamp = payload.updatedAt || payload.createdAt;
-    if (eventTimestamp) {
-      const eventAgeMs = Date.now() - new Date(eventTimestamp).getTime();
-      if (eventAgeMs > WEBHOOK_MAX_AGE_MS) {
-        console.error(
-          `Stale webhook rejected: order=${payload.orderReference} age=${Math.round(eventAgeMs / 1000)}s`
-        );
-        await supabaseAdmin
-          .from("clickpesa_webhook_log")
-          .insert({
-            transaction_id: payload.id,
-            order_reference: payload.orderReference,
-            status: payload.status,
-            raw_payload: { rejected: true, reason: "stale_timestamp", event_age_seconds: Math.round(eventAgeMs / 1000) },
-            signature_valid: true,
-            processed: true,
-            processed_at: new Date().toISOString(),
-            processing_error: `Stale event: ${Math.round(eventAgeMs / 60000)} minutes old`,
-          })
-          .maybeSingle();
-        return new Response("stale", { status: 401 });
-      }
+    if (!eventTimestamp) {
+      console.error(`Missing timestamp for order=${payload.orderReference}`);
+      await supabaseAdmin
+        .from("clickpesa_webhook_log")
+        .insert({
+          transaction_id: payload.id,
+          order_reference: payload.orderReference,
+          status: payload.status,
+          raw_payload: { rejected: true, reason: "missing_timestamp" },
+          signature_valid: true,
+          processed: true,
+          processed_at: new Date().toISOString(),
+          processing_error: "Missing createdAt/updatedAt timestamp",
+        })
+        .maybeSingle();
+      return new Response("stale", { status: 401 });
+    }
+    const eventMs = new Date(eventTimestamp).getTime();
+    if (isNaN(eventMs)) {
+      console.error(`Unparseable timestamp for order=${payload.orderReference}: ${eventTimestamp}`);
+      await supabaseAdmin
+        .from("clickpesa_webhook_log")
+        .insert({
+          transaction_id: payload.id,
+          order_reference: payload.orderReference,
+          status: payload.status,
+          raw_payload: { rejected: true, reason: "invalid_timestamp", raw_timestamp: eventTimestamp },
+          signature_valid: true,
+          processed: true,
+          processed_at: new Date().toISOString(),
+          processing_error: `Unparseable timestamp: ${eventTimestamp}`,
+        })
+        .maybeSingle();
+      return new Response("stale", { status: 401 });
+    }
+    const eventAgeMs = Date.now() - eventMs;
+    // Reject if more than 10 minutes old OR more than 10 minutes in the future
+    if (Math.abs(eventAgeMs) > WEBHOOK_MAX_AGE_MS) {
+      const reason = eventAgeMs > 0 ? "stale_timestamp" : "future_timestamp";
+      console.error(
+        `Timestamp out of window: order=${payload.orderReference} reason=${reason} skew=${Math.round(eventAgeMs / 1000)}s`
+      );
+      await supabaseAdmin
+        .from("clickpesa_webhook_log")
+        .insert({
+          transaction_id: payload.id,
+          order_reference: payload.orderReference,
+          status: payload.status,
+          raw_payload: { rejected: true, reason, event_age_seconds: Math.round(eventAgeMs / 1000) },
+          signature_valid: true,
+          processed: true,
+          processed_at: new Date().toISOString(),
+          processing_error: `Timestamp out of window (${reason}): skew=${Math.round(eventAgeMs / 1000)}s`,
+        })
+        .maybeSingle();
+      return new Response("stale", { status: 401 });
     }
 
     // --- Step 4: Log valid webhook — UNIQUE(transaction_id, status) deduplicates retries ---
