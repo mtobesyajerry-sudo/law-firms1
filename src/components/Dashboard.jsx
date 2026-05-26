@@ -388,7 +388,7 @@ export default function Dashboard() {
         <header style={styles.header}>
           <div>
             <div style={{ display: 'flex', justifyContent: 'flex-start', marginBottom: '12px' }}>
-              <img src="/Iuris_new_compliance.png" alt="Iuris Compliance" style={{ maxWidth: '180px', height: 'auto' }} />
+              <img src="/Iuris_new_compliance_1.png" alt="Iuris Compliance" style={{ maxWidth: '180px', height: 'auto' }} />
             </div>
             <h1 style={styles.title}>Law Firm AML Compliance System</h1>
             <p style={styles.subtitle}>Client Dashboard</p>

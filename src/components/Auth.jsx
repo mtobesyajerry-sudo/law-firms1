@@ -410,7 +410,7 @@ export default function Auth() {
         </div>
         <div style={styles.header}>
           <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '20px' }}>
-            <img src="/Iuris_new_compliance.png" alt="Iuris Compliance" style={{ maxWidth: '260px', height: 'auto' }} />
+            <img src="/Iuris_new_compliance_1.png" alt="Iuris Compliance" style={{ maxWidth: '260px', height: 'auto' }} />
           </div>
           <p style={styles.subtitle}>Comprehensive AML/CFT Compliance Management for Legal Professionals</p>
         </div>
