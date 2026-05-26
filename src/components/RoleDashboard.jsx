@@ -52,7 +52,7 @@ export default function RoleDashboard() {
       <header style={styles.header}>
         <div>
           <div style={{ display: 'flex', justifyContent: 'flex-start', marginBottom: '12px' }}>
-            <img src="/Untitled_design.png" alt="Iuris Compliance" style={{ maxWidth: '180px', height: 'auto' }} />
+            <img src="/Untitled_design.png" alt="Iuris Compliance" style={{ maxWidth: '180px', height: 'auto', mixBlendMode: 'multiply' }} />
           </div>
           <h1 style={styles.title}>{organization?.name || 'Organization'}</h1>
           <p style={styles.subtitle}>AML/CFT Compliance System</p>
