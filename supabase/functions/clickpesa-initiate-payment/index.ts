@@ -50,13 +50,13 @@ Deno.serve(async (req: Request) => {
       return jsonError("No organization found for user", 403);
     }
 
-    if (!["admin", "management", "partner"].includes(profile.role)) {
-      return jsonError("Only org admins can initiate payments", 403);
+    if (profile.role !== "management") {
+      return jsonError("Only management users can initiate payments", 403);
     }
 
     const body: InitiateRequest = await req.json();
 
-    if (!["small_firm", "medium_firm"].includes(body.tier)) {
+    if (!["small_firm", "medium_firm", "launch_smoke_test"].includes(body.tier)) {
       return jsonError("Invalid tier; only small_firm and medium_firm are self-serve payable", 400);
     }
     if (!["monthly", "annual"].includes(body.billing_cycle)) {

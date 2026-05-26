@@ -602,7 +602,7 @@ export default function BillingPage() {
   const [showPayModal, setShowPayModal] = useState(false);
 
   const isAdmin = profile?.role === 'admin';
-  const isManagement = ['admin', 'management', 'senior_partner'].includes(profile?.role);
+  const isManagement = profile?.role === 'management';
 
   const loadData = useCallback(async () => {
     if (!profile?.organization_id) { setLoading(false); return; }
