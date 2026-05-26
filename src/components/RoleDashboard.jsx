@@ -53,7 +53,7 @@ export default function RoleDashboard() {
         <div>
           <div style={styles.logoContainer}>
             <img
-              src="/iuris-compliance-logo.svg"
+              src="/iuris-logo-transparent.svg"
               alt=""
               style={styles.logo}
             />

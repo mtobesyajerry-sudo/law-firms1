@@ -411,7 +411,7 @@ export default function Auth() {
         <div style={styles.header}>
           <div style={styles.logoContainer}>
             <img
-              src="/iuris-compliance-logo.svg"
+              src="/iuris-logo-transparent.svg"
               alt=""
               style={styles.logo}
             />

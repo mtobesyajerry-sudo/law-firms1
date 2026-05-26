@@ -168,7 +168,7 @@ export default function PricingPage() {
         height: '64px', position: 'sticky', top: 0, zIndex: 100,
       }}>
         <Link to={user ? '/' : '/auth'} style={{ display: 'flex', alignItems: 'center', gap: '12px', textDecoration: 'none' }}>
-          <img src="/iuris-compliance-logo.svg" alt="Iuris Compliance" style={{ height: '52px', width: 'auto' }} />
+          <img src="/iuris-logo-transparent.svg" alt="Iuris Compliance" style={{ height: '52px', width: 'auto' }} />
         </Link>
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
           {user ? (

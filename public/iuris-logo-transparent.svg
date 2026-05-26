@@ -1,0 +1,100 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 400" width="480" height="400">
+  <!--
+    Iuris Compliance logo — transparent background
+    Faithful recreation of the uploaded design.
+    Navy: #0D2340  |  Gold gradient: #C9A84C → #E8D080 → #9A6F1E
+  -->
+  <defs>
+    <linearGradient id="gGold" x1="0.1" y1="0" x2="0.9" y2="1">
+      <stop offset="0%"   stop-color="#BF9030"/>
+      <stop offset="30%"  stop-color="#E8D585"/>
+      <stop offset="60%"  stop-color="#C49828"/>
+      <stop offset="100%" stop-color="#8A6010"/>
+    </linearGradient>
+    <linearGradient id="gGold2" x1="0.3" y1="0" x2="0.7" y2="1">
+      <stop offset="0%"   stop-color="#D4B855"/>
+      <stop offset="50%"  stop-color="#F5E598"/>
+      <stop offset="100%" stop-color="#B08020"/>
+    </linearGradient>
+  </defs>
+
+  <!--
+    ═══════════════════════════
+    C ARC  (gold gradient)
+    Center: 242, 148
+    Outer: rx=112, ry=106
+    Inner: rx=84,  ry=79
+    Tip angle: 30°
+
+    Outer tip top:    242+112·cos30=242+97.0=339, 148-106·sin30=148-53=95
+    Outer tip bottom: 339, 148+53=201
+    Inner tip top:    242+84·cos30=242+72.7=315,  148-79·sin30=148-39.5=108.5
+    Inner tip bottom: 315, 148+39.5=187.5
+    Shared tips: avg → top=(327, 101.8)  bottom=(327, 194.3)
+    Outer apex: 242-112=130, 148
+    Inner apex: 242-84=158,  148
+    ═══════════════════════════
+  -->
+  <path
+    d="M 327,101.8
+       A 112,106  0  1  0  327,194.3
+       A 84,79    0  1  1  327,101.8
+       Z"
+    fill="url(#gGold)"
+  />
+
+  <!--
+    ═══════════════════════════
+    I LETTERFORM  (navy)
+    Center x=228, y 45→255
+    Wide slab serifs, slight stem taper
+    ═══════════════════════════
+  -->
+  <!-- Top serif wings (thin extended) -->
+  <rect x="181" y="45"  width="94" height="7"  rx="1.5" fill="#0D2340"/>
+  <!-- Top slab serif (thick block) -->
+  <rect x="192" y="45"  width="72" height="19" rx="2"   fill="#0D2340"/>
+  <!-- Stem: trapezoid slightly wider at center -->
+  <polygon
+    points="205,64  251,64  254,148  254,158  251,255  205,255  208,158  208,148"
+    fill="#0D2340"
+  />
+  <!-- Bottom slab serif -->
+  <rect x="192" y="236" width="72" height="19" rx="2"   fill="#0D2340"/>
+  <!-- Bottom serif wings -->
+  <rect x="181" y="248" width="94" height="7"  rx="1.5" fill="#0D2340"/>
+
+  <!--
+    ═══════════════════════════
+    WORDMARK: "Iuris Compliance"
+    One line, large classical serif, navy
+    ═══════════════════════════
+  -->
+  <text
+    x="240"
+    y="316"
+    text-anchor="middle"
+    font-family="'Trajan Pro', 'Cinzel', 'Cormorant Garamond', 'EB Garamond', Georgia, serif"
+    font-size="50"
+    font-weight="400"
+    letter-spacing="1.5"
+    fill="#0D2340"
+  >Iuris Compliance</text>
+
+  <!--
+    ═══════════════════════════
+    Descriptor: smaller, tracking
+    ═══════════════════════════
+  -->
+  <text
+    x="240"
+    y="352"
+    text-anchor="middle"
+    font-family="'Helvetica Neue', Helvetica, Arial, sans-serif"
+    font-size="15"
+    font-weight="400"
+    letter-spacing="0.8"
+    fill="#0D2340"
+  >AML/CFT Compliance Management System</text>
+
+</svg>
