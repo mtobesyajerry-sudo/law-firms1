@@ -454,7 +454,7 @@ function ProtectedRoute({ children, adminOnly = false, managementOnly = false, s
           onSkip={() => setShowMfaEnrollment(false)}
         />
       )}
-      {isTrialing && !trialBannerDismissed && profile?.role !== 'admin' && (
+      {isTrialing && !trialBannerDismissed && (profile?.role === 'management' || profile?.role === 'admin') && (
         <TrialBanner
           daysUntilTrialEnds={daysUntilTrialEnds}
           trialEndsAt={trialEndsAt}

@@ -677,6 +677,7 @@ export default function ClientManagementDashboard() {
       }}>
         <div style={{
           display: 'flex',
+          flexWrap: 'wrap',
           borderBottom: '2px solid #e5e7eb',
           background: '#f8f9fa'
         }}>
@@ -693,18 +694,20 @@ export default function ClientManagementDashboard() {
               onClick={() => setActiveTab(tab.id)}
               style={{
                 flex: 1,
-                padding: '16px 24px',
+                minWidth: '80px',
+                padding: '14px 8px',
                 background: activeTab === tab.id ? 'white' : 'transparent',
                 border: 'none',
                 borderBottom: activeTab === tab.id ? '3px solid #d4af37' : '3px solid transparent',
                 cursor: 'pointer',
-                fontSize: '15px',
+                fontSize: '14px',
                 fontWeight: activeTab === tab.id ? '600' : '500',
                 color: activeTab === tab.id ? '#0a1929' : '#64748b',
-                transition: 'all 0.2s ease'
+                transition: 'all 0.2s ease',
+                whiteSpace: 'nowrap',
               }}
             >
-              <span style={{ marginRight: '8px' }}>{tab.icon}</span>
+              <span style={{ marginRight: '6px' }}>{tab.icon}</span>
               {tab.label}
             </button>
           ))}
@@ -712,15 +715,18 @@ export default function ClientManagementDashboard() {
             <button
               onClick={() => navigate('/billing')}
               style={{
-                padding: '16px 24px',
+                flex: 1,
+                minWidth: '80px',
+                padding: '14px 8px',
                 background: 'transparent',
                 border: 'none',
                 borderBottom: '3px solid transparent',
                 cursor: 'pointer',
-                fontSize: '15px',
+                fontSize: '14px',
                 fontWeight: '500',
                 color: '#64748b',
                 transition: 'all 0.2s ease',
+                whiteSpace: 'nowrap',
               }}
             >
               Billing

@@ -35,7 +35,7 @@ function isValidTanzanianPhone(n) {
 }
 
 export default function TrialExpiredModal() {
-  const { organization, signOut, refreshProfile } = useAuth();
+  const { organization, profile, signOut, refreshProfile } = useAuth();
   const [step, setStep] = useState(1);
 
   // Step 1 state
@@ -154,6 +154,35 @@ export default function TrialExpiredModal() {
 
   const methodLabel = PAYMENT_METHODS.find(m => m.value === paymentMethod)?.label || paymentMethod;
   const isUssd = PAYMENT_METHODS.find(m => m.value === paymentMethod)?.ussd !== false;
+
+  const canSubscribe = profile?.role === 'management' || profile?.role === 'admin';
+
+  // ── Non-management: no subscribe CTA ─────────────────────────────────────
+  if (!canSubscribe) {
+    return (
+      <div style={s.backdrop}>
+        <div style={s.modal}>
+          <div style={s.header}>
+            <h2 style={{ margin: '0 0 6px', fontSize: '22px', fontWeight: '800', color: 'white' }}>
+              Trial Period Ended
+            </h2>
+            <p style={{ margin: 0, fontSize: '14px', color: 'rgba(255,255,255,0.7)', lineHeight: 1.5 }}>
+              Your firm's free trial has expired.
+            </p>
+          </div>
+          <div style={s.body}>
+            <p style={{ margin: '0 0 16px', fontSize: '15px', color: '#374151', lineHeight: 1.6 }}>
+              Access has been paused while your firm's subscription is renewed.
+            </p>
+            <p style={{ margin: '0 0 24px', fontSize: '15px', color: '#374151', lineHeight: 1.6 }}>
+              Please contact your firm's management to restore access. You'll be able to log in again once they subscribe.
+            </p>
+            <button type="button" onClick={signOut} style={s.ghostBtn}>Sign out</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // ── Step 3: Payment in progress ──────────────────────────────────────────
   if (step === 3) {
