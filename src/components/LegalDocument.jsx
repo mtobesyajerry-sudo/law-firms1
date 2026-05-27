@@ -11,7 +11,7 @@ const s = {
   h1: { fontSize: '28px', fontWeight: '800', color: '#0a1929', margin: '40px 0 16px', paddingBottom: '10px', borderBottom: '3px solid #d4af37', fontFamily: 'system-ui,-apple-system,sans-serif', lineHeight: 1.2 },
   h2: { fontSize: '20px', fontWeight: '700', color: '#0a1929', margin: '36px 0 12px', fontFamily: 'system-ui,-apple-system,sans-serif', lineHeight: 1.3 },
   h3: { fontSize: '17px', fontWeight: '700', color: '#1e293b', margin: '28px 0 10px', fontFamily: 'system-ui,-apple-system,sans-serif' },
-  p: { fontSize: '15px', lineHeight: '1.75', margin: '0 0 16px', color: '#1e293b' },
+  p: { fontSize: '15px', lineHeight: '1.75', margin: '0 0 16px', color: '#1e293b', textAlign: 'justify', hyphens: 'auto', WebkitHyphens: 'auto' },
   ul: { fontSize: '15px', lineHeight: '1.75', margin: '0 0 16px', paddingLeft: '24px', color: '#1e293b' },
   li: { marginBottom: '6px' },
   hr: { border: 'none', borderTop: '1px solid #e2e8f0', margin: '32px 0' },
