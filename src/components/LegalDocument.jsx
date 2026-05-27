@@ -44,10 +44,11 @@ function applyInline(text, key = 0) {
   return parts.length ? parts : text;
 }
 
-function renderMarkdown(md) {
+function renderMarkdown(md, centreTop = false) {
   const lines = md.split('\n');
   const nodes = [];
   let i = 0, key = 0;
+  let seenHeading = false;
 
   while (i < lines.length) {
     const line = lines[i];
@@ -56,9 +57,9 @@ function renderMarkdown(md) {
     if (!trimmed) { i++; continue; }
 
     // Headings
-    if (trimmed.startsWith('### ')) { nodes.push(<h3 key={key++} style={s.h3}>{applyInline(trimmed.slice(4), key)}</h3>); i++; continue; }
-    if (trimmed.startsWith('## ')) { nodes.push(<h2 key={key++} style={s.h2}>{applyInline(trimmed.slice(3), key)}</h2>); i++; continue; }
-    if (trimmed.startsWith('# ')) { nodes.push(<h1 key={key++} style={s.h1}>{applyInline(trimmed.slice(2), key)}</h1>); i++; continue; }
+    if (trimmed.startsWith('### ')) { seenHeading = true; nodes.push(<h3 key={key++} style={s.h3}>{applyInline(trimmed.slice(4), key)}</h3>); i++; continue; }
+    if (trimmed.startsWith('## ')) { seenHeading = true; nodes.push(<h2 key={key++} style={s.h2}>{applyInline(trimmed.slice(3), key)}</h2>); i++; continue; }
+    if (trimmed.startsWith('# ')) { seenHeading = true; nodes.push(<h1 key={key++} style={s.h1}>{applyInline(trimmed.slice(2), key)}</h1>); i++; continue; }
 
     // HR
     if (trimmed === '---') { nodes.push(<hr key={key++} style={s.hr} />); i++; continue; }
@@ -73,9 +74,10 @@ function renderMarkdown(md) {
         rows.push(cells);
         i++;
       }
+      const tableAlign = (centreTop && !seenHeading) ? 'center' : 'left';
       nodes.push(
-        <div key={key++} style={{ overflowX: 'auto', margin: '20px 0' }}>
-          <table style={s.table}>
+        <div key={key++} style={{ overflowX: 'auto', margin: '20px 0', textAlign: tableAlign }}>
+          <table style={{ ...s.table, margin: tableAlign === 'center' ? '20px auto' : '20px 0' }}>
             <thead style={{ background: '#f1f5f9' }}>
               <tr>{headers.map((h, hi) => <th key={hi} style={s.th}>{applyInline(h, hi)}</th>)}</tr>
             </thead>
@@ -110,14 +112,16 @@ function renderMarkdown(md) {
       i++;
     }
     if (paraLines.length) {
-      nodes.push(<p key={key++} style={s.p}>{applyInline(paraLines.join(' '), key)}</p>);
+      const isCentred = centreTop && !seenHeading;
+      const pStyle = isCentred ? { ...s.p, textAlign: 'center', hyphens: 'none', WebkitHyphens: 'none' } : s.p;
+      nodes.push(<p key={key++} style={pStyle}>{applyInline(paraLines.join(' '), key)}</p>);
     }
   }
 
   return nodes;
 }
 
-export default function LegalDocument({ content, lastUpdated }) {
+export default function LegalDocument({ content, lastUpdated, centreTop = false }) {
   return (
     <div style={s.page}>
       <header style={s.header}>
@@ -127,7 +131,7 @@ export default function LegalDocument({ content, lastUpdated }) {
         </div>
       </header>
       <main style={s.main}>
-        <article>{renderMarkdown(content)}</article>
+        <article>{renderMarkdown(content, centreTop)}</article>
         <footer style={s.footer}>
           <p style={{ margin: '0 0 8px' }}>© 2026 Iuris Peritis · Registered Data Processor · Certificate No. 0-000-006-655</p>
           <p style={{ margin: 0 }}>
