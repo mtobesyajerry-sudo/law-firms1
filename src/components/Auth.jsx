@@ -791,9 +791,9 @@ export default function Auth() {
                     />
                     <span style={styles.checkboxText}>
                       I accept the{' '}
-                      <a href="/terms" target="_blank" rel="noopener noreferrer" style={styles.consentLink}>
+                      <Link to="/terms" style={styles.consentLink}>
                         Terms and Conditions
-                      </a>
+                      </Link>
                     </span>
                   </label>
 
@@ -807,9 +807,9 @@ export default function Auth() {
                     />
                     <span style={styles.checkboxText}>
                       I accept the{' '}
-                      <a href="/privacy" target="_blank" rel="noopener noreferrer" style={styles.consentLink}>
+                      <Link to="/privacy" style={styles.consentLink}>
                         Privacy Policy
-                      </a>
+                      </Link>
                     </span>
                   </label>
                 </div>

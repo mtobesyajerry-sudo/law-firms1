@@ -494,6 +494,8 @@ function AppRoutes() {
     <Routes>
       {/* Public routes — no auth required */}
       <Route path="/pricing" element={<PricingPage />} />
+      <Route path="/privacy" element={<PrivacyPage />} />
+      <Route path="/terms" element={<TermsPage />} />
       <Route
         path="/billing"
         element={
