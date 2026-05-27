@@ -65,7 +65,17 @@ Deno.serve(async (req: Request) => {
     if (!["mpesa", "mixx_by_yas", "airtel_money", "halopesa", "bank_transfer_crdb"].includes(body.payment_method)) {
       return jsonError("Invalid payment_method", 400);
     }
-    if (!body.phone_number || !/^255\d{9}$/.test(body.phone_number)) {
+    if (!body.phone_number) {
+      return jsonError("phone_number is required", 400);
+    }
+
+    // Normalise phone: strip spaces, leading +, leading 0 → 255 prefix
+    const normalizedPhone = body.phone_number
+      .replace(/\s/g, "")
+      .replace(/^\+/, "")
+      .replace(/^0/, "255");
+
+    if (!/^255\d{9}$/.test(normalizedPhone)) {
       return jsonError("Invalid phone_number; must be Tanzanian format 255XXXXXXXXX", 400);
     }
 
@@ -83,40 +93,16 @@ Deno.serve(async (req: Request) => {
 
     const { total_tzs: totalTzs, vat_tzs: vatTzs, subtotal_tzs: subtotalTzs, plan_name: planName } = priceData[0];
 
-    // Generate unique order reference
+    // Order reference: ≤20 chars — IUC + 8 org chars + last 9 timestamp digits = 20
     const orgShortId = profile.organization_id.replace(/-/g, "").slice(0, 8);
-    const timestamp = Date.now();
-    const orderReference = `IUC-${orgShortId}-${timestamp}`;
+    const tsShort = String(Date.now()).slice(-9);
+    const orderReference = `IUC-${orgShortId}-${tsShort}`;
 
     // Get ClickPesa auth token
     const token = await getClickPesaToken(CLICKPESA_API_BASE);
     if (!token) {
       return jsonError("Failed to authenticate with payment gateway. Please try again.", 502);
     }
-
-    // Compute checksum for ClickPesa request.
-    // ClickPesa signs with the account-level Checksum Security key (same key used for
-    // webhook verification), NOT the API key. Prefer CLICKPESA_CHECKSUM_KEY; fall back
-    // to CLICKPESA_WEBHOOK_SECRET which holds the same value in this deployment.
-    const checksumSecret = Deno.env.get("CLICKPESA_CHECKSUM_KEY")
-                        ?? Deno.env.get("CLICKPESA_WEBHOOK_SECRET");
-    if (!checksumSecret) {
-      console.error("Checksum secret not configured (CLICKPESA_CHECKSUM_KEY or CLICKPESA_WEBHOOK_SECRET)");
-      return jsonError("Payment gateway misconfigured", 500);
-    }
-    const checksum = await computeChecksum({
-      amount: totalTzs.toString(),
-      currency: "TZS",
-      orderReference,
-      secret: checksumSecret,
-    });
-    console.log("USSD-push payload:", JSON.stringify({
-      amount: totalTzs.toString(),
-      currency: "TZS",
-      orderReference,
-      phoneNumber: body.phone_number,
-      checksum,
-    }));
 
     // Insert payment record before calling ClickPesa (so we have an ID on failure too)
     const { data: payment, error: insertError } = await supabaseAdmin
@@ -140,7 +126,7 @@ Deno.serve(async (req: Request) => {
         subtotal_tzs: subtotalTzs,
         clickpesa_order_reference: orderReference,
         clickpesa_status: "INITIATING",
-        payer_phone_number: body.phone_number,
+        payer_phone_number: normalizedPhone,
         payer_name: body.payer_name || null,
         initiated_at: new Date().toISOString(),
         created_by: user.id,
@@ -153,7 +139,16 @@ Deno.serve(async (req: Request) => {
       return jsonError("Could not create payment record", 500);
     }
 
-    // Call ClickPesa USSD-Push API
+    // Call ClickPesa USSD-Push API — no checksum; Bearer token is sufficient
+    const pushPayload = {
+      amount: String(totalTzs),
+      currency: "TZS",
+      orderReference,
+      phoneNumber: normalizedPhone,
+    };
+
+    console.log("ClickPesa USSD push payload:", JSON.stringify(pushPayload));
+
     const ussdResponse = await fetch(
       `${CLICKPESA_API_BASE}/third-parties/payments/initiate-ussd-push-request`,
       {
@@ -162,26 +157,21 @@ Deno.serve(async (req: Request) => {
           "Authorization": `Bearer ${token}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          amount: totalTzs.toString(),
-          currency: "TZS",
-          orderReference,
-          phoneNumber: body.phone_number,
-          checksum,
-        }),
+        body: JSON.stringify(pushPayload),
       }
     );
 
-    if (!ussdResponse.ok) {
-      const errorText = await ussdResponse.text();
-      console.error(`ClickPesa USSD-Push failed (${ussdResponse.status}):`, errorText);
+    const ussdText = await ussdResponse.text();
+    console.log("ClickPesa USSD push status:", ussdResponse.status);
+    console.log("ClickPesa USSD push response:", ussdText);
 
+    if (!ussdResponse.ok) {
       await supabaseAdmin
         .from("subscription_payments")
         .update({
           clickpesa_status: "FAILED",
           failed_at: new Date().toISOString(),
-          failure_reason: `ClickPesa API error ${ussdResponse.status}: ${errorText.slice(0, 200)}`,
+          failure_reason: `ClickPesa API error ${ussdResponse.status}: ${ussdText.slice(0, 200)}`,
           status: "failed",
         })
         .eq("id", payment.id);
@@ -189,7 +179,7 @@ Deno.serve(async (req: Request) => {
       return jsonError("Payment gateway error. Please try again.", 502);
     }
 
-    const ussdData = await ussdResponse.json();
+    const ussdData = JSON.parse(ussdText);
 
     // Update payment record with ClickPesa response
     await supabaseAdmin
@@ -236,43 +226,25 @@ async function getClickPesaToken(baseUrl: string): Promise<string | null> {
         "api-key": Deno.env.get("CLICKPESA_API_KEY")!,
       },
     });
+    console.log("ClickPesa token status:", response.status);
     if (!response.ok) {
-      console.error("ClickPesa token generation failed:", response.status, await response.text());
+      const errText = await response.text();
+      console.error("ClickPesa token generation failed:", response.status, errText);
       return null;
     }
     const data = await response.json();
+    console.log("ClickPesa token response keys:", Object.keys(data));
     const raw = data.token || data.access_token || data.accessToken;
     if (!raw || typeof raw !== "string") {
       console.error("ClickPesa token response missing token field:", JSON.stringify(data));
       return null;
     }
-    // ClickPesa returns the token already prefixed with "Bearer ".
-    // Strip it here so callers can prepend "Bearer " themselves consistently.
+    // Strip "Bearer " prefix so we can prepend it consistently at call sites
     return raw.replace(/^Bearer\s+/i, "").trim();
   } catch (err) {
     console.error("ClickPesa token error:", err);
     return null;
   }
-}
-
-async function computeChecksum(opts: {
-  amount: string;
-  currency: string;
-  orderReference: string;
-  secret: string;
-}): Promise<string> {
-  const message = `${opts.amount}${opts.currency}${opts.orderReference}`;
-  const key = await crypto.subtle.importKey(
-    "raw",
-    new TextEncoder().encode(opts.secret),
-    { name: "HMAC", hash: "SHA-256" },
-    false,
-    ["sign"]
-  );
-  const signature = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(message));
-  return Array.from(new Uint8Array(signature))
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
 }
 
 function jsonError(message: string, status: number): Response {
