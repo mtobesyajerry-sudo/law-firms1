@@ -6,8 +6,10 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Client-Info, Apikey, x-clickpesa-signature",
 };
 
-// Maximum age of a webhook event before it is rejected as stale.
-const WEBHOOK_MAX_AGE_MS = 10 * 60 * 1000; // 10 minutes
+// 60 minutes: real-world ClickPesa delivery can exceed 10 min (confirmed during Test B).
+// Replay-attack protection is provided by the UNIQUE(transaction_id, status) constraint
+// on clickpesa_webhook_log, so widening this window is safe.
+const WEBHOOK_MAX_AGE_MS = 60 * 60 * 1000;
 
 interface ClickPesaWebhookPayload {
   id: string;
@@ -75,16 +77,12 @@ Deno.serve(async (req: Request) => {
     const rawBody = await req.text();
     const signature = req.headers.get("x-clickpesa-signature") || "";
 
-    // Capture source IP for audit purposes
     const sourceIp =
       req.headers.get("x-forwarded-for")?.split(",")[0].trim() ||
       req.headers.get("x-real-ip") ||
       null;
 
-    // --- Step 1: Verify signature BEFORE touching the database ---
-    const isValid = await verifyWebhookSignature(rawBody, signature);
-
-    // Parse JSON regardless so we can extract minimal identifiers for logging
+    // --- Step 1: Parse JSON first so we always have identifiers for logging ---
     let payload: ClickPesaWebhookPayload;
     try {
       payload = JSON.parse(rawBody);
@@ -99,45 +97,46 @@ Deno.serve(async (req: Request) => {
       { auth: { autoRefreshToken: false, persistSession: false } }
     );
 
-    // --- Step 2: Reject invalid signature — log minimal entry, no payload content ---
+    // --- Step 2: Verify signature ---
+    const isValid = await verifyWebhookSignature(rawBody, signature);
+
     if (!isValid) {
       console.error("Invalid webhook signature for order:", payload.orderReference);
+      // Log FIRST with processed=false so the rejection is fully visible in the audit trail
       await supabaseAdmin
         .from("clickpesa_webhook_log")
         .insert({
-          transaction_id: payload.id || "unknown",
-          order_reference: payload.orderReference || "unknown",
-          status: payload.status || "unknown",
-          raw_payload: { rejected: true, reason: "invalid_signature" },
-          signature_valid: false,
-          processed: true,
-          processed_at: new Date().toISOString(),
-          processing_error: "Invalid signature",
-          source_ip: sourceIp,
-        })
-        .select()
-        .maybeSingle();
+          transaction_id:   payload.id || "unknown",
+          order_reference:  payload.orderReference || "unknown",
+          status:           payload.status || "unknown",
+          raw_payload:      payload,
+          signature_valid:  false,
+          processed:        false,
+          processing_error: "signature_invalid",
+          source_ip:        sourceIp,
+          received_at:      new Date().toISOString(),
+        });
       return new Response("Invalid signature", { status: 401 });
     }
 
-    // --- Step 3: Timestamp window check — rejects stale AND future-dated events ---
+    // --- Step 3: Timestamp window check ---
     const eventTimestamp = payload.updatedAt || payload.createdAt;
+
     if (!eventTimestamp) {
       console.error(`Missing timestamp for order=${payload.orderReference}`);
       await supabaseAdmin
         .from("clickpesa_webhook_log")
         .insert({
-          transaction_id: payload.id,
-          order_reference: payload.orderReference,
-          status: payload.status,
-          raw_payload: { rejected: true, reason: "missing_timestamp" },
-          signature_valid: true,
-          processed: true,
-          processed_at: new Date().toISOString(),
-          processing_error: "Missing createdAt/updatedAt timestamp",
-          source_ip: sourceIp,
-        })
-        .maybeSingle();
+          transaction_id:   payload.id,
+          order_reference:  payload.orderReference,
+          status:           payload.status,
+          raw_payload:      payload,
+          signature_valid:  true,
+          processed:        false,
+          processing_error: "timestamp_out_of_window:missing",
+          source_ip:        sourceIp,
+          received_at:      new Date().toISOString(),
+        });
       return new Response("stale", { status: 401 });
     }
 
@@ -147,22 +146,20 @@ Deno.serve(async (req: Request) => {
       await supabaseAdmin
         .from("clickpesa_webhook_log")
         .insert({
-          transaction_id: payload.id,
-          order_reference: payload.orderReference,
-          status: payload.status,
-          raw_payload: { rejected: true, reason: "invalid_timestamp", raw_timestamp: eventTimestamp },
-          signature_valid: true,
-          processed: true,
-          processed_at: new Date().toISOString(),
-          processing_error: `Unparseable timestamp: ${eventTimestamp}`,
-          source_ip: sourceIp,
-        })
-        .maybeSingle();
+          transaction_id:   payload.id,
+          order_reference:  payload.orderReference,
+          status:           payload.status,
+          raw_payload:      payload,
+          signature_valid:  true,
+          processed:        false,
+          processing_error: `timestamp_out_of_window:unparseable:${eventTimestamp}`,
+          source_ip:        sourceIp,
+          received_at:      new Date().toISOString(),
+        });
       return new Response("stale", { status: 401 });
     }
 
     const eventAgeMs = Date.now() - eventMs;
-    // Reject if more than 10 minutes old OR more than 10 minutes in the future
     if (Math.abs(eventAgeMs) > WEBHOOK_MAX_AGE_MS) {
       const reason = eventAgeMs > 0 ? "stale_timestamp" : "future_timestamp";
       console.error(
@@ -171,17 +168,16 @@ Deno.serve(async (req: Request) => {
       await supabaseAdmin
         .from("clickpesa_webhook_log")
         .insert({
-          transaction_id: payload.id,
-          order_reference: payload.orderReference,
-          status: payload.status,
-          raw_payload: { rejected: true, reason, event_age_seconds: Math.round(eventAgeMs / 1000) },
-          signature_valid: true,
-          processed: true,
-          processed_at: new Date().toISOString(),
-          processing_error: `Timestamp out of window (${reason}): skew=${Math.round(eventAgeMs / 1000)}s`,
-          source_ip: sourceIp,
-        })
-        .maybeSingle();
+          transaction_id:   payload.id,
+          order_reference:  payload.orderReference,
+          status:           payload.status,
+          raw_payload:      payload,
+          signature_valid:  true,
+          processed:        false,
+          processing_error: `timestamp_out_of_window:${reason}:skew=${Math.round(eventAgeMs / 1000)}s`,
+          source_ip:        sourceIp,
+          received_at:      new Date().toISOString(),
+        });
       return new Response("stale", { status: 401 });
     }
 
@@ -189,13 +185,14 @@ Deno.serve(async (req: Request) => {
     const { data: logEntry, error: logError } = await supabaseAdmin
       .from("clickpesa_webhook_log")
       .insert({
-        transaction_id: payload.id,
+        transaction_id:  payload.id,
         order_reference: payload.orderReference,
-        status: payload.status,
-        raw_payload: payload,
+        status:          payload.status,
+        raw_payload:     payload,
         signature_valid: true,
-        processed: false,
-        source_ip: sourceIp,
+        processed:       false,
+        source_ip:       sourceIp,
+        received_at:     new Date().toISOString(),
       })
       .select()
       .single();
@@ -220,26 +217,29 @@ Deno.serve(async (req: Request) => {
       console.error(`No payment found for order ${payload.orderReference}`);
       await supabaseAdmin
         .from("clickpesa_webhook_log")
-        .update({ processing_error: "No matching payment record", processed: true, processed_at: new Date().toISOString() })
+        .update({
+          processing_error: "no_matching_payment_record",
+          processed:        true,
+          processed_at:     new Date().toISOString(),
+        })
         .eq("id", logEntry.id);
       return new Response("OK", { status: 200 });
     }
 
     // --- Step 6: Update payment status ---
     const updates: Record<string, unknown> = {
-      clickpesa_status: payload.status,
-      clickpesa_channel: payload.channel,
-      webhook_received_at: new Date().toISOString(),
-      webhook_raw_payload: payload,
+      clickpesa_status:     payload.status,
+      clickpesa_channel:    payload.channel,
+      webhook_received_at:  new Date().toISOString(),
+      webhook_raw_payload:  payload,
     };
 
     if (payload.status === "SUCCESS") {
-      updates.completed_at = new Date().toISOString();
       updates.status = "completed";
     } else if (["FAILED", "CANCELLED", "EXPIRED"].includes(payload.status)) {
-      updates.failed_at = new Date().toISOString();
+      updates.failed_at      = new Date().toISOString();
       updates.failure_reason = payload.failureReason || `Payment ${payload.status.toLowerCase()}`;
-      updates.status = "failed";
+      updates.status         = "failed";
     }
 
     await supabaseAdmin.from("subscription_payments").update(updates).eq("id", payment.id);
@@ -255,7 +255,11 @@ Deno.serve(async (req: Request) => {
         console.error(`Activation failed for payment ${payment.id}:`, activationError);
         await supabaseAdmin
           .from("clickpesa_webhook_log")
-          .update({ processing_error: `Activation failed: ${activationError.message}`, processed: true, processed_at: new Date().toISOString() })
+          .update({
+            processing_error: `activation_failed:${activationError.message}`,
+            processed:        true,
+            processed_at:     new Date().toISOString(),
+          })
           .eq("id", logEntry.id);
         return new Response("OK with errors", { status: 200 });
       }
