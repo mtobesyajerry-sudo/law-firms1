@@ -469,14 +469,6 @@ export default function ManagementDashboard() {
               <span style={styles.badge}>{stats.newEnquiries}</span>
             )}
           </button>
-          {(profile?.role === 'management' || profile?.role === 'admin') && (
-            <button
-              onClick={() => navigate('/billing')}
-              style={{ ...styles.tab }}
-            >
-              Billing
-            </button>
-          )}
         </div>
 
         {activeTab === 'overview' && (

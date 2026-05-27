@@ -708,6 +708,24 @@ export default function ClientManagementDashboard() {
               {tab.label}
             </button>
           ))}
+          {(profile?.role === 'management' || profile?.role === 'admin') && (
+            <button
+              onClick={() => navigate('/billing')}
+              style={{
+                padding: '16px 24px',
+                background: 'transparent',
+                border: 'none',
+                borderBottom: '3px solid transparent',
+                cursor: 'pointer',
+                fontSize: '15px',
+                fontWeight: '500',
+                color: '#64748b',
+                transition: 'all 0.2s ease',
+              }}
+            >
+              Billing
+            </button>
+          )}
         </div>
 
         <div style={{ padding: '32px' }}>
