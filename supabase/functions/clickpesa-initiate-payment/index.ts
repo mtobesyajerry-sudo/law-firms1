@@ -225,7 +225,14 @@ async function getClickPesaToken(baseUrl: string): Promise<string | null> {
       return null;
     }
     const data = await response.json();
-    return data.token;
+    const raw = data.token || data.access_token || data.accessToken;
+    if (!raw || typeof raw !== "string") {
+      console.error("ClickPesa token response missing token field:", JSON.stringify(data));
+      return null;
+    }
+    // ClickPesa returns the token already prefixed with "Bearer ".
+    // Strip it here so callers can prepend "Bearer " themselves consistently.
+    return raw.replace(/^Bearer\s+/i, "").trim();
   } catch (err) {
     console.error("ClickPesa token error:", err);
     return null;
