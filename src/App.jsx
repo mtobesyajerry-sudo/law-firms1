@@ -22,6 +22,7 @@ import TrialBanner from './components/TrialBanner';
 import TrialExpiredModal from './components/TrialExpiredModal';
 import PricingPage from './components/pricing/PricingPage';
 import BillingPage from './components/BillingPage';
+import AdminPaymentsPage from './components/AdminPaymentsPage';
 import { validatePassword } from './utils/security';
 
 // Shown when profile.password_change_required = true.
@@ -521,6 +522,14 @@ function AppRoutes() {
         element={
           <ProtectedRoute adminOnly={true}>
             <SecurityDashboard />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/payments"
+        element={
+          <ProtectedRoute adminOnly={true}>
+            <AdminPaymentsPage />
           </ProtectedRoute>
         }
       />

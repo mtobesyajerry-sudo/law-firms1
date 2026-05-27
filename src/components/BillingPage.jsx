@@ -675,8 +675,8 @@ function PayNowModal({ org, plans, userEmail, onClose, onSuccess }) {
                   {copied ? 'Copied!' : 'Copy'}
                 </button>
               </div>
-              <div style={{ fontSize: '12px', color: '#3b82f6', marginTop: '8px', fontWeight: '600' }}>
-                Include this exact reference in your transfer narration
+              <div style={{ fontSize: '12px', color: '#64748b', marginTop: '8px' }}>
+                Keep this reference for your records — quote it if you contact support.
               </div>
             </div>
 
@@ -716,11 +716,13 @@ function PayNowModal({ org, plans, userEmail, onClose, onSuccess }) {
             </div>
 
             <div style={{
-              padding: '12px 14px', background: '#f0fdf4', border: '1px solid #86efac',
-              borderRadius: '8px', fontSize: '13px', color: '#166534', marginBottom: '20px', lineHeight: '1.5',
+              padding: '14px 16px', background: '#f0fdf4', border: '1px solid #86efac',
+              borderRadius: '8px', fontSize: '13px', color: '#166534', marginBottom: '20px', lineHeight: '1.6',
             }}>
-              We will activate your subscription within 1 business day of receiving your transfer.
-              You will get a confirmation email at <strong>{userEmail}</strong>.
+              Transfer {formatTZS(bankAmountConfirmed)} to the account above using your preferred CRDB channel
+              (branch, mobile app, or online banking). We will activate your subscription within 1–2 business
+              days of receiving your payment. You'll receive a confirmation email at{' '}
+              <strong>{userEmail}</strong> when activation is complete.
             </div>
 
             <button onClick={onClose} style={ms.primaryBtn}>Done</button>
