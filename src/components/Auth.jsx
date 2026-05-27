@@ -25,8 +25,6 @@ export default function Auth() {
   const [sectorConfirmed, setSectorConfirmed] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [privacyAccepted, setPrivacyAccepted] = useState(false);
-  const [dataProcessingConsent, setDataProcessingConsent] = useState(false);
-  const [amlCftConsent, setAmlCftConsent] = useState(false);
   const [existingOrgData, setExistingOrgData] = useState(null);
   const [brelaCheckLoading, setBrelaCheckLoading] = useState(false);
   const [requestedTier, setRequestedTier] = useState('small_firm');
@@ -318,7 +316,7 @@ export default function Auth() {
           return;
         }
 
-        if (!sectorConfirmed || !termsAccepted || !privacyAccepted || !dataProcessingConsent || !amlCftConsent) {
+        if (!sectorConfirmed || !termsAccepted || !privacyAccepted) {
           setError('Please accept all required consents to proceed');
           setLoading(false);
           return;
@@ -350,8 +348,6 @@ export default function Auth() {
           sector_confirmed: sectorConfirmed,
           terms_accepted: termsAccepted,
           privacy_policy_accepted: privacyAccepted,
-          data_processing_consent: dataProcessingConsent,
-          aml_cft_consent: amlCftConsent,
           registration_status: 'pending',
           requested_tier: existingOrgData && !existingOrgData.full ? null : requestedTier,
         };
@@ -794,7 +790,10 @@ export default function Auth() {
                       required
                     />
                     <span style={styles.checkboxText}>
-                      I accept the Terms and Conditions
+                      I accept the{' '}
+                      <a href="/terms" target="_blank" rel="noopener noreferrer" style={styles.consentLink}>
+                        Terms and Conditions
+                      </a>
                     </span>
                   </label>
 
@@ -807,33 +806,10 @@ export default function Auth() {
                       required
                     />
                     <span style={styles.checkboxText}>
-                      I accept the Privacy Policy
-                    </span>
-                  </label>
-
-                  <label style={styles.checkboxLabel}>
-                    <input
-                      type="checkbox"
-                      checked={dataProcessingConsent}
-                      onChange={(e) => setDataProcessingConsent(e.target.checked)}
-                      style={styles.checkbox}
-                      required
-                    />
-                    <span style={styles.checkboxText}>
-                      I consent to secure processing of personal data under the Personal Data Protection Act
-                    </span>
-                  </label>
-
-                  <label style={styles.checkboxLabel}>
-                    <input
-                      type="checkbox"
-                      checked={amlCftConsent}
-                      onChange={(e) => setAmlCftConsent(e.target.checked)}
-                      style={styles.checkbox}
-                      required
-                    />
-                    <span style={styles.checkboxText}>
-                      I consent to AML/CFT risk-based compliance tools
+                      I accept the{' '}
+                      <a href="/privacy" target="_blank" rel="noopener noreferrer" style={styles.consentLink}>
+                        Privacy Policy
+                      </a>
                     </span>
                   </label>
                 </div>
@@ -1043,6 +1019,11 @@ const styles = {
     width: '18px',
     height: '18px',
     marginTop: '2px',
+    cursor: 'pointer',
+  },
+  consentLink: {
+    color: '#1e40af',
+    textDecoration: 'underline',
     cursor: 'pointer',
   },
   checkboxText: {
