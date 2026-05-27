@@ -255,7 +255,7 @@ Deno.serve(async (req: Request) => {
 
     if (!resendKey) {
       console.warn("[submit-bank-transfer-claim] RESEND_API_KEY not set — email not sent.", {
-        to: "info@iuris-peritis.co.tz",
+        to: "info@iursperitis.co.tz",
         subject: emailSubject,
       });
     } else {
@@ -267,7 +267,7 @@ Deno.serve(async (req: Request) => {
         },
         body: JSON.stringify({
           from: "Iuris Peritis Billing <onboarding@resend.dev>",
-          to: ["info@iuris-peritis.co.tz"],
+          to: ["info@iursperitis.co.tz"],
           subject: emailSubject,
           text: textBody,
           html: htmlBody,
