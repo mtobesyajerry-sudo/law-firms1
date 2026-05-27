@@ -164,6 +164,17 @@ Deno.serve(async (req: Request) => {
       return jsonError("Failed to authenticate with payment gateway. Please try again.", 502);
     }
 
+    // Compute period dates server-side at initiation time
+    const periodStart = new Date();
+    const periodEnd = new Date(periodStart);
+    if (body.billing_cycle === "annual") {
+      periodEnd.setFullYear(periodEnd.getFullYear() + 1);
+    } else {
+      periodEnd.setMonth(periodEnd.getMonth() + 1);
+    }
+    const periodStartStr = periodStart.toISOString().split("T")[0];
+    const periodEndStr = periodEnd.toISOString().split("T")[0];
+
     // Insert payment record before calling ClickPesa (so we have an ID on failure too)
     const { data: payment, error: insertError } = await supabaseAdmin
       .from("subscription_payments")
@@ -190,6 +201,8 @@ Deno.serve(async (req: Request) => {
         payer_name: body.payer_name || null,
         initiated_at: new Date().toISOString(),
         created_by: user.id,
+        period_start: periodStartStr,
+        period_end: periodEndStr,
       })
       .select()
       .single();
