@@ -107,7 +107,42 @@ Deno.serve(async (req: Request) => {
 
       // If now successful and not already activated, activate
       if (newStatus === "SUCCESS" && payment.clickpesa_status !== "SUCCESS") {
-        await supabaseAdmin.rpc("activate_subscription_after_payment", { p_payment_id: payment.id });
+        const { error: activationError } = await supabaseAdmin.rpc("activate_subscription_after_payment", { p_payment_id: payment.id });
+
+        if (!activationError) {
+          // Send activation email (non-fatal)
+          try {
+            const { data: org } = await supabaseAdmin
+              .from("organizations")
+              .select("name, contact_email")
+              .eq("id", payment.organization_id)
+              .maybeSingle();
+
+            const resendKey = Deno.env.get("RESEND_API_KEY");
+            const contactEmail = org?.contact_email ?? null;
+
+            if (!resendKey) {
+              console.warn("[clickpesa-check-payment-status] RESEND_API_KEY not set — activation email not sent.");
+            } else if (!contactEmail) {
+              console.warn("[clickpesa-check-payment-status] No contact_email on org — activation email skipped.", { org_id: payment.organization_id });
+            } else {
+              const emailPayload = buildActivationEmail(org.name ?? "Your organisation", payment, statusData.channel);
+              const emailRes = await fetch("https://api.resend.com/emails", {
+                method: "POST",
+                headers: { "Authorization": `Bearer ${resendKey}`, "Content-Type": "application/json" },
+                body: JSON.stringify({ from: "Iuris Peritis Billing <onboarding@resend.dev>", to: [contactEmail], ...emailPayload }),
+              });
+              const emailBody = await emailRes.json().catch(() => ({}));
+              if (!emailRes.ok) {
+                console.error("[clickpesa-check-payment-status] Activation email failed:", emailBody);
+              } else {
+                console.log("[clickpesa-check-payment-status] Activation email sent, Resend id:", (emailBody as { id?: string }).id);
+              }
+            }
+          } catch (emailErr) {
+            console.error("[clickpesa-check-payment-status] Activation email error (non-fatal):", emailErr);
+          }
+        }
       } else if (["FAILED", "CANCELLED", "EXPIRED"].includes(newStatus)) {
         await supabaseAdmin
           .from("subscription_payments")
@@ -174,6 +209,88 @@ async function getClickPesaToken(): Promise<string | null> {
     console.error("ClickPesa token error:", err);
     return null;
   }
+}
+
+interface PaymentRow {
+  payment_reference?: string;
+  tier?: string;
+  billing_cycle?: string;
+  period_start?: string | null;
+  period_end?: string | null;
+  amount_gross_tzs?: number;
+}
+
+function buildActivationEmail(
+  orgName: string,
+  payment: PaymentRow,
+  channel?: string
+): { subject: string; text: string; html: string } {
+  const tierLabel  = (payment.tier ?? "").replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+  const cycleLabel = payment.billing_cycle === "annual" ? "Annual" : "Monthly";
+  const ref        = payment.payment_reference ?? "—";
+  const amount     = payment.amount_gross_tzs ? `TZS ${Number(payment.amount_gross_tzs).toLocaleString()}` : "—";
+
+  const formatDate = (d: string | null | undefined) =>
+    d ? new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "long", year: "numeric" }) : "—";
+
+  const periodStr = (payment.period_start && payment.period_end)
+    ? `${formatDate(payment.period_start)} — ${formatDate(payment.period_end)}`
+    : "—";
+
+  const methodLabel = channel
+    ? channel.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
+    : "Mobile Money";
+
+  const subject = `Subscription activated — Ref ${ref}`;
+
+  const text = [
+    `Your Iuris Peritis Compliance Platform subscription is now active.`,
+    ``,
+    `Organisation: ${orgName}`,
+    `Plan:         ${tierLabel} — ${cycleLabel}`,
+    `Period:       ${periodStr}`,
+    `Amount:       ${amount}`,
+    `Reference:    ${ref}`,
+    `Method:       ${methodLabel}`,
+    ``,
+    `Manage your subscription at: https://lawfirms1.iursperitis.co.tz/billing`,
+    `Questions? Email info@iursperitis.co.tz`,
+    ``,
+    `— Iuris Peritis`,
+    `  AML/CFT/CPF Compliance for Tanzanian Advocates`,
+  ].join("\n");
+
+  const html = `
+<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#fafaf7;border:1px solid #e2e2dc;border-radius:8px;overflow:hidden">
+  <div style="background:#0a1929;padding:20px 24px;border-bottom:3px solid #d4af37">
+    <h2 style="color:#d4af37;margin:0;font-size:18px;letter-spacing:0.5px">Subscription Activated</h2>
+    <p style="color:#f4e8b8;margin:6px 0 0;font-size:13px">${orgName}</p>
+  </div>
+  <div style="padding:24px">
+    <p style="font-size:14px;color:#374151;margin:0 0 16px;line-height:1.6">
+      Great news — your Iuris Peritis Compliance Platform subscription is now active.
+      Your payment has been confirmed.
+    </p>
+    <table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:20px">
+      <tr style="background:#f1f5f9"><td style="padding:10px 12px;color:#6b6b6b;width:170px;font-weight:600">Plan</td><td style="padding:10px 12px;font-weight:700;color:#0a1929">${tierLabel} — ${cycleLabel}</td></tr>
+      <tr><td style="padding:10px 12px;color:#6b6b6b;font-weight:600">Subscription Period</td><td style="padding:10px 12px;color:#1a1a1a">${periodStr}</td></tr>
+      <tr style="background:#f1f5f9"><td style="padding:10px 12px;color:#6b6b6b;font-weight:600">Amount</td><td style="padding:10px 12px;color:#1a1a1a">${amount}</td></tr>
+      <tr><td style="padding:10px 12px;color:#6b6b6b;font-weight:600">Payment Reference</td><td style="padding:10px 12px;font-family:monospace;font-weight:800;color:#0a1929;font-size:14px;letter-spacing:1px">${ref}</td></tr>
+      <tr style="background:#f1f5f9"><td style="padding:10px 12px;color:#6b6b6b;font-weight:600">Payment Method</td><td style="padding:10px 12px;color:#1a1a1a">${methodLabel}</td></tr>
+      <tr><td style="padding:10px 12px;color:#6b6b6b;font-weight:600">Status</td><td style="padding:10px 12px;color:#166534;font-weight:700">Active</td></tr>
+    </table>
+    <p style="font-size:13px;color:#64748b;line-height:1.6">
+      Manage your subscription and view payment history at
+      <a href="https://lawfirms1.iursperitis.co.tz/billing" style="color:#2563eb">lawfirms1.iursperitis.co.tz/billing</a>.
+      Questions? <a href="mailto:info@iursperitis.co.tz" style="color:#2563eb">info@iursperitis.co.tz</a>
+    </p>
+  </div>
+  <div style="padding:12px 24px;background:#f0f0ec;border-top:1px solid #e2e2dc;font-size:11px;color:#6b6b6b">
+    Automated notification from Iuris Peritis Compliance Platform. Do not reply to this email.
+  </div>
+</div>`;
+
+  return { subject, text, html };
 }
 
 function json(data: unknown): Response {
