@@ -142,17 +142,24 @@ export default function PlanCard({ plan, user, profile, organization, onContactS
               </span>
               <span style={{ fontSize: '14px', color: '#64748b' }}>/month</span>
             </div>
-            {plan.price_annual_tzs && (
-              <div style={{ fontSize: '13px', color: '#64748b', marginTop: '6px', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                or <strong style={{ color: '#0a1929' }}>TZS {formatTZS(plan.price_annual_tzs)}/year</strong>
-                <span style={{
-                  background: '#d1fae5', color: '#065f46',
-                  fontSize: '11px', fontWeight: '800', padding: '2px 8px', borderRadius: '20px',
-                }}>
-                  save 17%
-                </span>
-              </div>
-            )}
+            {plan.price_annual_tzs && (() => {
+              const monthly12 = Number(plan.price_monthly_tzs) * 12;
+              const annual    = Number(plan.price_annual_tzs);
+              const savePct   = monthly12 > annual ? Math.round((monthly12 - annual) / monthly12 * 100) : 0;
+              return (
+                <div style={{ fontSize: '13px', color: '#64748b', marginTop: '6px', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                  or <strong style={{ color: '#0a1929' }}>TZS {formatTZS(plan.price_annual_tzs)}/year</strong>
+                  {savePct > 0 && (
+                    <span style={{
+                      background: '#d1fae5', color: '#065f46',
+                      fontSize: '11px', fontWeight: '800', padding: '2px 8px', borderRadius: '20px',
+                    }}>
+                      save {savePct}%
+                    </span>
+                  )}
+                </div>
+              );
+            })()}
             <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '5px' }}>VAT inclusive</div>
           </>
         )}

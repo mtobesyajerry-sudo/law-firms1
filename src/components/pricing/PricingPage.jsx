@@ -141,6 +141,7 @@ export default function PricingPage() {
       .from('subscription_plans')
       .select('tier, display_name, name, description, price_monthly_tzs, price_annual_tzs, max_users, max_clients, max_matters, max_iras_per_year, max_compliance_cases_per_year, max_screenings_per_month, storage_gb, max_branches, audit_log_retention_years, features, contact_sales, display_order')
       .eq('is_active', true)
+      .eq('public_visible', true)
       .order('display_order', { ascending: true });
 
     if (err) { setError(err.message); }
