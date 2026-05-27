@@ -129,9 +129,11 @@ function PayNowModal({ org, plans, userEmail, onClose, onSuccess }) {
 
   // Bank transfer sub-state
   const [crdbDetails, setCrdbDetails] = useState(null);
-  const [submittingBank, setSubmittingBank] = useState(false);
+  const [generatingRef, setGeneratingRef] = useState(false);
   const [bankError, setBankError] = useState('');
   const [bankPaymentRef, setBankPaymentRef] = useState('');
+  const [bankAmountConfirmed, setBankAmountConfirmed] = useState(0);
+  const [copied, setCopied] = useState(false);
 
   const payablePlans = plans.filter(p => !p.contact_sales);
   const selectedPlan = plans.find(p => p.tier === selectedTier);
@@ -147,9 +149,9 @@ function PayNowModal({ org, plans, userEmail, onClose, onSuccess }) {
     if (!canUseMobile && channel === 'mobile') setChannel('bank');
   }, [canUseMobile, channel]);
 
-  // Load CRDB details from system_settings when bank channel selected
+  // Load CRDB details from system_settings eagerly (needed in step 4 confirmation)
   useEffect(() => {
-    if (channel !== 'bank' || crdbDetails) return;
+    if (crdbDetails) return;
     supabase
       .from('system_settings')
       .select('value')
@@ -158,7 +160,7 @@ function PayNowModal({ org, plans, userEmail, onClose, onSuccess }) {
       .then(({ data }) => {
         if (data?.value) setCrdbDetails(data.value);
       });
-  }, [channel, crdbDetails]);
+  }, [crdbDetails]);
 
   // Polling effect (mobile flow)
   useEffect(() => {
@@ -226,55 +228,34 @@ function PayNowModal({ org, plans, userEmail, onClose, onSuccess }) {
     }
   };
 
-  const handleBankTransfer = async () => {
+  const handleGenerateRef = async () => {
     setBankError('');
-    setSubmittingBank(true);
+    setGeneratingRef(true);
     try {
-      // Generate a unique reference for this transfer
-      const orgShort = org.id.replace(/-/g, '').slice(0, 6).toUpperCase();
-      const ts = String(Date.now()).slice(-8);
-      const ref = `IUC${orgShort}${ts}`;
-
-      const { error } = await supabase.from('subscription_payments').insert({
-        organization_id: org.id,
-        payment_reference: ref,
-        payment_type: 'subscription_initial',
-        payment_method: 'bank_transfer_crdb',
-        amount_gross_tzs: totalAmount,
-        amount_net_tzs: subtotal,
-        vat_amount_tzs: vatAmount,
-        vat_rate: 18.00,
-        subscription_tier: selectedTier,
-        billing_period: billingCycle === 'monthly' ? 'monthly' : 'annual',
-        status: 'pending',
-        tier: selectedTier,
-        billing_cycle: billingCycle,
-        amount_tzs: totalAmount,
-        vat_tzs: vatAmount,
-        subtotal_tzs: subtotal,
-        clickpesa_order_reference: ref,
-        clickpesa_status: 'N/A',
-        initiated_at: new Date().toISOString(),
-      });
-
-      if (error) throw error;
-
-      setBankPaymentRef(ref);
-
-      // Notify admin via edge function if available (fire-and-forget, don't block on failure)
-      supabase.functions.invoke('dispatch-security-alert', {
+      const { data, error } = await supabase.functions.invoke('submit-bank-transfer-claim', {
         body: {
-          alert_type: 'bank_transfer_submitted',
-          message: `Bank transfer claim submitted. Org: ${org.name}, Ref: ${ref}, Amount: ${formatTZS(totalAmount)}, Tier: ${selectedTier} ${billingCycle}. Email: ${userEmail}`,
+          tier: selectedTier,
+          billing_cycle: billingCycle,
+          payer_name: payerName || undefined,
         },
-      }).catch(() => {});
-
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      setBankPaymentRef(data.payment_reference);
+      setBankAmountConfirmed(data.amount_gross_tzs);
       setStep(4);
     } catch (err) {
-      setBankError(err.message || 'Could not record transfer. Please try again.');
+      setBankError(err.message || 'Could not generate payment reference. Please try again.');
     } finally {
-      setSubmittingBank(false);
+      setGeneratingRef(false);
     }
+  };
+
+  const handleCopyRef = () => {
+    navigator.clipboard.writeText(bankPaymentRef).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
   };
 
   // ── Amount + breakdown summary strip ────────────────────────────────────────
@@ -535,49 +516,29 @@ function PayNowModal({ org, plans, userEmail, onClose, onSuccess }) {
                 border: '1.5px solid #bfdbfe', borderRadius: '12px',
                 padding: '20px', background: '#f8faff', marginBottom: '20px',
               }}>
-                <div style={{ fontSize: '14px', fontWeight: '700', color: '#0a1929', marginBottom: '14px' }}>
-                  CRDB Account Details
+                <div style={{ fontSize: '14px', fontWeight: '700', color: '#0a1929', marginBottom: '6px' }}>
+                  Pay by CRDB Bank Transfer
+                </div>
+                <p style={{ fontSize: '13px', color: '#64748b', margin: '0 0 18px', lineHeight: '1.5' }}>
+                  Click below to register your transfer intent. We will generate a unique
+                  payment reference and send your account details — include the reference
+                  in your transfer narration so we can match it automatically.
+                </p>
+
+                <div style={{ fontSize: '13px', color: '#475569', marginBottom: '18px' }}>
+                  Amount to transfer:{' '}
+                  <strong style={{ color: '#0a1929', fontSize: '15px' }}>{formatTZS(totalAmount)}</strong>
                 </div>
 
-                {crdbDetails ? (
-                  <div style={{
-                    display: 'grid', gap: '8px', fontSize: '13px',
-                    padding: '14px', background: 'white', borderRadius: '8px',
-                    border: '1px solid #e2e8f0', marginBottom: '16px',
-                  }}>
-                    {[
-                      ['Account Name',   crdbDetails.account_name],
-                      ['Account Number', crdbDetails.account_number],
-                      ['Branch',         crdbDetails.branch],
-                      ['SWIFT / BIC',    crdbDetails.swift_code],
-                    ].map(([lbl, val]) => (
-                      <div key={lbl} style={{ display: 'flex', justifyContent: 'space-between', gap: '12px' }}>
-                        <span style={{ color: '#64748b', flexShrink: 0 }}>{lbl}</span>
-                        <span style={{ fontWeight: '700', color: '#0a1929', fontFamily: 'monospace', textAlign: 'right' }}>
-                          {val || '—'}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div style={{ fontSize: '13px', color: '#94a3b8', marginBottom: '16px' }}>
-                    Loading account details...
-                  </div>
-                )}
-
-                <div style={{
-                  padding: '12px 14px', background: '#fef9c3', border: '1px solid #fde68a',
-                  borderRadius: '8px', fontSize: '13px', color: '#92400e', marginBottom: '16px',
-                }}>
-                  <strong>Important:</strong> Include the payment reference{' '}
-                  <span style={{ fontFamily: 'monospace', fontWeight: '700' }}>
-                    (generated on next step)
-                  </span>{' '}
-                  in the transfer narration so we can match your payment.
-                </div>
-
-                <div style={{ fontSize: '13px', color: '#64748b', marginBottom: '18px' }}>
-                  Amount to transfer: <strong style={{ color: '#0a1929' }}>{formatTZS(totalAmount)}</strong>
+                <div style={{ marginBottom: '18px' }}>
+                  <label style={ms.label}>Your name (optional)</label>
+                  <input
+                    style={ms.input}
+                    type="text"
+                    placeholder="Name of account holder making the transfer"
+                    value={payerName}
+                    onChange={e => setPayerName(e.target.value)}
+                  />
                 </div>
 
                 {bankError && (
@@ -590,11 +551,13 @@ function PayNowModal({ org, plans, userEmail, onClose, onSuccess }) {
                 )}
 
                 <button
-                  style={{ ...ms.primaryBtn, opacity: submittingBank ? 0.7 : 1 }}
-                  onClick={handleBankTransfer}
-                  disabled={submittingBank}
+                  style={{ ...ms.primaryBtn, opacity: generatingRef ? 0.7 : 1 }}
+                  onClick={handleGenerateRef}
+                  disabled={generatingRef}
                 >
-                  {submittingBank ? 'Recording...' : 'I have made the transfer'}
+                  {generatingRef
+                    ? 'Generating reference...'
+                    : 'Generate Payment Reference'}
                 </button>
               </div>
             )}
@@ -661,44 +624,106 @@ function PayNowModal({ org, plans, userEmail, onClose, onSuccess }) {
           </div>
         )}
 
-        {/* ── Step 4: Bank transfer confirmation ───────────────────────────── */}
+        {/* ── Step 4: Bank transfer — reference + account details ──────────── */}
         {step === 4 && (
-          <div style={{ textAlign: 'center', padding: '8px 0' }}>
-            <div style={{ fontSize: '52px', marginBottom: '16px' }}>🏦</div>
-            <h2 style={{ ...ms.heading, textAlign: 'center', marginBottom: '12px' }}>
-              Transfer Recorded
-            </h2>
-            <p style={{ color: '#64748b', fontSize: '14px', marginBottom: '20px', lineHeight: '1.6' }}>
-              Thank you. We will confirm your subscription once your transfer is received.
-              You will get an email at{' '}
-              <strong style={{ color: '#0a1929' }}>{userEmail}</strong>{' '}
-              within 1 business day.
-            </p>
-
+          <div style={{ padding: '4px 0' }}>
             <div style={{
-              padding: '16px', background: '#f8fafc', border: '1px solid #e2e8f0',
-              borderRadius: '10px', marginBottom: '24px', textAlign: 'left',
+              display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px',
             }}>
-              <div style={{ fontSize: '12px', color: '#64748b', fontWeight: '600', marginBottom: '6px' }}>
+              <div style={{
+                width: '44px', height: '44px', borderRadius: '50%',
+                background: '#d1fae5', display: 'flex', alignItems: 'center',
+                justifyContent: 'center', flexShrink: 0,
+              }}>
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#065f46" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+              </div>
+              <div>
+                <h2 style={{ ...ms.heading, margin: 0, fontSize: '18px' }}>Reference Generated</h2>
+                <p style={{ margin: '2px 0 0', fontSize: '13px', color: '#64748b' }}>
+                  Now make your transfer using the details below
+                </p>
+              </div>
+            </div>
+
+            {/* Payment reference — prominent */}
+            <div style={{
+              padding: '16px 20px', background: '#eff6ff',
+              border: '2px solid #bfdbfe', borderRadius: '12px', marginBottom: '20px',
+            }}>
+              <div style={{ fontSize: '11px', fontWeight: '700', color: '#1d4ed8', letterSpacing: '1px', marginBottom: '6px' }}>
                 YOUR PAYMENT REFERENCE
               </div>
-              <div style={{ fontFamily: 'monospace', fontWeight: '800', fontSize: '18px', color: '#2563eb', letterSpacing: '1px' }}>
-                {bankPaymentRef}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <span style={{
+                  fontFamily: 'monospace', fontWeight: '800', fontSize: '22px',
+                  color: '#1e40af', letterSpacing: '2px', flex: 1,
+                }}>
+                  {bankPaymentRef}
+                </span>
+                <button
+                  onClick={handleCopyRef}
+                  title="Copy reference"
+                  style={{
+                    padding: '7px 14px', background: copied ? '#065f46' : '#1d4ed8',
+                    color: 'white', border: 'none', borderRadius: '7px',
+                    fontWeight: '700', fontSize: '12px', cursor: 'pointer',
+                    transition: 'background 0.2s', flexShrink: 0,
+                  }}
+                >
+                  {copied ? 'Copied!' : 'Copy'}
+                </button>
               </div>
-              <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '6px' }}>
-                Include this reference in the transfer narration
+              <div style={{ fontSize: '12px', color: '#3b82f6', marginTop: '8px', fontWeight: '600' }}>
+                Include this exact reference in your transfer narration
               </div>
+            </div>
+
+            {/* CRDB account details */}
+            <div style={{
+              padding: '16px', background: '#f8fafc',
+              border: '1px solid #e2e8f0', borderRadius: '10px', marginBottom: '16px',
+            }}>
+              <div style={{ fontSize: '12px', fontWeight: '700', color: '#64748b', letterSpacing: '0.5px', marginBottom: '12px' }}>
+                CRDB BANK ACCOUNT DETAILS
+              </div>
+              {crdbDetails ? (
+                <div style={{ display: 'grid', gap: '8px', fontSize: '13px' }}>
+                  {[
+                    ['Bank',           'CRDB Bank'],
+                    ['Account Name',   crdbDetails.account_name],
+                    ['Account Number', crdbDetails.account_number],
+                    ['Branch',         crdbDetails.branch],
+                    ['SWIFT / BIC',    crdbDetails.swift_code],
+                    ['Amount',         formatTZS(bankAmountConfirmed)],
+                  ].map(([lbl, val]) => (
+                    <div key={lbl} style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', paddingBottom: '7px', borderBottom: '1px solid #f1f5f9' }}>
+                      <span style={{ color: '#64748b', flexShrink: 0 }}>{lbl}</span>
+                      <span style={{
+                        fontWeight: '700', color: '#0a1929',
+                        fontFamily: lbl === 'Account Number' || lbl === 'SWIFT / BIC' ? 'monospace' : 'inherit',
+                        textAlign: 'right',
+                      }}>
+                        {val || '—'}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div style={{ fontSize: '13px', color: '#94a3b8' }}>Loading account details...</div>
+              )}
             </div>
 
             <div style={{
-              padding: '12px 14px', background: '#fef9c3', border: '1px solid #fde68a',
-              borderRadius: '8px', fontSize: '13px', color: '#92400e', marginBottom: '24px', textAlign: 'left',
+              padding: '12px 14px', background: '#f0fdf4', border: '1px solid #86efac',
+              borderRadius: '8px', fontSize: '13px', color: '#166534', marginBottom: '20px', lineHeight: '1.5',
             }}>
-              Amount: <strong>{formatTZS(totalAmount)}</strong> ·{' '}
-              {selectedPlan?.name} · {billingCycle === 'annual' ? 'Annual' : 'Monthly'}
+              We will activate your subscription within 1 business day of receiving your transfer.
+              You will get a confirmation email at <strong>{userEmail}</strong>.
             </div>
 
-            <button onClick={onClose} style={ms.primaryBtn}>Close</button>
+            <button onClick={onClose} style={ms.primaryBtn}>Done</button>
           </div>
         )}
       </div>
