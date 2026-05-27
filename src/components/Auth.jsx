@@ -29,6 +29,7 @@ export default function Auth() {
   const [amlCftConsent, setAmlCftConsent] = useState(false);
   const [existingOrgData, setExistingOrgData] = useState(null);
   const [brelaCheckLoading, setBrelaCheckLoading] = useState(false);
+  const [requestedTier, setRequestedTier] = useState('small_firm');
 
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -351,7 +352,8 @@ export default function Auth() {
           privacy_policy_accepted: privacyAccepted,
           data_processing_consent: dataProcessingConsent,
           aml_cft_consent: amlCftConsent,
-          registration_status: 'pending'
+          registration_status: 'pending',
+          requested_tier: existingOrgData && !existingOrgData.full ? null : requestedTier,
         };
 
         if (existingOrgData && !existingOrgData.full) {
@@ -684,6 +686,86 @@ export default function Auth() {
                         required
                       />
                     </div>
+                  </>
+                )}
+
+                {(!existingOrgData || existingOrgData.full) && (
+                  <>
+                    <div style={styles.sectionTitle}>Choose Your Plan</div>
+                    <p style={{ fontSize: '13px', color: '#64748b', margin: '0 0 12px' }}>
+                      Start with a free 14-day trial — no payment required upfront.
+                      Tiers reflect firm capacity (users and clients), not feature levels.
+                    </p>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '8px' }}>
+                      {[
+                        {
+                          tier: 'small_firm',
+                          label: 'Small Firm',
+                          price: 'TZS 250,000 / month',
+                          capacity: '12 users · 150 clients',
+                          hint: 'For firms with up to 10 advocates',
+                        },
+                        {
+                          tier: 'medium_firm',
+                          label: 'Medium Firm',
+                          price: 'TZS 600,000 / month',
+                          capacity: '30 users · 600 clients',
+                          hint: 'For firms with 11–30 advocates',
+                        },
+                        {
+                          tier: 'large_firm',
+                          label: 'Large Firm',
+                          price: 'Contact for pricing',
+                          capacity: 'Unlimited users & clients',
+                          hint: 'For firms with 31+ advocates',
+                        },
+                      ].map(({ tier, label, price, capacity, hint }) => {
+                        const isSelected = requestedTier === tier;
+                        return (
+                          <button
+                            key={tier}
+                            type="button"
+                            onClick={() => setRequestedTier(tier)}
+                            style={{
+                              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                              padding: '14px 16px', borderRadius: '10px', cursor: 'pointer',
+                              border: `2px solid ${isSelected ? '#d4af37' : '#e2e8f0'}`,
+                              background: isSelected ? '#fffbeb' : '#f8fafc',
+                              boxShadow: isSelected ? '0 0 0 2px rgba(212,175,55,0.15)' : 'none',
+                              transition: 'all 0.15s', textAlign: 'left',
+                            }}
+                          >
+                            <div>
+                              <div style={{ fontWeight: '700', fontSize: '14px', color: '#0a1929', marginBottom: '2px' }}>
+                                {label}
+                              </div>
+                              <div style={{ fontSize: '12px', color: '#64748b' }}>{hint}</div>
+                              <div style={{ fontSize: '12px', color: '#475569', marginTop: '3px' }}>{capacity}</div>
+                            </div>
+                            <div style={{ textAlign: 'right', flexShrink: 0, paddingLeft: '12px' }}>
+                              <div style={{ fontWeight: '700', fontSize: '13px', color: isSelected ? '#92400e' : '#2563eb' }}>
+                                {price}
+                              </div>
+                              {isSelected && (
+                                <div style={{ fontSize: '11px', color: '#92400e', fontWeight: '600', marginTop: '3px' }}>
+                                  Selected
+                                </div>
+                              )}
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {requestedTier === 'large_firm' && (
+                      <div style={{
+                        padding: '10px 14px', background: '#eff6ff',
+                        border: '1px solid #bfdbfe', borderRadius: '8px',
+                        fontSize: '12px', color: '#1d4ed8', marginBottom: '4px',
+                      }}>
+                        Your trial will use Medium Firm capabilities. Our team will contact you during the trial
+                        to discuss Large Firm pricing and onboarding.
+                      </div>
+                    )}
                   </>
                 )}
 

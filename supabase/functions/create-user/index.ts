@@ -51,23 +51,42 @@ async function handleApproveRegistration(supabaseAdmin: any, registrationId: str
     throw new Error("Registration not found");
   }
 
+  // Determine effective trial tier.
+  // large_firm trials use medium_firm capabilities; requested_tier is preserved for audit.
+  const requestedTier: string = registration.requested_tier || "small_firm";
+  const trialTier: string = requestedTier === "large_firm" ? "medium_firm" : requestedTier;
+
   const { data: orgData, error: orgError } = await supabaseAdmin
     .from("organizations")
     .insert({
       name: registration.law_firm_name,
       business_type: "law_firm",
-      law_firm_type: "small_firm",
+      law_firm_type: trialTier,
       brela_registration: registration.brela_registration_number,
       tls_registration: registration.tls_registration_number,
       contact_email: registration.firm_email,
       is_active: true,
       subscription_status: "active",
       subscription_fee: 0,
+      requested_tier: requestedTier,
     })
     .select()
     .single();
 
   if (orgError) throw new Error(`Failed to create organization: ${orgError.message}`);
+
+  // Start the 14-day trial
+  const { error: trialError } = await supabaseAdmin.rpc("start_trial", {
+    p_org_id: orgData.id,
+    p_chosen_tier: trialTier,
+  });
+  if (trialError) throw new Error(`Failed to start trial: ${trialError.message}`);
+
+  // stamp payment_state = trialing (start_trial sets is_trialing but not payment_state)
+  await supabaseAdmin
+    .from("organizations")
+    .update({ payment_state: "trialing" })
+    .eq("id", orgData.id);
 
   const decryptedPassword = decryptPassword(registration.encrypted_password);
   if (!decryptedPassword) throw new Error("Failed to decrypt password");
@@ -101,12 +120,68 @@ async function handleApproveRegistration(supabaseAdmin: any, registrationId: str
     .update({ registration_status: "active", approved_at: new Date().toISOString() })
     .eq("id", registrationId);
 
+  // For large_firm prospects, notify the sales team to follow up during the trial
+  if (requestedTier === "large_firm") {
+    const resendKey = Deno.env.get("RESEND_API_KEY");
+    const trialStart = new Date();
+    const trialEnd = new Date(trialStart.getTime() + 14 * 24 * 60 * 60 * 1000);
+    const fmt = (d: Date) =>
+      d.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "Africa/Dar_es_Salaam" });
+
+    const subject = `Large firm trial activated — sales follow-up needed: ${registration.law_firm_name}`;
+    const textBody = [
+      "A large firm trial has been activated and requires a sales conversation before the trial ends.",
+      "",
+      `Organisation:   ${registration.law_firm_name}`,
+      `BRELA number:   ${registration.brela_registration_number || "—"}`,
+      `Contact name:   ${registration.contact_person_name || "—"}`,
+      `Contact email:  ${registration.firm_email}`,
+      `Mobile:         ${registration.mobile_number || "—"}`,
+      "Trial tier:     Medium Firm capabilities (large_firm requested)",
+      `Trial start:    ${fmt(trialStart)}`,
+      `Trial end:      ${fmt(trialEnd)}`,
+      "",
+      "Suggested action: Reach out to this firm during the trial to discuss large_firm pricing",
+      "and onboarding. They will need a custom quote and migration plan.",
+      "",
+      "— Iuris Peritis Compliance Platform",
+    ].join("\n");
+
+    if (!resendKey) {
+      console.warn("[create-user] RESEND_API_KEY not set — large firm sales alert not sent.", {
+        to: "info@iursperitis.co.tz",
+        subject,
+      });
+    } else {
+      try {
+        await fetch("https://api.resend.com/emails", {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${resendKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            from: "Iuris Peritis Compliance <onboarding@resend.dev>",
+            to: ["info@iursperitis.co.tz"],
+            subject,
+            text: textBody,
+          }),
+        });
+      } catch (emailErr) {
+        // Non-fatal — log but don't fail the approval
+        console.error("[create-user] Failed to send large firm sales alert:", emailErr);
+      }
+    }
+  }
+
   return new Response(
     JSON.stringify({
       success: true,
       message: "Registration approved successfully",
       organization_id: orgData.id,
       user_id: authData.user.id,
+      trial_tier: trialTier,
+      requested_tier: requestedTier,
     }),
     { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 },
   );

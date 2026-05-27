@@ -946,17 +946,26 @@ export default function BillingPage() {
   }
 
   // Plan-picker button label logic
+  const hasActivePaidSub = hasActiveSub && !isTrialing;
+
   const getPlanAction = (plan) => {
     if (plan.contact_sales) return { label: 'Contact sales', variant: 'ghost', disabled: false };
-    if (!hasActiveSub && !isTrialing) return { label: 'Pay Now', variant: 'primary', disabled: false };
 
-    const tierOrder = ['small_firm', 'medium_firm', 'large_firm'];
+    const tierOrder  = ['small_firm', 'medium_firm', 'large_firm'];
     const currentIdx = tierOrder.indexOf(activeTier);
     const planIdx    = tierOrder.indexOf(plan.tier);
 
+    // Trialing user: trial tier IS their effective current tier
+    if (isTrialing && !hasActivePaidSub) {
+      if (plan.tier === activeTier) return { label: 'Subscribe', variant: 'primary', disabled: false };
+      if (planIdx > currentIdx)     return { label: 'Upgrade', variant: 'primary', disabled: false };
+      return { label: 'Lower tier', variant: 'secondary', disabled: true };
+    }
+
+    if (!hasActivePaidSub) return { label: 'Pay Now', variant: 'primary', disabled: false };
+
     if (plan.tier === activeTier) return { label: 'Current plan', variant: 'current', disabled: true };
     if (planIdx > currentIdx)     return { label: 'Upgrade', variant: 'primary', disabled: false };
-    // Lower tier — link to contact support
     return { label: 'Contact support', variant: 'ghost', disabled: false };
   };
 
@@ -1214,6 +1223,15 @@ export default function BillingPage() {
                       >
                         {action.label}
                       </a>
+                    ) : action.variant === 'secondary' || action.disabled ? (
+                      <div style={{
+                        padding: '9px 16px', textAlign: 'center', borderRadius: '8px',
+                        background: '#f1f5f9', color: '#94a3b8',
+                        fontSize: '13px', fontWeight: '600',
+                        border: '1px solid #e2e8f0',
+                      }}>
+                        {action.label}
+                      </div>
                     ) : (
                       <button
                         onClick={() => setShowPayModal(true)}
