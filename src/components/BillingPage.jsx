@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
 
+const CLICKPESA_MAX_AMOUNT = 3000000;
+
 const PAYMENT_METHOD_LABELS = {
   mpesa: 'M-Pesa',
   mixx_by_yas: 'Mixx by Yas',
@@ -28,6 +30,13 @@ const TIER_LABELS = {
   large_firm:  'Large Firm',
 };
 
+const MOBILE_METHODS = [
+  { value: 'mpesa',        label: 'M-Pesa',       icon: 'M' },
+  { value: 'mixx_by_yas',  label: 'Mixx by Yas',  icon: 'Y' },
+  { value: 'airtel_money', label: 'Airtel Money',  icon: 'A' },
+  { value: 'halopesa',     label: 'HaloPesa',      icon: 'H' },
+];
+
 function formatTZS(amount) {
   if (amount == null) return '—';
   return `TZS ${Number(amount).toLocaleString()}`;
@@ -47,14 +56,6 @@ function normalizePhone(raw) {
   return n;
 }
 
-const PAYMENT_METHODS = [
-  { value: 'mpesa',               label: 'M-Pesa',          icon: 'M' },
-  { value: 'mixx_by_yas',         label: 'Mixx by Yas',     icon: 'Y' },
-  { value: 'airtel_money',        label: 'Airtel Money',    icon: 'A' },
-  { value: 'halopesa',            label: 'HaloPesa',        icon: 'H' },
-  { value: 'bank_transfer_crdb',  label: 'CRDB Transfer',   icon: 'C' },
-];
-
 function getStatusMessage(status) {
   switch (status) {
     case 'INITIATING': return 'Sending payment request to your phone...';
@@ -68,12 +69,54 @@ function getStatusMessage(status) {
   }
 }
 
-// ─── PayNowModal ─────────────────────────────────────────────────────────────
-function PayNowModal({ org, plans, onClose, onSuccess }) {
+// ─── Shared modal styles ──────────────────────────────────────────────────────
+const ms = {
+  overlay: {
+    position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    zIndex: 9999, padding: '16px',
+  },
+  box: {
+    background: 'white', borderRadius: '16px', padding: '32px',
+    maxWidth: '560px', width: '100%', maxHeight: '92vh',
+    overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.25)',
+  },
+  heading: { fontSize: '22px', fontWeight: '800', color: '#0a1929', margin: '0 0 4px' },
+  sub: { fontSize: '13px', color: '#64748b', margin: '0 0 24px' },
+  label: { display: 'block', fontSize: '13px', fontWeight: '600', color: '#475569', marginBottom: '8px' },
+  input: {
+    width: '100%', padding: '11px 14px', border: '1.5px solid #e2e8f0',
+    borderRadius: '8px', fontSize: '15px', boxSizing: 'border-box',
+    outline: 'none',
+  },
+  primaryBtn: {
+    padding: '13px 24px', background: '#2563eb', color: 'white', border: 'none',
+    borderRadius: '10px', fontWeight: '700', fontSize: '15px',
+    cursor: 'pointer', width: '100%',
+  },
+  ghostBtn: {
+    padding: '13px 24px', background: 'transparent', color: '#64748b',
+    border: '1.5px solid #e2e8f0', borderRadius: '10px', fontWeight: '600',
+    fontSize: '14px', cursor: 'pointer', width: '100%',
+  },
+};
+
+// ─── PayNowModal ──────────────────────────────────────────────────────────────
+function PayNowModal({ org, plans, userEmail, onClose, onSuccess }) {
+  // Step 1 = plan + cycle, Step 2 = channel selection + details, Step 3 = mobile polling, Step 4 = bank transfer confirmation
   const [step, setStep] = useState(1);
-  const [selectedTier, setSelectedTier] = useState(org.subscription_tier || 'small_firm');
-  const [billingCycle, setBillingCycle] = useState('annual');
-  const [paymentMethod, setPaymentMethod] = useState('');
+
+  // Plan / cycle state
+  const [selectedTier, setSelectedTier] = useState(
+    plans.find(p => !p.contact_sales)?.tier || 'small_firm'
+  );
+  const [billingCycle, setBillingCycle] = useState('monthly');
+
+  // Channel: 'mobile' | 'bank' | ''
+  const [channel, setChannel] = useState('');
+
+  // Mobile money sub-state
+  const [mobileMethod, setMobileMethod] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [payerName, setPayerName] = useState('');
   const [paying, setPaying] = useState(false);
@@ -84,14 +127,40 @@ function PayNowModal({ org, plans, onClose, onSuccess }) {
   const [pollTimedOut, setPollTimedOut] = useState(false);
   const [pollFailed, setPollFailed] = useState(false);
 
+  // Bank transfer sub-state
+  const [crdbDetails, setCrdbDetails] = useState(null);
+  const [submittingBank, setSubmittingBank] = useState(false);
+  const [bankError, setBankError] = useState('');
+  const [bankPaymentRef, setBankPaymentRef] = useState('');
+
   const payablePlans = plans.filter(p => !p.contact_sales);
   const selectedPlan = plans.find(p => p.tier === selectedTier);
   const priceKey = billingCycle === 'annual' ? 'price_annual_tzs' : 'price_monthly_tzs';
-  const basePrice = selectedPlan?.[priceKey] ?? 0;
-  const vatAmount = Math.round(basePrice * 18 / 118);
-  const subtotal = basePrice - vatAmount;
+  const totalAmount = Number(selectedPlan?.[priceKey] ?? 0);
+  const vatAmount = Math.round(totalAmount * 18 / 118);
+  const subtotal = totalAmount - vatAmount;
 
-  // Polling effect
+  const canUseMobile = totalAmount <= CLICKPESA_MAX_AMOUNT;
+
+  // Reset channel when amount changes and mobile is no longer available
+  useEffect(() => {
+    if (!canUseMobile && channel === 'mobile') setChannel('bank');
+  }, [canUseMobile, channel]);
+
+  // Load CRDB details from system_settings when bank channel selected
+  useEffect(() => {
+    if (channel !== 'bank' || crdbDetails) return;
+    supabase
+      .from('system_settings')
+      .select('value')
+      .eq('key', 'crdb_bank_account')
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data?.value) setCrdbDetails(data.value);
+      });
+  }, [channel, crdbDetails]);
+
+  // Polling effect (mobile flow)
   useEffect(() => {
     if (step !== 3 || !paymentId) return;
     let stopped = false;
@@ -102,8 +171,7 @@ function PayNowModal({ org, plans, onClose, onSuccess }) {
         const { data, error } = await supabase.functions.invoke('clickpesa-check-payment-status', {
           body: { payment_id: paymentId },
         });
-        if (stopped) return;
-        if (error) return;
+        if (stopped || error) return;
         const s = data?.status;
         setPollStatus(s);
         setPollMessage(data?.message || getStatusMessage(s));
@@ -121,26 +189,27 @@ function PayNowModal({ org, plans, onClose, onSuccess }) {
     const timeout = setTimeout(() => {
       if (!stopped) { stopped = true; setPollTimedOut(true); }
     }, 120000);
-
     poll();
     return () => { stopped = true; clearInterval(interval); clearTimeout(timeout); };
-  }, [step, paymentId]);
+  }, [step, paymentId, onSuccess]);
 
-  const handlePay = async () => {
+  // ── Handlers ────────────────────────────────────────────────────────────────
+
+  const handleMobilePay = async () => {
     setPayError('');
     const normalized = normalizePhone(phoneNumber);
     if (!/^255\d{9}$/.test(normalized)) {
       setPayError('Please enter a valid Tanzanian phone number (e.g. 0712 345 678)');
       return;
     }
-    if (!paymentMethod) { setPayError('Please select a payment method'); return; }
+    if (!mobileMethod) { setPayError('Please select a mobile wallet'); return; }
     setPaying(true);
     try {
       const { data, error } = await supabase.functions.invoke('clickpesa-initiate-payment', {
         body: {
           tier: selectedTier,
           billing_cycle: billingCycle,
-          payment_method: paymentMethod,
+          payment_method: mobileMethod,
           phone_number: normalized,
           payer_name: payerName || undefined,
         },
@@ -157,69 +226,106 @@ function PayNowModal({ org, plans, onClose, onSuccess }) {
     }
   };
 
-  const s = { // shared styles
-    overlay: {
-      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      zIndex: 9999, padding: '16px',
-    },
-    box: {
-      background: 'white', borderRadius: '16px', padding: '32px',
-      maxWidth: '520px', width: '100%', maxHeight: '90vh',
-      overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.25)',
-    },
-    heading: { fontSize: '22px', fontWeight: '800', color: '#0a1929', margin: '0 0 6px' },
-    sub: { fontSize: '13px', color: '#64748b', margin: '0 0 28px' },
-    label: { display: 'block', fontSize: '13px', fontWeight: '600', color: '#475569', marginBottom: '8px' },
-    input: {
-      width: '100%', padding: '11px 14px', border: '1.5px solid #e2e8f0',
-      borderRadius: '8px', fontSize: '15px', boxSizing: 'border-box',
-    },
-    btn: (bg, color) => ({
-      padding: '13px 24px', background: bg, color, border: 'none',
-      borderRadius: '10px', fontWeight: '700', fontSize: '15px',
-      cursor: 'pointer', width: '100%',
-    }),
-    planCard: (selected) => ({
-      padding: '16px', border: `2px solid ${selected ? '#2563eb' : '#e2e8f0'}`,
-      borderRadius: '10px', cursor: 'pointer', marginBottom: '10px',
-      background: selected ? '#eff6ff' : 'white',
-      transition: 'border-color 0.15s',
-    }),
-    methodBtn: (selected) => ({
-      padding: '12px 8px', border: `2px solid ${selected ? '#2563eb' : '#e2e8f0'}`,
-      borderRadius: '8px', cursor: 'pointer', textAlign: 'center',
-      background: selected ? '#eff6ff' : 'white', fontSize: '12px',
-      fontWeight: '600', color: selected ? '#1d4ed8' : '#475569',
-      transition: 'all 0.15s',
-    }),
+  const handleBankTransfer = async () => {
+    setBankError('');
+    setSubmittingBank(true);
+    try {
+      // Generate a unique reference for this transfer
+      const orgShort = org.id.replace(/-/g, '').slice(0, 6).toUpperCase();
+      const ts = String(Date.now()).slice(-8);
+      const ref = `IUC${orgShort}${ts}`;
+
+      const { error } = await supabase.from('subscription_payments').insert({
+        organization_id: org.id,
+        payment_reference: ref,
+        payment_type: 'subscription_initial',
+        payment_method: 'bank_transfer_crdb',
+        amount_gross_tzs: totalAmount,
+        amount_net_tzs: subtotal,
+        vat_amount_tzs: vatAmount,
+        vat_rate: 18.00,
+        subscription_tier: selectedTier,
+        billing_period: billingCycle === 'monthly' ? 'monthly' : 'annual',
+        status: 'pending',
+        tier: selectedTier,
+        billing_cycle: billingCycle,
+        amount_tzs: totalAmount,
+        vat_tzs: vatAmount,
+        subtotal_tzs: subtotal,
+        clickpesa_order_reference: ref,
+        clickpesa_status: 'N/A',
+        initiated_at: new Date().toISOString(),
+      });
+
+      if (error) throw error;
+
+      setBankPaymentRef(ref);
+
+      // Notify admin via edge function if available (fire-and-forget, don't block on failure)
+      supabase.functions.invoke('dispatch-security-alert', {
+        body: {
+          alert_type: 'bank_transfer_submitted',
+          message: `Bank transfer claim submitted. Org: ${org.name}, Ref: ${ref}, Amount: ${formatTZS(totalAmount)}, Tier: ${selectedTier} ${billingCycle}. Email: ${userEmail}`,
+        },
+      }).catch(() => {});
+
+      setStep(4);
+    } catch (err) {
+      setBankError(err.message || 'Could not record transfer. Please try again.');
+    } finally {
+      setSubmittingBank(false);
+    }
   };
 
-  return (
-    <div style={s.overlay} onClick={onClose}>
-      <div style={s.box} onClick={e => e.stopPropagation()}>
+  // ── Amount + breakdown summary strip ────────────────────────────────────────
+  const AmountStrip = () => (
+    <div style={{
+      padding: '14px 18px', background: '#f8fafc', border: '1px solid #e2e8f0',
+      borderRadius: '10px', marginBottom: '24px',
+    }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: '#64748b', marginBottom: '4px' }}>
+        <span>{selectedPlan?.name} — {billingCycle === 'annual' ? 'Annual' : 'Monthly'}</span>
+        <span>{formatTZS(subtotal)} + VAT</span>
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: '800', fontSize: '20px', color: '#0a1929' }}>
+        <span>Total due</span>
+        <span style={{ color: '#2563eb' }}>{formatTZS(totalAmount)}</span>
+      </div>
+      <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '2px', textAlign: 'right' }}>
+        incl. VAT 18% ({formatTZS(vatAmount)})
+      </div>
+    </div>
+  );
 
-        {/* Step 1: plan selection */}
+  // ── Render ───────────────────────────────────────────────────────────────────
+  return (
+    <div style={ms.overlay} onClick={onClose}>
+      <div style={ms.box} onClick={e => e.stopPropagation()}>
+
+        {/* ── Step 1: Plan + billing cycle ─────────────────────────────────── */}
         {step === 1 && (
           <>
-            <h2 style={s.heading}>Select a Plan</h2>
-            <p style={s.sub}>Choose the plan that fits your firm</p>
+            <h2 style={ms.heading}>Select a Plan</h2>
+            <p style={ms.sub}>Choose the plan that fits your firm</p>
 
             {/* Billing toggle */}
             <div style={{ display: 'flex', gap: '8px', marginBottom: '20px' }}>
-              {['annual', 'monthly'].map(cycle => (
+              {[
+                { val: 'monthly', label: 'Monthly' },
+                { val: 'annual',  label: 'Annual (save ~17%)' },
+              ].map(({ val, label }) => (
                 <button
-                  key={cycle}
-                  onClick={() => setBillingCycle(cycle)}
+                  key={val}
+                  onClick={() => setBillingCycle(val)}
                   style={{
                     padding: '8px 20px', borderRadius: '8px', border: '2px solid',
-                    borderColor: billingCycle === cycle ? '#2563eb' : '#e2e8f0',
-                    background: billingCycle === cycle ? '#2563eb' : 'white',
-                    color: billingCycle === cycle ? 'white' : '#64748b',
+                    borderColor: billingCycle === val ? '#2563eb' : '#e2e8f0',
+                    background:  billingCycle === val ? '#2563eb' : 'white',
+                    color:       billingCycle === val ? 'white'   : '#64748b',
                     fontWeight: '600', fontSize: '13px', cursor: 'pointer',
                   }}
                 >
-                  {cycle === 'annual' ? 'Annual (save 17%)' : 'Monthly'}
+                  {label}
                 </button>
               ))}
             </div>
@@ -228,7 +334,17 @@ function PayNowModal({ org, plans, onClose, onSuccess }) {
               const price = plan[priceKey];
               const isSelected = plan.tier === selectedTier;
               return (
-                <div key={plan.tier} style={s.planCard(isSelected)} onClick={() => setSelectedTier(plan.tier)}>
+                <div
+                  key={plan.tier}
+                  onClick={() => setSelectedTier(plan.tier)}
+                  style={{
+                    padding: '16px', marginBottom: '10px', cursor: 'pointer',
+                    border: `2px solid ${isSelected ? '#2563eb' : '#e2e8f0'}`,
+                    borderRadius: '10px',
+                    background: isSelected ? '#eff6ff' : 'white',
+                    transition: 'border-color 0.15s',
+                  }}
+                >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div>
                       <div style={{ fontWeight: '700', fontSize: '16px', color: '#0a1929' }}>{plan.name}</div>
@@ -250,142 +366,279 @@ function PayNowModal({ org, plans, onClose, onSuccess }) {
             })}
 
             <button
-              style={{ ...s.btn('#2563eb', 'white'), marginTop: '8px' }}
-              onClick={() => setStep(2)}
+              style={{ ...ms.primaryBtn, marginTop: '8px' }}
+              onClick={() => { setChannel(''); setStep(2); }}
             >
               Continue to payment
             </button>
-            <button
-              onClick={onClose}
-              style={{ ...s.btn('transparent', '#64748b'), marginTop: '10px', border: '1.5px solid #e2e8f0' }}
-            >
+            <button onClick={onClose} style={{ ...ms.ghostBtn, marginTop: '10px' }}>
               Cancel
             </button>
           </>
         )}
 
-        {/* Step 2: payment details */}
+        {/* ── Step 2: Channel selection + payment details ───────────────────── */}
         {step === 2 && (
           <>
-            <h2 style={s.heading}>Payment Details</h2>
-            <p style={s.sub}>
+            <h2 style={ms.heading}>Choose how to pay</h2>
+            <p style={ms.sub}>
               {selectedPlan?.name} — {billingCycle === 'annual' ? 'Annual' : 'Monthly'} billing
             </p>
 
-            <div style={{ marginBottom: '20px' }}>
-              <label style={s.label}>Payment method</label>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '8px' }}>
-                {PAYMENT_METHODS.map(m => (
-                  <button
-                    key={m.value}
-                    type="button"
-                    style={s.methodBtn(paymentMethod === m.value)}
-                    onClick={() => setPaymentMethod(m.value)}
-                  >
-                    <div style={{ fontSize: '18px', fontWeight: '800', marginBottom: '4px' }}>{m.icon}</div>
-                    {m.label}
-                  </button>
-                ))}
-              </div>
-            </div>
+            <AmountStrip />
 
-            <div style={{ marginBottom: '16px' }}>
-              <label style={s.label}>Phone number for USSD push</label>
-              <input
-                style={s.input}
-                type="tel"
-                placeholder="e.g. 0712 345 678"
-                value={phoneNumber}
-                onChange={e => setPhoneNumber(e.target.value)}
-              />
-            </div>
-
-            <div style={{ marginBottom: '20px' }}>
-              <label style={s.label}>Payer name (optional)</label>
-              <input
-                style={s.input}
-                type="text"
-                placeholder="Name on mobile wallet"
-                value={payerName}
-                onChange={e => setPayerName(e.target.value)}
-              />
-            </div>
-
-            {/* VAT breakdown */}
-            <div style={{
-              padding: '16px', background: '#f8fafc', border: '1px solid #e2e8f0',
-              borderRadius: '10px', marginBottom: '20px', fontSize: '14px',
-            }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', color: '#64748b', marginBottom: '6px' }}>
-                <span>Subtotal (excl. VAT)</span><span>{formatTZS(subtotal)}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', color: '#64748b', marginBottom: '10px' }}>
-                <span>VAT 18%</span><span>{formatTZS(vatAmount)}</span>
-              </div>
+            {/* Over-limit notice */}
+            {!canUseMobile && (
               <div style={{
-                display: 'flex', justifyContent: 'space-between',
-                fontWeight: '800', fontSize: '16px', color: '#0a1929',
-                borderTop: '1px solid #e2e8f0', paddingTop: '10px',
+                padding: '10px 14px', background: '#fef3c7', border: '1px solid #fcd34d',
+                borderRadius: '8px', fontSize: '13px', color: '#92400e', marginBottom: '20px',
               }}>
-                <span>Total</span><span>{formatTZS(basePrice)}</span>
-              </div>
-            </div>
-
-            {payError && (
-              <div style={{ padding: '12px', background: '#fee2e2', borderRadius: '8px', color: '#991b1b', fontSize: '13px', marginBottom: '16px' }}>
-                {payError}
+                Amounts above TZS 3,000,000 must be paid by bank transfer.
               </div>
             )}
 
-            <button
-              style={{ ...s.btn('#2563eb', 'white'), opacity: paying ? 0.7 : 1 }}
-              onClick={handlePay}
-              disabled={paying}
-            >
-              {paying ? 'Initiating payment...' : `Pay ${formatTZS(basePrice)}`}
-            </button>
-            <button
-              onClick={() => setStep(1)}
-              style={{ ...s.btn('transparent', '#64748b'), marginTop: '10px', border: '1.5px solid #e2e8f0' }}
-            >
+            {/* Channel cards */}
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: canUseMobile ? '1fr 1fr' : '1fr',
+              gap: '12px', marginBottom: '24px',
+            }}>
+              {/* Mobile money card */}
+              {canUseMobile && (
+                <div
+                  onClick={() => setChannel('mobile')}
+                  style={{
+                    padding: '18px', borderRadius: '12px', cursor: 'pointer',
+                    border: `2px solid ${channel === 'mobile' ? '#2563eb' : '#e2e8f0'}`,
+                    background: channel === 'mobile' ? '#eff6ff' : 'white',
+                    transition: 'all 0.15s',
+                  }}
+                >
+                  <div style={{ fontSize: '22px', marginBottom: '8px' }}>📱</div>
+                  <div style={{ fontWeight: '700', fontSize: '14px', color: '#0a1929', marginBottom: '4px' }}>
+                    Mobile Money
+                  </div>
+                  <div style={{ fontSize: '12px', color: '#64748b' }}>
+                    M-Pesa, Mixx, Airtel, HaloPesa
+                  </div>
+                  <div style={{ fontSize: '11px', color: '#22c55e', fontWeight: '600', marginTop: '6px' }}>
+                    Instant
+                  </div>
+                </div>
+              )}
+
+              {/* Bank transfer card */}
+              <div
+                onClick={() => setChannel('bank')}
+                style={{
+                  padding: '18px', borderRadius: '12px', cursor: 'pointer',
+                  border: `2px solid ${channel === 'bank' ? '#2563eb' : '#e2e8f0'}`,
+                  background: channel === 'bank' ? '#eff6ff' : 'white',
+                  transition: 'all 0.15s',
+                }}
+              >
+                <div style={{ fontSize: '22px', marginBottom: '8px' }}>🏦</div>
+                <div style={{ fontWeight: '700', fontSize: '14px', color: '#0a1929', marginBottom: '4px' }}>
+                  CRDB Bank Transfer
+                </div>
+                <div style={{ fontSize: '12px', color: '#64748b' }}>
+                  Direct bank transfer
+                </div>
+                <div style={{ fontSize: '11px', color: '#f59e0b', fontWeight: '600', marginTop: '6px' }}>
+                  1 business day
+                </div>
+              </div>
+            </div>
+
+            {/* Note below cards */}
+            {canUseMobile && (
+              <div style={{ fontSize: '12px', color: '#94a3b8', textAlign: 'center', marginBottom: '20px' }}>
+                Mobile money is instant. Bank transfer is confirmed manually within 1 business day.
+              </div>
+            )}
+
+            {/* ── Mobile money expanded ─────────────────────────────────────── */}
+            {channel === 'mobile' && (
+              <div style={{
+                border: '1.5px solid #bfdbfe', borderRadius: '12px',
+                padding: '20px', background: '#f8faff', marginBottom: '20px',
+              }}>
+                <div style={{ marginBottom: '16px' }}>
+                  <label style={ms.label}>Select wallet</label>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px' }}>
+                    {MOBILE_METHODS.map(m => (
+                      <button
+                        key={m.value}
+                        type="button"
+                        onClick={() => setMobileMethod(m.value)}
+                        style={{
+                          padding: '10px 6px', textAlign: 'center',
+                          border: `2px solid ${mobileMethod === m.value ? '#2563eb' : '#e2e8f0'}`,
+                          borderRadius: '8px', cursor: 'pointer', fontSize: '11px',
+                          fontWeight: '600',
+                          color:       mobileMethod === m.value ? '#1d4ed8' : '#475569',
+                          background:  mobileMethod === m.value ? '#eff6ff'  : 'white',
+                          transition: 'all 0.15s',
+                        }}
+                      >
+                        <div style={{ fontSize: '16px', fontWeight: '800', marginBottom: '3px' }}>{m.icon}</div>
+                        {m.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div style={{ marginBottom: '14px' }}>
+                  <label style={ms.label}>Phone number</label>
+                  <input
+                    style={ms.input}
+                    type="tel"
+                    placeholder="e.g. 0712 345 678"
+                    value={phoneNumber}
+                    onChange={e => setPhoneNumber(e.target.value)}
+                  />
+                </div>
+
+                <div style={{ marginBottom: '18px' }}>
+                  <label style={ms.label}>Payer name (optional)</label>
+                  <input
+                    style={ms.input}
+                    type="text"
+                    placeholder="Name on mobile wallet"
+                    value={payerName}
+                    onChange={e => setPayerName(e.target.value)}
+                  />
+                </div>
+
+                {payError && (
+                  <div style={{
+                    padding: '10px 14px', background: '#fee2e2', borderRadius: '8px',
+                    color: '#991b1b', fontSize: '13px', marginBottom: '14px',
+                  }}>
+                    {payError}
+                  </div>
+                )}
+
+                <button
+                  style={{ ...ms.primaryBtn, opacity: paying ? 0.7 : 1 }}
+                  onClick={handleMobilePay}
+                  disabled={paying}
+                >
+                  {paying ? 'Initiating payment...' : `Pay ${formatTZS(totalAmount)} via Mobile`}
+                </button>
+              </div>
+            )}
+
+            {/* ── Bank transfer expanded ────────────────────────────────────── */}
+            {channel === 'bank' && (
+              <div style={{
+                border: '1.5px solid #bfdbfe', borderRadius: '12px',
+                padding: '20px', background: '#f8faff', marginBottom: '20px',
+              }}>
+                <div style={{ fontSize: '14px', fontWeight: '700', color: '#0a1929', marginBottom: '14px' }}>
+                  CRDB Account Details
+                </div>
+
+                {crdbDetails ? (
+                  <div style={{
+                    display: 'grid', gap: '8px', fontSize: '13px',
+                    padding: '14px', background: 'white', borderRadius: '8px',
+                    border: '1px solid #e2e8f0', marginBottom: '16px',
+                  }}>
+                    {[
+                      ['Account Name',   crdbDetails.account_name],
+                      ['Account Number', crdbDetails.account_number],
+                      ['Branch',         crdbDetails.branch],
+                      ['SWIFT / BIC',    crdbDetails.swift_code],
+                    ].map(([lbl, val]) => (
+                      <div key={lbl} style={{ display: 'flex', justifyContent: 'space-between', gap: '12px' }}>
+                        <span style={{ color: '#64748b', flexShrink: 0 }}>{lbl}</span>
+                        <span style={{ fontWeight: '700', color: '#0a1929', fontFamily: 'monospace', textAlign: 'right' }}>
+                          {val || '—'}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div style={{ fontSize: '13px', color: '#94a3b8', marginBottom: '16px' }}>
+                    Loading account details...
+                  </div>
+                )}
+
+                <div style={{
+                  padding: '12px 14px', background: '#fef9c3', border: '1px solid #fde68a',
+                  borderRadius: '8px', fontSize: '13px', color: '#92400e', marginBottom: '16px',
+                }}>
+                  <strong>Important:</strong> Include the payment reference{' '}
+                  <span style={{ fontFamily: 'monospace', fontWeight: '700' }}>
+                    (generated on next step)
+                  </span>{' '}
+                  in the transfer narration so we can match your payment.
+                </div>
+
+                <div style={{ fontSize: '13px', color: '#64748b', marginBottom: '18px' }}>
+                  Amount to transfer: <strong style={{ color: '#0a1929' }}>{formatTZS(totalAmount)}</strong>
+                </div>
+
+                {bankError && (
+                  <div style={{
+                    padding: '10px 14px', background: '#fee2e2', borderRadius: '8px',
+                    color: '#991b1b', fontSize: '13px', marginBottom: '14px',
+                  }}>
+                    {bankError}
+                  </div>
+                )}
+
+                <button
+                  style={{ ...ms.primaryBtn, opacity: submittingBank ? 0.7 : 1 }}
+                  onClick={handleBankTransfer}
+                  disabled={submittingBank}
+                >
+                  {submittingBank ? 'Recording...' : 'I have made the transfer'}
+                </button>
+              </div>
+            )}
+
+            <button onClick={() => setStep(1)} style={ms.ghostBtn}>
               Back
             </button>
           </>
         )}
 
-        {/* Step 3: waiting */}
+        {/* ── Step 3: Mobile polling ────────────────────────────────────────── */}
         {step === 3 && (
           <div style={{ textAlign: 'center', padding: '16px 0' }}>
             {pollStatus === 'SUCCESS' ? (
               <>
                 <div style={{ fontSize: '56px', marginBottom: '16px' }}>✓</div>
-                <h2 style={{ ...s.heading, textAlign: 'center' }}>Payment Confirmed!</h2>
+                <h2 style={{ ...ms.heading, textAlign: 'center' }}>Payment Confirmed!</h2>
                 <p style={{ color: '#64748b', fontSize: '14px' }}>Your subscription is now active. Refreshing...</p>
               </>
             ) : pollFailed ? (
               <>
                 <div style={{ fontSize: '48px', marginBottom: '16px' }}>✕</div>
-                <h2 style={{ ...s.heading, textAlign: 'center', marginBottom: '12px' }}>Payment Failed</h2>
+                <h2 style={{ ...ms.heading, textAlign: 'center', marginBottom: '12px' }}>Payment Failed</h2>
                 <p style={{ color: '#64748b', fontSize: '14px', marginBottom: '24px' }}>
                   {pollMessage || 'The payment could not be completed.'}
                 </p>
-                <button style={s.btn('#2563eb', 'white')} onClick={() => { setPollFailed(false); setPayError(''); setStep(2); }}>
+                <button
+                  style={ms.primaryBtn}
+                  onClick={() => { setPollFailed(false); setPayError(''); setStep(2); }}
+                >
                   Try again
                 </button>
-                <button onClick={onClose} style={{ ...s.btn('transparent', '#64748b'), marginTop: '10px', border: '1.5px solid #e2e8f0' }}>
+                <button onClick={onClose} style={{ ...ms.ghostBtn, marginTop: '10px' }}>
                   Cancel
                 </button>
               </>
             ) : pollTimedOut ? (
               <>
                 <div style={{ fontSize: '48px', marginBottom: '16px' }}>⏱</div>
-                <h2 style={{ ...s.heading, textAlign: 'center', marginBottom: '12px' }}>Taking Longer Than Expected</h2>
+                <h2 style={{ ...ms.heading, textAlign: 'center', marginBottom: '12px' }}>Taking Longer Than Expected</h2>
                 <p style={{ color: '#64748b', fontSize: '14px', marginBottom: '24px' }}>
                   Your payment may still be processing. You can close this and check back in a few minutes.
                 </p>
-                <button onClick={onClose} style={s.btn('#2563eb', 'white')}>
-                  Close and check later
-                </button>
+                <button onClick={onClose} style={ms.primaryBtn}>Close and check later</button>
               </>
             ) : (
               <>
@@ -396,7 +649,7 @@ function PayNowModal({ org, plans, onClose, onSuccess }) {
                   margin: '0 auto 24px',
                 }} />
                 <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-                <h2 style={{ ...s.heading, textAlign: 'center', marginBottom: '8px' }}>Check Your Phone</h2>
+                <h2 style={{ ...ms.heading, textAlign: 'center', marginBottom: '8px' }}>Check Your Phone</h2>
                 <p style={{ color: '#64748b', fontSize: '14px', marginBottom: '8px' }}>
                   {pollMessage || 'A USSD prompt has been sent to your phone.'}
                 </p>
@@ -405,6 +658,47 @@ function PayNowModal({ org, plans, onClose, onSuccess }) {
                 </p>
               </>
             )}
+          </div>
+        )}
+
+        {/* ── Step 4: Bank transfer confirmation ───────────────────────────── */}
+        {step === 4 && (
+          <div style={{ textAlign: 'center', padding: '8px 0' }}>
+            <div style={{ fontSize: '52px', marginBottom: '16px' }}>🏦</div>
+            <h2 style={{ ...ms.heading, textAlign: 'center', marginBottom: '12px' }}>
+              Transfer Recorded
+            </h2>
+            <p style={{ color: '#64748b', fontSize: '14px', marginBottom: '20px', lineHeight: '1.6' }}>
+              Thank you. We will confirm your subscription once your transfer is received.
+              You will get an email at{' '}
+              <strong style={{ color: '#0a1929' }}>{userEmail}</strong>{' '}
+              within 1 business day.
+            </p>
+
+            <div style={{
+              padding: '16px', background: '#f8fafc', border: '1px solid #e2e8f0',
+              borderRadius: '10px', marginBottom: '24px', textAlign: 'left',
+            }}>
+              <div style={{ fontSize: '12px', color: '#64748b', fontWeight: '600', marginBottom: '6px' }}>
+                YOUR PAYMENT REFERENCE
+              </div>
+              <div style={{ fontFamily: 'monospace', fontWeight: '800', fontSize: '18px', color: '#2563eb', letterSpacing: '1px' }}>
+                {bankPaymentRef}
+              </div>
+              <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '6px' }}>
+                Include this reference in the transfer narration
+              </div>
+            </div>
+
+            <div style={{
+              padding: '12px 14px', background: '#fef9c3', border: '1px solid #fde68a',
+              borderRadius: '8px', fontSize: '13px', color: '#92400e', marginBottom: '24px', textAlign: 'left',
+            }}>
+              Amount: <strong>{formatTZS(totalAmount)}</strong> ·{' '}
+              {selectedPlan?.name} · {billingCycle === 'annual' ? 'Annual' : 'Monthly'}
+            </div>
+
+            <button onClick={onClose} style={ms.primaryBtn}>Close</button>
           </div>
         )}
       </div>
@@ -416,12 +710,12 @@ function PayNowModal({ org, plans, onClose, onSuccess }) {
 function WebhookLogRow({ entry }) {
   const [expanded, setExpanded] = useState(false);
   const statusColors = {
-    SUCCESS:   { bg: '#d1fae5', color: '#065f46' },
-    FAILED:    { bg: '#fee2e2', color: '#991b1b' },
-    PROCESSING:{ bg: '#eff6ff', color: '#1d4ed8' },
-    PENDING:   { bg: '#fef3c7', color: '#92400e' },
-    CANCELLED: { bg: '#fee2e2', color: '#991b1b' },
-    EXPIRED:   { bg: '#fee2e2', color: '#991b1b' },
+    SUCCESS:    { bg: '#d1fae5', color: '#065f46' },
+    FAILED:     { bg: '#fee2e2', color: '#991b1b' },
+    PROCESSING: { bg: '#eff6ff', color: '#1d4ed8' },
+    PENDING:    { bg: '#fef3c7', color: '#92400e' },
+    CANCELLED:  { bg: '#fee2e2', color: '#991b1b' },
+    EXPIRED:    { bg: '#fee2e2', color: '#991b1b' },
   };
   const sc = statusColors[entry.status] || { bg: '#f1f5f9', color: '#475569' };
   return (
@@ -443,10 +737,7 @@ function WebhookLogRow({ entry }) {
       <td style={{ padding: '10px 12px' }}>
         <button
           onClick={() => setExpanded(e => !e)}
-          style={{
-            fontSize: '12px', color: '#2563eb', background: 'none',
-            border: 'none', cursor: 'pointer', padding: 0,
-          }}
+          style={{ fontSize: '12px', color: '#2563eb', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
         >
           {expanded ? 'Hide' : 'View'}
         </button>
@@ -477,21 +768,18 @@ function PaymentRow({ payment, onManualActivate, isAdmin }) {
     (Date.now() - new Date(payment.initiated_at).getTime()) > 24 * 60 * 60 * 1000;
 
   const statusColors = {
-    completed: { bg: '#d1fae5', color: '#065f46' },
-    failed:    { bg: '#fee2e2', color: '#991b1b' },
-    processing:{ bg: '#eff6ff', color: '#1d4ed8' },
-    pending:   { bg: '#fef3c7', color: '#92400e' },
+    completed:  { bg: '#d1fae5', color: '#065f46' },
+    failed:     { bg: '#fee2e2', color: '#991b1b' },
+    processing: { bg: '#eff6ff', color: '#1d4ed8' },
+    pending:    { bg: '#fef3c7', color: '#92400e' },
   };
   const sc = statusColors[payment.status] || { bg: '#f1f5f9', color: '#475569' };
 
   const handleActivate = async () => {
-    if (!confirm('Manually activate this subscription? This should only be done if the payment was confirmed by other means.')) return;
+    if (!confirm('Manually activate this subscription? Only do this if payment was confirmed by other means.')) return;
     setActivating(true);
-    try {
-      await onManualActivate(payment.id);
-    } finally {
-      setActivating(false);
-    }
+    try { await onManualActivate(payment.id); }
+    finally { setActivating(false); }
   };
 
   return (
@@ -548,16 +836,14 @@ function PaymentRow({ payment, onManualActivate, isAdmin }) {
           <td colSpan={7} style={{ padding: '12px 16px' }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px', fontSize: '13px' }}>
               <div>
-                <div style={{ color: '#64748b', fontWeight: '600', marginBottom: '2px' }}>ClickPesa Transaction ID</div>
-                <div style={{ fontFamily: 'monospace', color: '#0a1929' }}>{payment.clickpesa_transaction_id || '—'}</div>
+                <div style={{ color: '#64748b', fontWeight: '600', marginBottom: '2px' }}>Transaction / Reference</div>
+                <div style={{ fontFamily: 'monospace', color: '#0a1929' }}>
+                  {payment.clickpesa_transaction_id || payment.clickpesa_order_reference || payment.payment_reference || '—'}
+                </div>
               </div>
               <div>
                 <div style={{ color: '#64748b', fontWeight: '600', marginBottom: '2px' }}>Channel</div>
-                <div style={{ color: '#0a1929' }}>{payment.clickpesa_channel || '—'}</div>
-              </div>
-              <div>
-                <div style={{ color: '#64748b', fontWeight: '600', marginBottom: '2px' }}>Order Reference</div>
-                <div style={{ fontFamily: 'monospace', color: '#0a1929' }}>{payment.clickpesa_order_reference || payment.payment_reference}</div>
+                <div style={{ color: '#0a1929' }}>{payment.clickpesa_channel || PAYMENT_METHOD_LABELS[payment.payment_method] || '—'}</div>
               </div>
               <div>
                 <div style={{ color: '#64748b', fontWeight: '600', marginBottom: '2px' }}>Webhook Received</div>
@@ -677,7 +963,6 @@ export default function BillingPage() {
     <div style={{ minHeight: '100vh', background: '#f0f4f8' }}>
       <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '40px 24px' }}>
 
-        {/* Back nav */}
         <button
           onClick={() => navigate(-1)}
           style={{
@@ -718,12 +1003,8 @@ export default function BillingPage() {
           flexWrap: 'wrap', gap: '20px',
         }}>
           <div>
-            <div style={{ fontSize: '13px', color: '#64748b', fontWeight: '600', marginBottom: '6px' }}>
-              CURRENT PLAN
-            </div>
-            <div style={{ fontSize: '24px', fontWeight: '800', color: '#0a1929', marginBottom: '8px' }}>
-              {tierLabel}
-            </div>
+            <div style={{ fontSize: '13px', color: '#64748b', fontWeight: '600', marginBottom: '6px' }}>CURRENT PLAN</div>
+            <div style={{ fontSize: '24px', fontWeight: '800', color: '#0a1929', marginBottom: '8px' }}>{tierLabel}</div>
             <span style={{
               display: 'inline-block', padding: '4px 14px', borderRadius: '20px',
               background: stateMeta.bg, color: stateMeta.color,
@@ -740,15 +1021,11 @@ export default function BillingPage() {
               <div style={{ fontSize: '12px', color: '#64748b', fontWeight: '600' }}>Days left</div>
             </div>
             <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: '22px', fontWeight: '800', color: '#0a1929' }}>
-                {plan?.max_users ?? '∞'}
-              </div>
+              <div style={{ fontSize: '22px', fontWeight: '800', color: '#0a1929' }}>{plan?.max_users ?? '∞'}</div>
               <div style={{ fontSize: '12px', color: '#64748b', fontWeight: '600' }}>Max users</div>
             </div>
             <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: '22px', fontWeight: '800', color: '#0a1929' }}>
-                {plan?.max_clients ?? '∞'}
-              </div>
+              <div style={{ fontSize: '22px', fontWeight: '800', color: '#0a1929' }}>{plan?.max_clients ?? '∞'}</div>
               <div style={{ fontSize: '12px', color: '#64748b', fontWeight: '600' }}>Max clients</div>
             </div>
           </div>
@@ -758,12 +1035,8 @@ export default function BillingPage() {
                 Expires {new Date(org.subscription_expiry_date).toLocaleDateString()}
               </div>
             )}
-            <div style={{ fontSize: '13px', color: '#64748b' }}>
-              Monthly: {plan ? formatTZS(plan.price_monthly_tzs) : '—'}
-            </div>
-            <div style={{ fontSize: '13px', color: '#64748b' }}>
-              Annual: {plan ? formatTZS(plan.price_annual_tzs) : '—'}
-            </div>
+            <div style={{ fontSize: '13px', color: '#64748b' }}>Monthly: {plan ? formatTZS(plan.price_monthly_tzs) : '—'}</div>
+            <div style={{ fontSize: '13px', color: '#64748b' }}>Annual: {plan ? formatTZS(plan.price_annual_tzs) : '—'}</div>
           </div>
         </div>
 
@@ -890,19 +1163,14 @@ export default function BillingPage() {
                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                   <thead>
                     <tr style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0' }}>
-                      {['Date', 'Amount', 'Method', 'Status', 'ClickPesa Status', 'Phone', 'Details'].map(h => (
+                      {['Date', 'Amount', 'Method', 'Status', 'Provider Status', 'Phone', 'Details'].map(h => (
                         <th key={h} style={{ padding: '12px', textAlign: 'left', fontSize: '12px', fontWeight: '700', color: '#64748b' }}>{h}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
                     {payments.map(p => (
-                      <PaymentRow
-                        key={p.id}
-                        payment={p}
-                        isAdmin={isAdmin}
-                        onManualActivate={handleManualActivate}
-                      />
+                      <PaymentRow key={p.id} payment={p} isAdmin={isAdmin} onManualActivate={handleManualActivate} />
                     ))}
                   </tbody>
                 </table>
@@ -938,10 +1206,11 @@ export default function BillingPage() {
         )}
       </div>
 
-      {showPayModal && (
+      {showPayModal && org && (
         <PayNowModal
-          org={org || {}}
+          org={org}
           plans={plans}
+          userEmail={profile?.email || ''}
           onClose={() => setShowPayModal(false)}
           onSuccess={handlePaymentSuccess}
         />
