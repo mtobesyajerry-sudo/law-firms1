@@ -6,7 +6,6 @@ import Auth from './components/Auth';
 import MfaEnrollment from './components/MfaEnrollment';
 import ClientDashboard from './components/ClientDashboard';
 import ManagementDashboard from './components/ManagementDashboard';
-import ClientManagementDashboard from './components/ClientManagementDashboard';
 import StaffDashboard from './components/StaffDashboard';
 import ComplianceOfficerDashboard from './components/ComplianceOfficerDashboard';
 import SecurityDashboard from './components/SecurityDashboard';
@@ -541,7 +540,7 @@ function AppRoutes() {
         path="/dashboard/management"
         element={
           <ProtectedRoute managementOnly={true}>
-            <ClientManagementDashboard />
+            <ManagementDashboard />
           </ProtectedRoute>
         }
       />
