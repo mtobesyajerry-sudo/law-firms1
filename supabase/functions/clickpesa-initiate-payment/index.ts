@@ -16,6 +16,45 @@ interface InitiateRequest {
   payer_name?: string;
 }
 
+// ---------------------------------------------------------------------------
+// Canonicalisation + checksum (Biashara Tracker reference implementation)
+// ---------------------------------------------------------------------------
+
+function canonicalize(obj: unknown): unknown {
+  if (obj === null || typeof obj !== "object") return obj;
+  if (Array.isArray(obj)) return obj.map(canonicalize);
+  return Object.keys(obj as Record<string, unknown>)
+    .sort()
+    .reduce((acc: Record<string, unknown>, key) => {
+      acc[key] = canonicalize((obj as Record<string, unknown>)[key]);
+      return acc;
+    }, {});
+}
+
+async function createChecksum(key: string, payload: Record<string, unknown>): Promise<string> {
+  const canonical = canonicalize(payload);
+  const payloadString = JSON.stringify(canonical);
+  const enc = new TextEncoder();
+  const cryptoKey = await crypto.subtle.importKey(
+    "raw", enc.encode(key),
+    { name: "HMAC", hash: "SHA-256" },
+    false, ["sign"]
+  );
+  const sig = await crypto.subtle.sign("HMAC", cryptoKey, enc.encode(payloadString));
+  return Array.from(new Uint8Array(sig)).map(b => b.toString(16).padStart(2, "0")).join("");
+}
+
+async function withChecksum(
+  checksumKey: string | undefined,
+  payload: Record<string, unknown>
+): Promise<Record<string, unknown>> {
+  if (!checksumKey) return payload;
+  const checksum = await createChecksum(checksumKey, payload);
+  return { ...payload, checksum };
+}
+
+// ---------------------------------------------------------------------------
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { status: 200, headers: corsHeaders });
@@ -93,10 +132,11 @@ Deno.serve(async (req: Request) => {
 
     const { total_tzs: totalTzs, vat_tzs: vatTzs, subtotal_tzs: subtotalTzs, plan_name: planName } = priceData[0];
 
-    // Order reference: ≤20 chars — IUC + 8 org chars + last 9 timestamp digits = 20
-    const orgShortId = profile.organization_id.replace(/-/g, "").slice(0, 8);
-    const tsShort = String(Date.now()).slice(-9);
-    const orderReference = `IUC-${orgShortId}-${tsShort}`;
+    // Order reference: alphanumeric only (ClickPesa rejects hyphens), ≤20 chars
+    // IUC (3) + org6 (6) + ts11 (11) = 20
+    const orgShortId = profile.organization_id.replace(/-/g, "").slice(0, 6).toUpperCase();
+    const tsShort = String(Date.now()).slice(-11);
+    const orderReference = `IUC${orgShortId}${tsShort}`; // 20 chars, alphanumeric only
 
     // Get ClickPesa auth token
     const token = await getClickPesaToken(CLICKPESA_API_BASE);
@@ -139,15 +179,20 @@ Deno.serve(async (req: Request) => {
       return jsonError("Could not create payment record", 500);
     }
 
-    // Call ClickPesa USSD-Push API — no checksum; Bearer token is sufficient
-    const pushPayload = {
+    // Build USSD-push payload — exactly four fields (Biashara reference), then append checksum
+    const initiatePayload: Record<string, unknown> = {
       amount: String(totalTzs),
       currency: "TZS",
       orderReference,
       phoneNumber: normalizedPhone,
     };
 
-    console.log("ClickPesa USSD push payload:", JSON.stringify(pushPayload));
+    const checksumKey = Deno.env.get("CLICKPESA_CHECKSUM_KEY")
+                     ?? Deno.env.get("CLICKPESA_WEBHOOK_SECRET");
+
+    const finalPayload = await withChecksum(checksumKey, initiatePayload);
+
+    console.log("USSD push payload (with checksum):", JSON.stringify(finalPayload));
 
     const ussdResponse = await fetch(
       `${CLICKPESA_API_BASE}/third-parties/payments/initiate-ussd-push-request`,
@@ -157,7 +202,7 @@ Deno.serve(async (req: Request) => {
           "Authorization": `Bearer ${token}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(pushPayload),
+        body: JSON.stringify(finalPayload),
       }
     );
 
@@ -239,7 +284,7 @@ async function getClickPesaToken(baseUrl: string): Promise<string | null> {
       console.error("ClickPesa token response missing token field:", JSON.stringify(data));
       return null;
     }
-    // Strip "Bearer " prefix so we can prepend it consistently at call sites
+    // Strip "Bearer " prefix — callers prepend it at use sites
     return raw.replace(/^Bearer\s+/i, "").trim();
   } catch (err) {
     console.error("ClickPesa token error:", err);
