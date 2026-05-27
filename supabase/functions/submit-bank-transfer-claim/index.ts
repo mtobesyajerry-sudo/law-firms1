@@ -162,7 +162,6 @@ Deno.serve(async (req: Request) => {
         initiated_at:      new Date().toISOString(),
         period_start:      periodStart,
         period_end:        periodEnd,
-        currency:          "TZS",
         // Legacy aliases kept for PaymentRow display compatibility
         amount_tzs:        amountGross,
         vat_tzs:           vatAmount,
