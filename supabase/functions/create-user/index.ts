@@ -62,6 +62,7 @@ async function handleApproveRegistration(supabaseAdmin: any, registrationId: str
       name: registration.law_firm_name,
       business_type: "law_firm",
       law_firm_type: trialTier,
+      subscription_tier: trialTier,
       brela_registration: registration.brela_registration_number,
       tls_registration: registration.tls_registration_number,
       contact_email: registration.firm_email,
@@ -120,21 +121,83 @@ async function handleApproveRegistration(supabaseAdmin: any, registrationId: str
     .update({ registration_status: "approved", reviewed_at: new Date().toISOString() })
     .eq("id", registrationId);
 
-  // For large_firm prospects, notify the sales team to follow up during the trial
-  if (requestedTier === "large_firm") {
-    const resendKey = Deno.env.get("RESEND_API_KEY");
-    const trialStart = new Date();
-    const trialEnd = new Date(trialStart.getTime() + 14 * 24 * 60 * 60 * 1000);
-    const fmt = (d: Date) =>
-      d.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "Africa/Dar_es_Salaam" });
+  // Fetch the trial_ends_at that start_trial just wrote so we can surface it in emails
+  const { data: updatedOrg } = await supabaseAdmin
+    .from("organizations")
+    .select("trial_ends_at")
+    .eq("id", orgData.id)
+    .single();
 
-    const subject = `Large firm trial activated — sales follow-up needed: ${registration.law_firm_name}`;
-    const textBody = [
+  const trialStart = new Date();
+  const trialEnd = updatedOrg?.trial_ends_at
+    ? new Date(updatedOrg.trial_ends_at)
+    : new Date(trialStart.getTime() + 14 * 24 * 60 * 60 * 1000);
+  const fmt = (d: Date) =>
+    d.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "Africa/Dar_es_Salaam" });
+
+  const tierLabels: Record<string, string> = {
+    small_firm: "Small Firm",
+    medium_firm: "Medium Firm",
+    large_firm: "Large Firm",
+  };
+  const tierLabel = tierLabels[trialTier] ?? trialTier;
+
+  const resendKey = Deno.env.get("RESEND_API_KEY");
+
+  // Welcome email to the customer
+  const welcomeSubject = "Welcome to Iuris Peritis — your trial is active";
+  const welcomeBody = [
+    `Dear ${registration.user_full_name || registration.law_firm_name},`,
+    "",
+    "Your Iuris Peritis Compliance account has been approved and your free trial is now active.",
+    "",
+    `Organisation:  ${registration.law_firm_name}`,
+    `Plan:          ${tierLabel}`,
+    `Trial started: ${fmt(trialStart)}`,
+    `Trial ends:    ${fmt(trialEnd)}`,
+    "",
+    "You can log in immediately at https://iuris-peritis.co.tz using the email address",
+    `and password you chose during registration (${registration.firm_email}).`,
+    "",
+    "If you have any questions, reply to this email or contact us at info@iurisperitis.co.tz.",
+    "",
+    "— The Iuris Peritis Team",
+  ].join("\n");
+
+  if (!resendKey) {
+    console.warn("[create-user] RESEND_API_KEY not set — welcome email not sent.", {
+      to: registration.firm_email,
+      subject: welcomeSubject,
+    });
+  } else {
+    try {
+      await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${resendKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          from: "Iuris Peritis Compliance <onboarding@resend.dev>",
+          to: [registration.firm_email],
+          subject: welcomeSubject,
+          text: welcomeBody,
+        }),
+      });
+    } catch (emailErr) {
+      console.error("[create-user] Failed to send welcome email:", emailErr);
+    }
+  }
+
+  // For large_firm prospects, also notify the sales team to follow up during the trial
+  if (requestedTier === "large_firm") {
+    const salesSubject = `Large firm trial activated — sales follow-up needed: ${registration.law_firm_name}`;
+    const salesBody = [
       "A large firm trial has been activated and requires a sales conversation before the trial ends.",
       "",
       `Organisation:   ${registration.law_firm_name}`,
       `BRELA number:   ${registration.brela_registration_number || "—"}`,
-      `Contact name:   ${registration.contact_person_name || "—"}`,
+      `Contact name:   ${registration.user_full_name || "—"}`,
       `Contact email:  ${registration.firm_email}`,
       `Mobile:         ${registration.mobile_number || "—"}`,
       "Trial tier:     Medium Firm capabilities (large_firm requested)",
@@ -149,8 +212,8 @@ async function handleApproveRegistration(supabaseAdmin: any, registrationId: str
 
     if (!resendKey) {
       console.warn("[create-user] RESEND_API_KEY not set — large firm sales alert not sent.", {
-        to: "info@iursperitis.co.tz",
-        subject,
+        to: "info@iurisperitis.co.tz",
+        subject: salesSubject,
       });
     } else {
       try {
@@ -162,13 +225,12 @@ async function handleApproveRegistration(supabaseAdmin: any, registrationId: str
           },
           body: JSON.stringify({
             from: "Iuris Peritis Compliance <onboarding@resend.dev>",
-            to: ["info@iursperitis.co.tz"],
-            subject,
-            text: textBody,
+            to: ["info@iurisperitis.co.tz"],
+            subject: salesSubject,
+            text: salesBody,
           }),
         });
       } catch (emailErr) {
-        // Non-fatal — log but don't fail the approval
         console.error("[create-user] Failed to send large firm sales alert:", emailErr);
       }
     }
