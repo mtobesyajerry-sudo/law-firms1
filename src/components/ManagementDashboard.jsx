@@ -185,8 +185,8 @@ export default function ManagementDashboard() {
 
     try {
       const { error } = await supabase
-        .from('law_firm_registrations')
-        .update({ status: 'rejected', rejection_reason: reason })
+        .from('management_user_registrations')
+        .update({ registration_status: 'rejected', rejection_reason: reason })
         .eq('id', requestId);
 
       if (error) throw error;

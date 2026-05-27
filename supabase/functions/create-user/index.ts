@@ -42,7 +42,7 @@ function decryptPassword(encryptedPassword: string | null): string | null {
 
 async function handleApproveRegistration(supabaseAdmin: any, registrationId: string) {
   const { data: registration, error: fetchError } = await supabaseAdmin
-    .from("law_firm_registrations")
+    .from("management_user_registrations")
     .select("*")
     .eq("id", registrationId)
     .single();
@@ -95,7 +95,7 @@ async function handleApproveRegistration(supabaseAdmin: any, registrationId: str
     email: registration.firm_email,
     password: decryptedPassword,
     email_confirm: true,
-    user_metadata: { full_name: registration.contact_person_name || registration.firm_name },
+    user_metadata: { full_name: registration.user_full_name || registration.law_firm_name },
   });
 
   if (authError) throw new Error(`Failed to create user: ${authError.message}`);
@@ -108,7 +108,7 @@ async function handleApproveRegistration(supabaseAdmin: any, registrationId: str
       id: authData.user.id,
       email: registration.firm_email,
       role: "management",
-      full_name: registration.contact_person_name || registration.firm_name,
+      full_name: registration.user_full_name || registration.law_firm_name,
       organization_id: orgData.id,
       password_change_required: false,
     });
@@ -116,8 +116,8 @@ async function handleApproveRegistration(supabaseAdmin: any, registrationId: str
   if (profileError) throw new Error(`Failed to create profile: ${profileError.message}`);
 
   await supabaseAdmin
-    .from("law_firm_registrations")
-    .update({ registration_status: "active", approved_at: new Date().toISOString() })
+    .from("management_user_registrations")
+    .update({ registration_status: "approved", reviewed_at: new Date().toISOString() })
     .eq("id", registrationId);
 
   // For large_firm prospects, notify the sales team to follow up during the trial

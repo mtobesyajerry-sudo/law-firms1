@@ -119,7 +119,7 @@ export default function SystemAdminDashboard() {
         supabase.from('user_profiles').select('*').order('created_at', { ascending: false }),
         supabase.from('organizations').select('*').order('created_at', { ascending: false }),
         supabase.from('assessments').select('*, organizations(name)').order('created_at', { ascending: false }),
-        supabase.from('law_firm_registrations').select('*').order('created_at', { ascending: false }),
+        supabase.from('management_user_registrations').select('*').order('created_at', { ascending: false }),
         supabase.from('kyc_clients').select('*, organizations(name)').order('created_at', { ascending: false })
       ]);
 
@@ -247,7 +247,7 @@ export default function SystemAdminDashboard() {
       let orgData;
       let isNewOrganization = false;
 
-      if (requestData.registration_type === 'join_existing' && requestData.existing_organization_id) {
+      if (requestData.existing_organization_id) {
         // User is joining an existing organization
         const { data: existingOrg, error: fetchError } = await supabase
           .from('organizations')
@@ -298,7 +298,7 @@ export default function SystemAdminDashboard() {
       const requestBody = {
         admin_user_id: user.id,
         email: requestData.firm_email,
-        full_name: requestData.contact_person_name,
+        full_name: requestData.user_full_name,
         role: 'client',
         organization_id: orgData.id,
       };
@@ -356,14 +356,12 @@ export default function SystemAdminDashboard() {
 
       // Step 5: Mark registration as approved and clear encrypted password
       const { error: updateError } = await supabase
-        .from('law_firm_registrations')
+        .from('management_user_registrations')
         .update({
           registration_status: 'approved',
           reviewed_by: user.id,
           reviewed_at: new Date().toISOString(),
           encrypted_password: null,
-          user_id: newUserId,
-          organization_id: orgData.id
         })
         .eq('id', requestId);
 
@@ -389,7 +387,7 @@ export default function SystemAdminDashboard() {
   const rejectRegistration = async (requestId, reason) => {
     try {
       const { error } = await supabase
-        .from('law_firm_registrations')
+        .from('management_user_registrations')
         .update({
           registration_status: 'rejected',
           rejection_reason: reason,
@@ -415,7 +413,7 @@ export default function SystemAdminDashboard() {
 
     try {
       const { error } = await supabase
-        .from('law_firm_registrations')
+        .from('management_user_registrations')
         .delete()
         .eq('id', requestId);
 
@@ -1101,8 +1099,8 @@ export default function SystemAdminDashboard() {
                               <td style={styles.td}>{request.law_firm_name}</td>
                               <td style={styles.td}>{request.brela_registration_number}</td>
                               <td style={styles.td}>{request.firm_email}</td>
-                              <td style={styles.td}>{request.contact_person_name}</td>
-                              <td style={styles.td}>{request.contact_person_designation}</td>
+                              <td style={styles.td}>{request.user_full_name}</td>
+                              <td style={styles.td}>{request.user_position}</td>
                               <td style={styles.td}>{request.mobile_number}</td>
                               <td style={styles.td}>{new Date(request.created_at).toLocaleDateString()}</td>
                               <td style={styles.td}>
@@ -1165,7 +1163,7 @@ export default function SystemAdminDashboard() {
                             <td style={styles.td}>{request.law_firm_name}</td>
                             <td style={styles.td}>{request.brela_registration_number}</td>
                             <td style={styles.td}>{request.firm_email}</td>
-                            <td style={styles.td}>{request.contact_person_name}</td>
+                            <td style={styles.td}>{request.user_full_name}</td>
                             <td style={styles.td}>
                               <span style={{
                                 ...styles.badge,
