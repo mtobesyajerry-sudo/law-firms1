@@ -23,6 +23,8 @@ import TrialExpiredModal from './components/TrialExpiredModal';
 import PricingPage from './components/pricing/PricingPage';
 import BillingPage from './components/BillingPage';
 import AdminPaymentsPage from './components/AdminPaymentsPage';
+import PrivacyPage from './pages/PrivacyPage';
+import TermsPage from './pages/TermsPage';
 import { validatePassword } from './utils/security';
 
 // Shown when profile.password_change_required = true.
