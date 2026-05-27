@@ -94,13 +94,29 @@ Deno.serve(async (req: Request) => {
       return jsonError("Failed to authenticate with payment gateway. Please try again.", 502);
     }
 
-    // Compute checksum for ClickPesa request
+    // Compute checksum for ClickPesa request.
+    // ClickPesa signs with the account-level Checksum Security key (same key used for
+    // webhook verification), NOT the API key. Prefer CLICKPESA_CHECKSUM_KEY; fall back
+    // to CLICKPESA_WEBHOOK_SECRET which holds the same value in this deployment.
+    const checksumSecret = Deno.env.get("CLICKPESA_CHECKSUM_KEY")
+                        ?? Deno.env.get("CLICKPESA_WEBHOOK_SECRET");
+    if (!checksumSecret) {
+      console.error("Checksum secret not configured (CLICKPESA_CHECKSUM_KEY or CLICKPESA_WEBHOOK_SECRET)");
+      return jsonError("Payment gateway misconfigured", 500);
+    }
     const checksum = await computeChecksum({
       amount: totalTzs.toString(),
       currency: "TZS",
       orderReference,
-      secret: Deno.env.get("CLICKPESA_API_KEY")!,
+      secret: checksumSecret,
     });
+    console.log("USSD-push payload:", JSON.stringify({
+      amount: totalTzs.toString(),
+      currency: "TZS",
+      orderReference,
+      phoneNumber: body.phone_number,
+      checksum,
+    }));
 
     // Insert payment record before calling ClickPesa (so we have an ID on failure too)
     const { data: payment, error: insertError } = await supabaseAdmin
