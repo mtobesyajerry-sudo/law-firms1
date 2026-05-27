@@ -110,6 +110,82 @@ function RecordDepositModal({ onClose, onSaved }) {
   );
 }
 
+// ─── Revert Reason Modal ──────────────────────────────────────────────────────
+function RevertReasonModal({ payment, onClose, onReverted }) {
+  const [reason, setReason] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [error, setError]   = useState('');
+
+  const handleRevert = async () => {
+    if (!reason.trim()) { setError('Please enter a reason for reverting.'); return; }
+    setError(''); setSaving(true);
+    const { data: { user } } = await supabase.auth.getUser();
+
+    const { error: updateErr } = await supabase
+      .from('subscription_payments')
+      .update({ status: 'pending', customer_confirmed_at: null })
+      .eq('id', payment.id);
+
+    if (updateErr) { setError(updateErr.message); setSaving(false); return; }
+
+    await supabase.from('audit_logs').insert({
+      user_id:     user?.id ?? null,
+      action_type: 'update',
+      entity_type: 'subscription_payment',
+      entity_id:   payment.id,
+      changes: {
+        reverted_from:     'pending_confirmation',
+        reverted_to:       'pending',
+        reason:            reason.trim(),
+        payment_reference: payment.payment_reference,
+      },
+    });
+
+    setSaving(false);
+    onReverted();
+    onClose();
+  };
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10001, padding: '16px' }}>
+      <div style={{ background: 'white', borderRadius: '12px', padding: '28px', width: '100%', maxWidth: '420px', boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
+        <h2 style={{ margin: '0 0 8px', fontSize: '17px', fontWeight: '800', color: '#0a1929' }}>Revert to Pending</h2>
+        <p style={{ margin: '0 0 16px', fontSize: '13px', color: '#64748b', lineHeight: '1.5' }}>
+          This will set <span style={{ fontFamily: 'monospace', fontWeight: '700', color: '#1e40af' }}>{payment.payment_reference}</span> back to <strong>pending</strong> and clear the customer confirmation. Please explain why.
+        </p>
+
+        {error && (
+          <div style={{ padding: '9px 13px', background: '#fee2e2', border: '1px solid #fca5a5', borderRadius: '7px', fontSize: '13px', color: '#991b1b', marginBottom: '14px' }}>
+            {error}
+          </div>
+        )}
+
+        <div>
+          <label style={lbl}>Reason *</label>
+          <textarea
+            style={{ ...inp, height: '80px', resize: 'vertical' }}
+            placeholder="e.g. Customer transferred to wrong account, amount mismatch…"
+            value={reason}
+            onChange={e => setReason(e.target.value)}
+            autoFocus
+          />
+        </div>
+
+        <div style={{ display: 'flex', gap: '10px', marginTop: '18px' }}>
+          <button onClick={onClose} disabled={saving} style={ghostBtn}>Cancel</button>
+          <button
+            onClick={handleRevert}
+            disabled={saving}
+            style={{ ...primaryBtn, flex: 1, background: '#b91c1c', opacity: saving ? 0.7 : 1 }}
+          >
+            {saving ? 'Reverting…' : 'Revert to pending'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Match Panel ──────────────────────────────────────────────────────────────
 function MatchPanel({ deposit, onClose, onMatched }) {
   const [suggestions, setSuggestions]   = useState([]);
@@ -121,18 +197,27 @@ function MatchPanel({ deposit, onClose, onMatched }) {
   const [error, setError]               = useState('');
   const [success, setSuccess]           = useState('');
 
-  // Load suggested matches on mount
+  // Load suggested matches on mount — both pending and pending_confirmation;
+  // sort pending_confirmation first as they're higher-confidence
   useEffect(() => {
     const since = new Date(Date.now() - 60 * 24 * 3600 * 1000).toISOString();
     supabase
       .from('subscription_payments')
-      .select('id, payment_reference, payer_name, organization_id, amount_gross_tzs, billing_cycle, created_at, organizations(name)')
+      .select('id, payment_reference, payer_name, organization_id, amount_gross_tzs, billing_cycle, created_at, status, customer_confirmed_at, organizations(name)')
       .eq('payment_method', 'bank_transfer_crdb')
-      .eq('status', 'pending')
+      .in('status', ['pending', 'pending_confirmation'])
       .eq('amount_gross_tzs', deposit.amount_tzs)
       .gte('created_at', since)
       .order('created_at', { ascending: false })
-      .then(({ data }) => setSuggestions(data ?? []));
+      .then(({ data }) => {
+        const rows = data ?? [];
+        // pending_confirmation first, then pending; within each group newest first
+        rows.sort((a, b) => {
+          if (a.status === b.status) return 0;
+          return a.status === 'pending_confirmation' ? -1 : 1;
+        });
+        setSuggestions(rows);
+      });
   }, [deposit.amount_tzs]);
 
   // Search by org name or BNK ref
@@ -143,14 +228,22 @@ function MatchPanel({ deposit, onClose, onMatched }) {
     const since = new Date(Date.now() - 60 * 24 * 3600 * 1000).toISOString();
     supabase
       .from('subscription_payments')
-      .select('id, payment_reference, payer_name, organization_id, amount_gross_tzs, billing_cycle, created_at, organizations(name)')
+      .select('id, payment_reference, payer_name, organization_id, amount_gross_tzs, billing_cycle, created_at, status, customer_confirmed_at, organizations(name)')
       .eq('payment_method', 'bank_transfer_crdb')
-      .eq('status', 'pending')
+      .in('status', ['pending', 'pending_confirmation'])
       .gte('created_at', since)
       .or(`payment_reference.ilike.%${q}%`)
       .order('created_at', { ascending: false })
       .limit(20)
-      .then(({ data }) => { setSearchResults(data ?? []); setSearching(false); });
+      .then(({ data }) => {
+        const rows = data ?? [];
+        rows.sort((a, b) => {
+          if (a.status === b.status) return 0;
+          return a.status === 'pending_confirmation' ? -1 : 1;
+        });
+        setSearchResults(rows);
+        setSearching(false);
+      });
   }, [searchQuery]);
 
   const handleMatch = async (paymentId) => {
@@ -264,33 +357,57 @@ function MatchPanel({ deposit, onClose, onMatched }) {
           </div>
         ) : (
           <div style={{ display: 'grid', gap: '10px' }}>
-            {displayList.map(p => (
-              <div key={p.id} style={{ padding: '14px 16px', border: '1px solid #e2e8f0', borderRadius: '8px', background: '#fafafa' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
-                  <span style={{ fontFamily: 'monospace', fontWeight: '800', fontSize: '13px', color: '#1e40af' }}>{p.payment_reference}</span>
-                  <span style={{ fontSize: '12px', color: '#64748b' }}>{formatDate(p.created_at)}</span>
+            {displayList.map(p => {
+              const isConfirmed = p.status === 'pending_confirmation';
+              return (
+                <div key={p.id} style={{
+                  padding: '14px 16px',
+                  border: `1px solid ${isConfirmed ? '#fde68a' : '#e2e8f0'}`,
+                  borderLeft: isConfirmed ? '4px solid #d97706' : '1px solid #e2e8f0',
+                  borderRadius: '8px',
+                  background: isConfirmed ? '#fffbeb' : '#fafafa',
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '6px', gap: '8px', flexWrap: 'wrap' }}>
+                    <span style={{ fontFamily: 'monospace', fontWeight: '800', fontSize: '13px', color: '#1e40af' }}>{p.payment_reference}</span>
+                    <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                      {isConfirmed && (
+                        <span style={{
+                          fontSize: '10px', fontWeight: '700', letterSpacing: '0.4px',
+                          background: '#fef9c3', color: '#92400e', border: '1px solid #fde68a',
+                          borderRadius: '999px', padding: '2px 8px',
+                        }}>CUSTOMER CONFIRMED</span>
+                      )}
+                      <span style={{ fontSize: '12px', color: '#64748b' }}>{formatDate(p.created_at)}</span>
+                    </div>
+                  </div>
+                  <div style={{ fontSize: '13px', color: '#374151', marginBottom: '4px' }}>
+                    <strong>{p.organizations?.name ?? '—'}</strong>
+                    {p.payer_name && <span style={{ color: '#64748b' }}> · {p.payer_name}</span>}
+                  </div>
+                  <div style={{ fontSize: '12px', color: '#64748b', marginBottom: isConfirmed ? '6px' : '10px' }}>
+                    {formatTZS(p.amount_gross_tzs)} · {(p.billing_cycle ?? '').replace('_', ' ')}
+                  </div>
+                  {isConfirmed && p.customer_confirmed_at && (
+                    <div style={{ fontSize: '11px', color: '#92400e', marginBottom: '10px' }}>
+                      Confirmed {formatDateTime(p.customer_confirmed_at)}
+                    </div>
+                  )}
+                  <button
+                    onClick={() => handleMatch(p.id)}
+                    disabled={matching === p.id || !!success}
+                    style={{
+                      padding: '7px 16px',
+                      background: matching === p.id ? '#93c5fd' : (isConfirmed ? '#d97706' : '#2563eb'),
+                      color: 'white', border: 'none', borderRadius: '6px', fontWeight: '700',
+                      fontSize: '12px', cursor: matching === p.id ? 'not-allowed' : 'pointer',
+                      transition: 'background 0.15s',
+                    }}
+                  >
+                    {matching === p.id ? 'Matching...' : 'Match this'}
+                  </button>
                 </div>
-                <div style={{ fontSize: '13px', color: '#374151', marginBottom: '4px' }}>
-                  <strong>{p.organizations?.name ?? '—'}</strong>
-                  {p.payer_name && <span style={{ color: '#64748b' }}> · {p.payer_name}</span>}
-                </div>
-                <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '10px' }}>
-                  {formatTZS(p.amount_gross_tzs)} · {(p.billing_cycle ?? '').replace('_', ' ')}
-                </div>
-                <button
-                  onClick={() => handleMatch(p.id)}
-                  disabled={matching === p.id || !!success}
-                  style={{
-                    padding: '7px 16px', background: matching === p.id ? '#93c5fd' : '#2563eb',
-                    color: 'white', border: 'none', borderRadius: '6px', fontWeight: '700',
-                    fontSize: '12px', cursor: matching === p.id ? 'not-allowed' : 'pointer',
-                    transition: 'background 0.15s',
-                  }}
-                >
-                  {matching === p.id ? 'Matching...' : 'Match this'}
-                </button>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
 
@@ -348,9 +465,11 @@ export default function AdminPaymentsPage() {
   const [deposits, setDeposits]         = useState([]);
   const [loadingClaims, setLoadingClaims]   = useState(true);
   const [loadingDeposits, setLoadingDeposits] = useState(true);
+  const [claimFilter, setClaimFilter]   = useState('all');
   const [depositFilter, setDepositFilter]   = useState('all');
   const [showRecordModal, setShowRecordModal] = useState(false);
   const [selectedDeposit, setSelectedDeposit] = useState(null);
+  const [revertTarget, setRevertTarget] = useState(null); // claim to revert
   const [claimSort, setClaimSort]       = useState({ key: 'created_at', dir: 'desc' });
   const [depositSort, setDepositSort]   = useState({ key: 'deposit_date', dir: 'desc' });
 
@@ -358,9 +477,9 @@ export default function AdminPaymentsPage() {
     setLoadingClaims(true);
     const { data } = await supabase
       .from('subscription_payments')
-      .select('id, payment_reference, payer_name, organization_id, amount_gross_tzs, billing_cycle, created_at, organizations(name)')
+      .select('id, payment_reference, payer_name, organization_id, amount_gross_tzs, billing_cycle, created_at, status, customer_confirmed_at, organizations(name)')
       .eq('payment_method', 'bank_transfer_crdb')
-      .eq('status', 'pending')
+      .in('status', ['pending', 'pending_confirmation'])
       .order('created_at', { ascending: false });
     setClaims(data ?? []);
     setLoadingClaims(false);
@@ -392,7 +511,10 @@ export default function AdminPaymentsPage() {
     });
   }
 
-  const sortedClaims = sortRows(claims, claimSort);
+  const filteredClaims = claimFilter === 'all' ? claims
+    : claimFilter === 'customer_confirmed' ? claims.filter(c => c.status === 'pending_confirmation')
+    : claims.filter(c => c.status === 'pending');
+  const sortedClaims = sortRows(filteredClaims, claimSort);
   const filteredDeposits = depositFilter === 'all' ? deposits : deposits.filter(d => d.status === depositFilter);
   const sortedDeposits = sortRows(filteredDeposits, depositSort);
 
@@ -422,8 +544,46 @@ export default function AdminPaymentsPage() {
         <section style={sectionCard}>
           <div style={sectionHeader}>
             <div>
-              <h2 style={sectionTitle}>Pending Bank Transfer Claims</h2>
-              <p style={sectionSub}>{loadingClaims ? 'Loading...' : `${claims.length} pending claim${claims.length !== 1 ? 's' : ''} awaiting deposit match`}</p>
+              <h2 style={sectionTitle}>Bank Transfer Claims</h2>
+              <p style={sectionSub}>
+                {loadingClaims ? 'Loading…' : (() => {
+                  const confirmed = claims.filter(c => c.status === 'pending_confirmation').length;
+                  const total = claims.length;
+                  return `${total} open claim${total !== 1 ? 's' : ''}${confirmed > 0 ? ` · ${confirmed} customer-confirmed` : ''}`;
+                })()}
+              </p>
+            </div>
+            {/* Filter pills */}
+            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+              {[
+                { key: 'all',                label: 'All' },
+                { key: 'pending',            label: 'Pending' },
+                { key: 'customer_confirmed', label: 'Customer Confirmed' },
+              ].map(f => (
+                <button
+                  key={f.key}
+                  onClick={() => setClaimFilter(f.key)}
+                  style={{
+                    padding: '6px 14px', borderRadius: '6px', fontSize: '12px', fontWeight: '600',
+                    cursor: 'pointer', border: '1.5px solid',
+                    background: claimFilter === f.key ? (f.key === 'customer_confirmed' ? '#d97706' : '#0a1929') : 'white',
+                    color:      claimFilter === f.key ? 'white' : '#475569',
+                    borderColor: claimFilter === f.key ? (f.key === 'customer_confirmed' ? '#d97706' : '#0a1929') : '#e2e8f0',
+                    transition: 'all 0.15s',
+                  }}
+                >
+                  {f.label}
+                  {f.key === 'customer_confirmed' && claims.filter(c => c.status === 'pending_confirmation').length > 0 && (
+                    <span style={{
+                      marginLeft: '5px', background: claimFilter === f.key ? 'rgba(255,255,255,0.3)' : '#d97706',
+                      color: claimFilter === f.key ? 'white' : 'white', borderRadius: '999px',
+                      padding: '0px 6px', fontSize: '10px', fontWeight: '800',
+                    }}>
+                      {claims.filter(c => c.status === 'pending_confirmation').length}
+                    </span>
+                  )}
+                </button>
+              ))}
             </div>
           </div>
 
@@ -437,23 +597,61 @@ export default function AdminPaymentsPage() {
                   <Th sortKey="amount_gross_tzs"  sortBy={claimSort} setSortBy={setClaimSort}>AMOUNT</Th>
                   <Th sortKey="billing_cycle"     sortBy={claimSort} setSortBy={setClaimSort}>CYCLE</Th>
                   <Th sortKey="created_at"        sortBy={claimSort} setSortBy={setClaimSort}>SUBMITTED</Th>
+                  <Th sortKey={null}              sortBy={claimSort} setSortBy={setClaimSort}>STATUS</Th>
+                  <Th sortKey={null}              sortBy={claimSort} setSortBy={setClaimSort}>ACTIONS</Th>
                 </tr>
               </thead>
               <tbody>
                 {loadingClaims ? (
-                  <tr><td colSpan={6} style={tdCenter}>Loading...</td></tr>
+                  <tr><td colSpan={8} style={tdCenter}>Loading…</td></tr>
                 ) : sortedClaims.length === 0 ? (
-                  <tr><td colSpan={6} style={tdCenter}>No pending bank transfer claims.</td></tr>
-                ) : sortedClaims.map((c, i) => (
-                  <tr key={c.id} style={{ background: i % 2 === 0 ? 'white' : '#fafafa' }}>
-                    <td style={{ ...td, fontFamily: 'monospace', fontWeight: '700', color: '#1e40af' }}>{c.payment_reference}</td>
-                    <td style={td}>{c.payer_name ?? '—'}</td>
-                    <td style={{ ...td, fontWeight: '600' }}>{c.organizations?.name ?? '—'}</td>
-                    <td style={{ ...td, fontWeight: '700' }}>{formatTZS(c.amount_gross_tzs)}</td>
-                    <td style={td}>{c.billing_cycle ?? '—'}</td>
-                    <td style={{ ...td, color: '#64748b', fontSize: '12px' }}>{formatDateTime(c.created_at)}</td>
-                  </tr>
-                ))}
+                  <tr><td colSpan={8} style={tdCenter}>No {claimFilter === 'customer_confirmed' ? 'customer-confirmed' : claimFilter === 'pending' ? 'pending' : 'open'} bank transfer claims.</td></tr>
+                ) : sortedClaims.map((c, i) => {
+                  const isConfirmed = c.status === 'pending_confirmation';
+                  return (
+                    <tr key={c.id} style={{
+                      background: isConfirmed ? '#fffbeb' : (i % 2 === 0 ? 'white' : '#fafafa'),
+                      borderLeft: isConfirmed ? '4px solid #d97706' : undefined,
+                    }}>
+                      <td style={{ ...td, fontFamily: 'monospace', fontWeight: '700', color: '#1e40af' }}>{c.payment_reference}</td>
+                      <td style={td}>{c.payer_name ?? '—'}</td>
+                      <td style={{ ...td, fontWeight: '600' }}>{c.organizations?.name ?? '—'}</td>
+                      <td style={{ ...td, fontWeight: '700' }}>{formatTZS(c.amount_gross_tzs)}</td>
+                      <td style={td}>{c.billing_cycle ?? '—'}</td>
+                      <td style={{ ...td, color: '#64748b', fontSize: '12px' }}>{formatDateTime(c.created_at)}</td>
+                      <td style={td}>
+                        {isConfirmed ? (
+                          <span style={{
+                            display: 'inline-block', padding: '2px 10px', borderRadius: '999px',
+                            fontSize: '11px', fontWeight: '700', letterSpacing: '0.5px',
+                            background: '#fef9c3', color: '#92400e', border: '1px solid #fde68a',
+                          }}>CONFIRMED</span>
+                        ) : (
+                          <span style={{
+                            display: 'inline-block', padding: '2px 10px', borderRadius: '999px',
+                            fontSize: '11px', fontWeight: '700', letterSpacing: '0.5px',
+                            background: '#f1f5f9', color: '#475569', border: '1px solid #e2e8f0',
+                          }}>PENDING</span>
+                        )}
+                      </td>
+                      <td style={td}>
+                        {isConfirmed && (
+                          <button
+                            onClick={() => setRevertTarget(c)}
+                            style={{
+                              padding: '5px 12px', background: '#fff1f2', color: '#b91c1c',
+                              border: '1px solid #fecaca', borderRadius: '6px',
+                              fontWeight: '700', fontSize: '11px', cursor: 'pointer',
+                              whiteSpace: 'nowrap',
+                            }}
+                          >
+                            Revert to pending
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -556,6 +754,14 @@ export default function AdminPaymentsPage() {
         <RecordDepositModal
           onClose={() => setShowRecordModal(false)}
           onSaved={fetchDeposits}
+        />
+      )}
+
+      {revertTarget && (
+        <RevertReasonModal
+          payment={revertTarget}
+          onClose={() => setRevertTarget(null)}
+          onReverted={() => { setRevertTarget(null); fetchClaims(); }}
         />
       )}
 

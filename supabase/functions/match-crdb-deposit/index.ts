@@ -97,7 +97,7 @@ Deno.serve(async (req: Request) => {
     // ── 5. Load payment ─────────────────────────────────────────────────────
     const { data: payment, error: payErr } = await admin
       .from("subscription_payments")
-      .select("id, amount_gross_tzs, payment_method, status, organization_id, payment_reference, tier, billing_cycle")
+      .select("id, amount_gross_tzs, payment_method, status, organization_id, payment_reference, tier, billing_cycle, period_start, period_end")
       .eq("id", payment_id)
       .maybeSingle();
 
@@ -107,7 +107,7 @@ Deno.serve(async (req: Request) => {
     if (payment.payment_method !== "bank_transfer_crdb") {
       return jsonResp({ error: "Payment is not a CRDB bank transfer claim" }, 400);
     }
-    if (payment.status !== "pending") {
+    if (!["pending", "pending_confirmation"].includes(payment.status)) {
       return jsonResp({ error: `Payment is already '${payment.status}' — cannot match` }, 409);
     }
 
@@ -153,13 +153,25 @@ Deno.serve(async (req: Request) => {
       .eq("id", payment.organization_id)
       .maybeSingle();
 
-    const orgName    = org?.name          ?? "Your organisation";
+    const orgName      = org?.name          ?? "Your organisation";
     const contactEmail = org?.contact_email ?? null;
 
     // ── 10. Send confirmation email via Resend ──────────────────────────────
     const resendKey = Deno.env.get("RESEND_API_KEY");
-    const tierLabel = (payment.tier ?? "").replace(/_/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase());
+    const tierLabel  = (payment.tier ?? "").replace(/_/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase());
     const cycleLabel = payment.billing_cycle === "annual" ? "Annual" : "Monthly";
+
+    const formatDate = (d: string | null) =>
+      d ? new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "long", year: "numeric" }) : "—";
+
+    const periodRow = (payment.period_start && payment.period_end)
+      ? `<tr><td style="padding:10px 12px;color:#6b6b6b;font-weight:600">Subscription Period</td><td style="padding:10px 12px;color:#1a1a1a">${formatDate(payment.period_start)} — ${formatDate(payment.period_end)}</td></tr>`
+      : "";
+    const periodText = (payment.period_start && payment.period_end)
+      ? `Period:       ${formatDate(payment.period_start)} — ${formatDate(payment.period_end)}`
+      : "";
+
+    const emailSubject = `Subscription activated — Ref ${payment.payment_reference}`;
 
     const htmlBody = `
 <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#fafaf7;border:1px solid #e2e2dc;border-radius:8px;overflow:hidden">
@@ -173,8 +185,9 @@ Deno.serve(async (req: Request) => {
       Your bank transfer payment has been received and verified.
     </p>
     <table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:20px">
-      <tr style="background:#f1f5f9"><td style="padding:10px 12px;color:#6b6b6b;width:150px;font-weight:600">Plan</td><td style="padding:10px 12px;font-weight:700;color:#0a1929">${tierLabel} — ${cycleLabel}</td></tr>
-      <tr><td style="padding:10px 12px;color:#6b6b6b;font-weight:600">Payment Reference</td><td style="padding:10px 12px;font-family:monospace;font-weight:700;color:#0a1929">${payment.payment_reference}</td></tr>
+      <tr style="background:#f1f5f9"><td style="padding:10px 12px;color:#6b6b6b;width:170px;font-weight:600">Plan</td><td style="padding:10px 12px;font-weight:700;color:#0a1929">${tierLabel} — ${cycleLabel}</td></tr>
+      <tr><td style="padding:10px 12px;color:#6b6b6b;font-weight:600">Payment Reference</td><td style="padding:10px 12px;font-family:monospace;font-weight:800;color:#0a1929;font-size:14px;letter-spacing:1px">${payment.payment_reference}</td></tr>
+      ${periodRow}
       <tr style="background:#f1f5f9"><td style="padding:10px 12px;color:#6b6b6b;font-weight:600">Status</td><td style="padding:10px 12px;color:#166534;font-weight:700">Active</td></tr>
     </table>
     <p style="font-size:13px;color:#64748b;line-height:1.6">
@@ -193,6 +206,7 @@ Deno.serve(async (req: Request) => {
       `Organisation: ${orgName}`,
       `Plan:         ${tierLabel} — ${cycleLabel}`,
       `Reference:    ${payment.payment_reference}`,
+      ...(periodText ? [periodText] : []),
       `Status:       Active`,
       ``,
       `Your bank transfer payment has been received and verified.`,
@@ -213,7 +227,7 @@ Deno.serve(async (req: Request) => {
         body: JSON.stringify({
           from: "Iuris Peritis Billing <onboarding@resend.dev>",
           to: [contactEmail],
-          subject: "Your subscription is now active",
+          subject: emailSubject,
           text: textBody,
           html: htmlBody,
         }),

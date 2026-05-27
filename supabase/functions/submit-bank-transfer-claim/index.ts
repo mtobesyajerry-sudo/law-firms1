@@ -6,12 +6,13 @@ import { createClient } from "npm:@supabase/supabase-js@2.39.0";
   Called by the billing modal when a management user selects CRDB bank transfer.
 
   1. Validates the JWT and role (management only).
-  2. Resolves the price server-side via calculate_payment_amount() — ignores any
-     client-supplied amount to prevent amount forgery.
-  3. Generates a unique payment reference (BNK prefix).
-  4. Inserts a subscription_payments row with status = 'pending'.
-  5. Sends an admin notification email via Resend.
-  6. Returns { payment_reference, amount_gross_tzs, currency, status }.
+  2. Checks for an existing open claim (same org + tier + billing_cycle + status IN
+     ('pending','pending_confirmation')) — if found, returns it without inserting a new row.
+  3. Resolves the price server-side via calculate_payment_amount().
+  4. Generates a unique payment reference (BNK prefix).
+  5. Inserts a subscription_payments row with status = 'pending'.
+  6. Sends an admin notification email via Resend.
+  7. Returns { payment_reference, amount_gross_tzs, currency, status, is_existing }.
 */
 
 const corsHeaders = {
@@ -97,7 +98,32 @@ Deno.serve(async (req: Request) => {
       return jsonResp({ error: "This tier requires contacting sales — bank transfer not available" }, 400);
     }
 
-    // ── 4. Server-side amount calculation ───────────────────────────────────
+    // ── 4. Duplicate-claim check ────────────────────────────────────────────
+    // If an open claim already exists for same org+tier+cycle, return it
+    const { data: existing } = await admin
+      .from("subscription_payments")
+      .select("id, payment_reference, amount_gross_tzs, status, customer_confirmed_at")
+      .eq("organization_id", profile.organization_id)
+      .eq("payment_method", "bank_transfer_crdb")
+      .eq("tier", tier)
+      .eq("billing_cycle", billing_cycle!)
+      .in("status", ["pending", "pending_confirmation"])
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (existing) {
+      console.log("[submit-bank-transfer-claim] Returning existing claim:", existing.payment_reference);
+      return jsonResp({
+        payment_reference: existing.payment_reference,
+        amount_gross_tzs:  existing.amount_gross_tzs,
+        currency:          "TZS",
+        status:            existing.status,
+        is_existing:       true,
+      });
+    }
+
+    // ── 5. Server-side amount calculation ───────────────────────────────────
     const { data: priceData, error: priceErr } = await admin.rpc("calculate_payment_amount", {
       p_tier: tier,
       p_billing_cycle: billing_cycle,
@@ -118,7 +144,7 @@ Deno.serve(async (req: Request) => {
       return jsonResp({ error: "Plan pricing not configured" }, 500);
     }
 
-    // ── 5. Organisation details ─────────────────────────────────────────────
+    // ── 6. Organisation details ─────────────────────────────────────────────
     const { data: org } = await admin
       .from("organizations")
       .select("name")
@@ -127,20 +153,20 @@ Deno.serve(async (req: Request) => {
 
     const orgName = org?.name ?? "Unknown Organisation";
 
-    // ── 6. Generate payment reference ───────────────────────────────────────
+    // ── 7. Generate payment reference ───────────────────────────────────────
     // BNK (3) + org6 (6) + ts11 (11) = 20 chars, alphanumeric only
     const orgShort = profile.organization_id.replace(/-/g, "").slice(0, 6).toUpperCase();
     const tsShort = String(Date.now()).slice(-11);
     const paymentReference = `BNK${orgShort}${tsShort}`;
 
-    // ── 7. Period dates ─────────────────────────────────────────────────────
+    // ── 8. Period dates ─────────────────────────────────────────────────────
     const now = new Date();
     const periodStart = now.toISOString().slice(0, 10);
     const periodEnd = billing_cycle === "annual"
       ? new Date(now.setFullYear(now.getFullYear() + 1)).toISOString().slice(0, 10)
       : new Date(now.setMonth(now.getMonth() + 1)).toISOString().slice(0, 10);
 
-    // ── 8. Insert payment record ────────────────────────────────────────────
+    // ── 9. Insert payment record ────────────────────────────────────────────
     const { data: payment, error: insertErr } = await admin
       .from("subscription_payments")
       .insert({
@@ -186,7 +212,7 @@ Deno.serve(async (req: Request) => {
       billing_cycle,
     });
 
-    // ── 9. Admin notification email ─────────────────────────────────────────
+    // ── 10. Admin notification email ────────────────────────────────────────
     const resendKey = Deno.env.get("RESEND_API_KEY");
     const submittedAt = new Date().toLocaleString("en-GB", {
       timeZone: "Africa/Dar_es_Salaam",
@@ -282,12 +308,13 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    // ── 10. Return ──────────────────────────────────────────────────────────
+    // ── 11. Return ──────────────────────────────────────────────────────────
     return jsonResp({
       payment_reference: paymentReference,
       amount_gross_tzs:  amountGross,
       currency:          "TZS",
       status:            "pending",
+      is_existing:       false,
     });
 
   } catch (err) {

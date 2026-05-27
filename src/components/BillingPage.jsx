@@ -228,6 +228,8 @@ function PayNowModal({ org, plans, userEmail, onClose, onSuccess }) {
     }
   };
 
+  const [bankIsExisting, setBankIsExisting] = useState(false);
+
   const handleGenerateRef = async () => {
     setBankError('');
     setGeneratingRef(true);
@@ -243,6 +245,7 @@ function PayNowModal({ org, plans, userEmail, onClose, onSuccess }) {
       if (data?.error) throw new Error(data.error);
       setBankPaymentRef(data.payment_reference);
       setBankAmountConfirmed(data.amount_gross_tzs);
+      setBankIsExisting(data.is_existing === true);
       setStep(4);
     } catch (err) {
       setBankError(err.message || 'Could not generate payment reference. Please try again.');
@@ -640,9 +643,13 @@ function PayNowModal({ org, plans, userEmail, onClose, onSuccess }) {
                 </svg>
               </div>
               <div>
-                <h2 style={{ ...ms.heading, margin: 0, fontSize: '18px' }}>Reference Generated</h2>
+                <h2 style={{ ...ms.heading, margin: 0, fontSize: '18px' }}>
+                  {bankIsExisting ? 'Existing Payment Reference' : 'Reference Generated'}
+                </h2>
                 <p style={{ margin: '2px 0 0', fontSize: '13px', color: '#64748b' }}>
-                  Now make your transfer using the details below
+                  {bankIsExisting
+                    ? 'You already have a pending payment for this plan. Use the reference below.'
+                    : 'Now make your transfer using the details below'}
                 </p>
               </div>
             </div>
@@ -783,122 +790,35 @@ function WebhookLogRow({ entry }) {
   );
 }
 
-// ─── PaymentRow ───────────────────────────────────────────────────────────────
-function PaymentRow({ payment, onManualActivate, isAdmin }) {
-  const [expanded, setExpanded] = useState(false);
-  const [activating, setActivating] = useState(false);
+// ─── Payment status badge metadata ───────────────────────────────────────────
+const PAYMENT_STATUS_META = {
+  pending:              { label: 'Awaiting your transfer',           bg: '#fef3c7', color: '#92400e', border: '#fde68a' },
+  pending_confirmation: { label: 'Confirmed by you',                 bg: '#eff6ff', color: '#1d4ed8', border: '#bfdbfe' },
+  processing:           { label: 'Processing',                       bg: '#eff6ff', color: '#1d4ed8', border: '#bfdbfe' },
+  completed:            { label: 'Active',                           bg: '#d1fae5', color: '#065f46', border: '#86efac' },
+  failed:               { label: 'Failed',                           bg: '#fee2e2', color: '#991b1b', border: '#fca5a5' },
+  cancelled:            { label: 'Cancelled',                        bg: '#f1f5f9', color: '#475569', border: '#cbd5e1' },
+  refunded:             { label: 'Refunded',                         bg: '#f1f5f9', color: '#475569', border: '#cbd5e1' },
+};
 
-  const stuckProcessing =
-    isAdmin &&
-    ['PROCESSING', 'PENDING'].includes(payment.clickpesa_status) &&
-    payment.initiated_at &&
-    (Date.now() - new Date(payment.initiated_at).getTime()) > 24 * 60 * 60 * 1000;
-
-  const statusColors = {
-    completed:  { bg: '#d1fae5', color: '#065f46' },
-    failed:     { bg: '#fee2e2', color: '#991b1b' },
-    processing: { bg: '#eff6ff', color: '#1d4ed8' },
-    pending:    { bg: '#fef3c7', color: '#92400e' },
-  };
-  const sc = statusColors[payment.status] || { bg: '#f1f5f9', color: '#475569' };
-
-  const handleActivate = async () => {
-    if (!confirm('Manually activate this subscription? Only do this if payment was confirmed by other means.')) return;
-    setActivating(true);
-    try { await onManualActivate(payment.id); }
-    finally { setActivating(false); }
-  };
-
+function PaymentStatusBadge({ status }) {
+  const meta = PAYMENT_STATUS_META[status] ?? { label: status, bg: '#f1f5f9', color: '#475569', border: '#cbd5e1' };
+  const tooltip = status === 'pending_confirmation'
+    ? 'You confirmed you made the transfer — our team is matching it to your deposit.'
+    : undefined;
   return (
-    <>
-      <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
-        <td style={{ padding: '12px', fontSize: '13px', color: '#0a1929' }}>
-          {new Date(payment.created_at).toLocaleDateString()}
-        </td>
-        <td style={{ padding: '12px', fontSize: '13px', color: '#0a1929', fontWeight: '600' }}>
-          {formatTZS(payment.amount_gross_tzs ?? payment.amount_tzs)}
-        </td>
-        <td style={{ padding: '12px', fontSize: '13px', color: '#64748b' }}>
-          {PAYMENT_METHOD_LABELS[payment.payment_method] || payment.payment_method}
-        </td>
-        <td style={{ padding: '12px' }}>
-          <span style={{ ...sc, padding: '3px 10px', borderRadius: '5px', fontSize: '12px', fontWeight: '700' }}>
-            {payment.status}
-          </span>
-        </td>
-        <td style={{ padding: '12px', fontSize: '12px', color: '#64748b', fontFamily: 'monospace' }}>
-          {payment.clickpesa_status || '—'}
-        </td>
-        <td style={{ padding: '12px', fontSize: '12px', color: '#64748b' }}>
-          {maskPhone(payment.payer_phone_number)}
-        </td>
-        <td style={{ padding: '12px' }}>
-          <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-            <button
-              onClick={() => setExpanded(e => !e)}
-              style={{ fontSize: '12px', color: '#2563eb', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
-            >
-              {expanded ? 'Hide' : 'Details'}
-            </button>
-            {stuckProcessing && (
-              <button
-                onClick={handleActivate}
-                disabled={activating}
-                style={{
-                  fontSize: '12px', padding: '4px 10px',
-                  background: '#f59e0b', color: 'white',
-                  border: 'none', borderRadius: '5px',
-                  cursor: activating ? 'not-allowed' : 'pointer',
-                  fontWeight: '700', opacity: activating ? 0.7 : 1,
-                }}
-              >
-                {activating ? '...' : 'Activate'}
-              </button>
-            )}
-          </div>
-        </td>
-      </tr>
-      {expanded && (
-        <tr style={{ background: '#f8fafc' }}>
-          <td colSpan={7} style={{ padding: '12px 16px' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px', fontSize: '13px' }}>
-              <div>
-                <div style={{ color: '#64748b', fontWeight: '600', marginBottom: '2px' }}>Transaction / Reference</div>
-                <div style={{ fontFamily: 'monospace', color: '#0a1929' }}>
-                  {payment.clickpesa_transaction_id || payment.clickpesa_order_reference || payment.payment_reference || '—'}
-                </div>
-              </div>
-              <div>
-                <div style={{ color: '#64748b', fontWeight: '600', marginBottom: '2px' }}>Channel</div>
-                <div style={{ color: '#0a1929' }}>{payment.clickpesa_channel || PAYMENT_METHOD_LABELS[payment.payment_method] || '—'}</div>
-              </div>
-              <div>
-                <div style={{ color: '#64748b', fontWeight: '600', marginBottom: '2px' }}>Webhook Received</div>
-                <div style={{ color: '#0a1929' }}>{payment.webhook_received_at ? new Date(payment.webhook_received_at).toLocaleString() : '—'}</div>
-              </div>
-              {payment.failure_reason && (
-                <div style={{ gridColumn: '1/-1' }}>
-                  <div style={{ color: '#64748b', fontWeight: '600', marginBottom: '2px' }}>Failure Reason</div>
-                  <div style={{ color: '#dc2626' }}>{payment.failure_reason}</div>
-                </div>
-              )}
-              {payment.webhook_raw_payload && (
-                <div style={{ gridColumn: '1/-1' }}>
-                  <div style={{ color: '#64748b', fontWeight: '600', marginBottom: '4px' }}>Raw Webhook Payload</div>
-                  <pre style={{
-                    padding: '10px', background: '#f1f5f9', border: '1px solid #e2e8f0',
-                    borderRadius: '6px', fontSize: '11px', overflowX: 'auto',
-                    whiteSpace: 'pre-wrap', color: '#374151',
-                  }}>
-                    {JSON.stringify(payment.webhook_raw_payload, null, 2)}
-                  </pre>
-                </div>
-              )}
-            </div>
-          </td>
-        </tr>
-      )}
-    </>
+    <span
+      title={tooltip}
+      style={{
+        display: 'inline-block', padding: '3px 10px', borderRadius: '999px',
+        fontSize: '11px', fontWeight: '700', letterSpacing: '0.3px',
+        background: meta.bg, color: meta.color, border: `1px solid ${meta.border}`,
+        cursor: tooltip ? 'help' : 'default',
+        whiteSpace: 'nowrap',
+      }}
+    >
+      {meta.label}
+    </span>
   );
 }
 
@@ -911,8 +831,10 @@ export default function BillingPage() {
   const [plans, setPlans] = useState([]);
   const [payments, setPayments] = useState([]);
   const [webhookLogs, setWebhookLogs] = useState([]);
-  const [activeTab, setActiveTab] = useState('overview');
   const [showPayModal, setShowPayModal] = useState(false);
+  const [confirmingId, setConfirmingId] = useState(null);
+  const [confirmError, setConfirmError] = useState('');
+  const [showWebhooks, setShowWebhooks] = useState(false);
 
   const isAdmin = profile?.role === 'admin';
   const isManagement = profile?.role === 'management';
@@ -928,7 +850,7 @@ export default function BillingPage() {
           .select('*')
           .eq('organization_id', profile.organization_id)
           .order('created_at', { ascending: false })
-          .limit(24),
+          .limit(50),
       ]);
       setOrg(orgRes.data);
       setPlans(plansRes.data || []);
@@ -951,17 +873,33 @@ export default function BillingPage() {
 
   useEffect(() => { loadData(); }, [loadData]);
 
-  const handleManualActivate = async (paymentId) => {
-    const { error } = await supabase.rpc('activate_subscription_after_payment', { p_payment_id: paymentId });
-    if (error) { alert('Activation failed: ' + error.message); return; }
-    alert('Subscription activated successfully.');
-    loadData();
-  };
-
   const handlePaymentSuccess = () => {
     refreshProfile();
     setShowPayModal(false);
-    setTimeout(() => { window.location.reload(); }, 1500);
+    setTimeout(() => window.location.reload(), 1500);
+  };
+
+  const handleConfirmTransfer = async (paymentId) => {
+    setConfirmError('');
+    setConfirmingId(paymentId);
+    try {
+      const { data, error } = await supabase.functions.invoke('confirm-bank-transfer-claim', {
+        body: { payment_id: paymentId },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      // Optimistic update — refresh in background
+      setPayments(prev => prev.map(p =>
+        p.id === paymentId
+          ? { ...p, status: 'pending_confirmation', customer_confirmed_at: data.confirmed_at }
+          : p
+      ));
+      loadData();
+    } catch (err) {
+      setConfirmError(err.message || 'Could not confirm transfer. Please try again.');
+    } finally {
+      setConfirmingId(null);
+    }
   };
 
   if (loading) {
@@ -972,23 +910,59 @@ export default function BillingPage() {
     );
   }
 
-  const paymentState = org?.payment_state || 'trialing';
-  const stateMeta = PAYMENT_STATE_META[paymentState] || PAYMENT_STATE_META.trialing;
-  const tierLabel = TIER_LABELS[org?.subscription_tier] || org?.subscription_tier || 'Free Trial';
-  const plan = plans.find(p => p.tier === org?.subscription_tier);
-  const daysRemaining = org?.subscription_expiry_date
-    ? Math.ceil((new Date(org.subscription_expiry_date) - new Date()) / 86400000)
+  // ── Derived state ─────────────────────────────────────────────────────────
+  const now = new Date();
+  const isTrialing   = org?.is_trialing === true;
+  const trialEndsAt  = org?.trial_ends_at ? new Date(org.trial_ends_at) : null;
+  const expiryDate   = org?.subscription_expiry_date ? new Date(org.subscription_expiry_date) : null;
+  const activeTier   = org?.subscription_tier;
+  const hasActiveSub = expiryDate && expiryDate > now && activeTier;
+
+  const daysUntilTrial = trialEndsAt
+    ? Math.ceil((trialEndsAt - now) / 86400000)
+    : null;
+  const daysUntilExpiry = expiryDate
+    ? Math.ceil((expiryDate - now) / 86400000)
     : null;
 
-  const tabs = [
-    { id: 'overview', label: 'Overview' },
-    { id: 'payments', label: `Payment History (${payments.length})` },
-    ...(isAdmin ? [{ id: 'webhooks', label: `Webhook Log (${webhookLogs.length})` }] : []),
-  ];
+  const hasPendingConfirmation = payments.some(p => p.status === 'pending_confirmation');
+  const hasPendingBankTransfer = payments.some(
+    p => p.status === 'pending' && p.payment_method === 'bank_transfer_crdb'
+  );
+
+  const currentPlan = plans.find(p => p.tier === activeTier);
+
+  // Subscription state label
+  let subStateLabel, subStateBg, subStateColor, subStateBorder;
+  if (isTrialing && trialEndsAt && trialEndsAt > now) {
+    subStateLabel  = `Free trial — ${daysUntilTrial} day${daysUntilTrial !== 1 ? 's' : ''} remaining`;
+    subStateBg     = '#fffbeb'; subStateColor = '#92400e'; subStateBorder = '#fcd34d';
+  } else if (hasActiveSub) {
+    subStateLabel  = `Active: ${TIER_LABELS[activeTier] || activeTier} — expires ${expiryDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}`;
+    subStateBg     = '#d1fae5'; subStateColor = '#065f46'; subStateBorder = '#86efac';
+  } else {
+    subStateLabel  = 'No active subscription — choose a plan below';
+    subStateBg     = '#fee2e2'; subStateColor = '#991b1b'; subStateBorder = '#fca5a5';
+  }
+
+  // Plan-picker button label logic
+  const getPlanAction = (plan) => {
+    if (plan.contact_sales) return { label: 'Contact sales', variant: 'ghost', disabled: false };
+    if (!hasActiveSub && !isTrialing) return { label: 'Pay Now', variant: 'primary', disabled: false };
+
+    const tierOrder = ['small_firm', 'medium_firm', 'large_firm'];
+    const currentIdx = tierOrder.indexOf(activeTier);
+    const planIdx    = tierOrder.indexOf(plan.tier);
+
+    if (plan.tier === activeTier) return { label: 'Current plan', variant: 'current', disabled: true };
+    if (planIdx > currentIdx)     return { label: 'Upgrade', variant: 'primary', disabled: false };
+    // Lower tier — link to contact support
+    return { label: 'Contact support', variant: 'ghost', disabled: false };
+  };
 
   return (
     <div style={{ minHeight: '100vh', background: '#f0f4f8' }}>
-      <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '40px 24px' }}>
+      <div style={{ maxWidth: '900px', margin: '0 auto', padding: '40px 24px' }}>
 
         <button
           onClick={() => navigate(-1)}
@@ -1001,236 +975,306 @@ export default function BillingPage() {
           ← Back
         </button>
 
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '32px', flexWrap: 'wrap', gap: '16px' }}>
-          <div>
-            <h1 style={{ fontSize: '28px', fontWeight: '800', color: '#0a1929', margin: '0 0 6px' }}>Billing & Subscription</h1>
-            <p style={{ fontSize: '14px', color: '#64748b', margin: 0 }}>{org?.name}</p>
-          </div>
-          {isManagement && (
-            <button
-              onClick={() => setShowPayModal(true)}
-              style={{
-                padding: '12px 24px', background: '#2563eb', color: 'white',
-                border: 'none', borderRadius: '10px', fontWeight: '700',
-                fontSize: '14px', cursor: 'pointer',
-                boxShadow: '0 2px 8px rgba(37,99,235,0.25)',
-              }}
-            >
-              Pay Now
-            </button>
-          )}
+        <div style={{ marginBottom: '32px' }}>
+          <h1 style={{ fontSize: '28px', fontWeight: '800', color: '#0a1929', margin: '0 0 4px' }}>
+            Billing & Subscription
+          </h1>
+          <p style={{ fontSize: '14px', color: '#64748b', margin: 0 }}>{org?.name}</p>
         </div>
 
-        {/* Status card */}
+        {/* ── Section A: Current Subscription Status ──────────────────────── */}
         <div style={{
-          background: 'white', borderRadius: '16px', padding: '28px',
-          border: `2px solid ${stateMeta.border}`,
-          marginBottom: '24px', display: 'flex',
-          justifyContent: 'space-between', alignItems: 'center',
-          flexWrap: 'wrap', gap: '20px',
+          background: 'white', borderRadius: '16px', padding: '24px 28px',
+          border: `2px solid ${subStateBorder}`, marginBottom: '28px',
         }}>
-          <div>
-            <div style={{ fontSize: '13px', color: '#64748b', fontWeight: '600', marginBottom: '6px' }}>CURRENT PLAN</div>
-            <div style={{ fontSize: '24px', fontWeight: '800', color: '#0a1929', marginBottom: '8px' }}>{tierLabel}</div>
+          <div style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', letterSpacing: '1px', marginBottom: '12px' }}>
+            CURRENT SUBSCRIPTION
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', marginBottom: '12px' }}>
             <span style={{
-              display: 'inline-block', padding: '4px 14px', borderRadius: '20px',
-              background: stateMeta.bg, color: stateMeta.color,
-              fontSize: '13px', fontWeight: '700',
+              display: 'inline-block', padding: '6px 16px', borderRadius: '999px',
+              background: subStateBg, color: subStateColor,
+              fontSize: '13px', fontWeight: '700', border: `1px solid ${subStateBorder}`,
             }}>
-              {stateMeta.label}
+              {subStateLabel}
             </span>
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '24px' }}>
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: '22px', fontWeight: '800', color: '#0a1929' }}>
-                {daysRemaining != null ? Math.max(0, daysRemaining) : '—'}
-              </div>
-              <div style={{ fontSize: '12px', color: '#64748b', fontWeight: '600' }}>Days left</div>
-            </div>
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: '22px', fontWeight: '800', color: '#0a1929' }}>{plan?.max_users ?? '∞'}</div>
-              <div style={{ fontSize: '12px', color: '#64748b', fontWeight: '600' }}>Max users</div>
-            </div>
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: '22px', fontWeight: '800', color: '#0a1929' }}>{plan?.max_clients ?? '∞'}</div>
-              <div style={{ fontSize: '12px', color: '#64748b', fontWeight: '600' }}>Max clients</div>
-            </div>
-          </div>
-          <div style={{ textAlign: 'right' }}>
-            {org?.subscription_expiry_date && (
-              <div style={{ fontSize: '13px', color: '#64748b', marginBottom: '4px' }}>
-                Expires {new Date(org.subscription_expiry_date).toLocaleDateString()}
-              </div>
+            {hasPendingConfirmation && (
+              <span style={{
+                display: 'inline-block', padding: '5px 14px', borderRadius: '999px',
+                background: '#eff6ff', color: '#1d4ed8', fontSize: '12px', fontWeight: '700',
+                border: '1px solid #bfdbfe',
+              }}>
+                Payment under review
+              </span>
             )}
-            <div style={{ fontSize: '13px', color: '#64748b' }}>Monthly: {plan ? formatTZS(plan.price_monthly_tzs) : '—'}</div>
-            <div style={{ fontSize: '13px', color: '#64748b' }}>Annual: {plan ? formatTZS(plan.price_annual_tzs) : '—'}</div>
           </div>
-        </div>
 
-        {/* Tabs */}
-        <div style={{ display: 'flex', gap: '4px', marginBottom: '24px', borderBottom: '2px solid #e2e8f0' }}>
-          {tabs.map(tab => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              style={{
-                padding: '10px 20px', background: 'none', border: 'none',
-                borderBottom: `2px solid ${activeTab === tab.id ? '#2563eb' : 'transparent'}`,
-                color: activeTab === tab.id ? '#2563eb' : '#64748b',
-                fontWeight: activeTab === tab.id ? '700' : '600',
-                fontSize: '14px', cursor: 'pointer', marginBottom: '-2px',
-                transition: 'all 0.15s',
-              }}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
-
-        {/* Overview */}
-        {activeTab === 'overview' && (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
-            <div style={{ background: 'white', borderRadius: '12px', border: '1px solid #e2e8f0', padding: '24px' }}>
-              <h3 style={{ fontSize: '16px', fontWeight: '700', color: '#0a1929', margin: '0 0 16px' }}>Plan Details</h3>
+          {hasActiveSub && currentPlan && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: '16px', marginTop: '16px' }}>
               {[
-                ['Plan name', plan?.name || tierLabel],
-                ['Tier', org?.subscription_tier || 'N/A'],
-                ['Status', stateMeta.label],
-                ['Expiry', org?.subscription_expiry_date ? new Date(org.subscription_expiry_date).toLocaleDateString() : 'N/A'],
-                ['Max users', plan?.max_users ?? 'Unlimited'],
-                ['Max clients', plan?.max_clients ?? 'Unlimited'],
-                ['IRAs / year', plan?.max_iras_per_year ?? 'Unlimited'],
-                ['Screenings / month', plan?.max_screenings_per_month ?? 'Unlimited'],
+                ['Plan', TIER_LABELS[activeTier] || activeTier],
+                ['Days left', Math.max(0, daysUntilExpiry ?? 0)],
+                ['Max users', currentPlan.max_users ?? '∞'],
+                ['Max clients', currentPlan.max_clients ?? '∞'],
               ].map(([label, val]) => (
-                <div key={label} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid #f1f5f9', fontSize: '13px' }}>
-                  <span style={{ color: '#64748b' }}>{label}</span>
-                  <span style={{ color: '#0a1929', fontWeight: '600' }}>{String(val)}</span>
+                <div key={label} style={{ textAlign: 'center', padding: '12px', background: '#f8fafc', borderRadius: '10px' }}>
+                  <div style={{ fontSize: '18px', fontWeight: '800', color: '#0a1929' }}>{val}</div>
+                  <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '600', marginTop: '2px' }}>{label}</div>
                 </div>
               ))}
             </div>
+          )}
 
-            <div style={{ background: 'white', borderRadius: '12px', border: '1px solid #e2e8f0', padding: '24px' }}>
-              <h3 style={{ fontSize: '16px', fontWeight: '700', color: '#0a1929', margin: '0 0 16px' }}>Recent Payments</h3>
-              {payments.length === 0 ? (
-                <p style={{ color: '#94a3b8', fontSize: '13px' }}>No payment history yet.</p>
-              ) : (
-                payments.slice(0, 5).map(p => (
-                  <div key={p.id} style={{ padding: '10px 0', borderBottom: '1px solid #f1f5f9' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div>
-                        <div style={{ fontSize: '13px', fontWeight: '600', color: '#0a1929' }}>
-                          {formatTZS(p.amount_gross_tzs ?? p.amount_tzs)}
-                        </div>
-                        <div style={{ fontSize: '11px', color: '#94a3b8' }}>
-                          {PAYMENT_METHOD_LABELS[p.payment_method] || p.payment_method}
-                          {' · '}
-                          {new Date(p.created_at).toLocaleDateString()}
-                        </div>
-                      </div>
-                      <span style={{
-                        padding: '2px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: '700',
-                        background: p.status === 'completed' ? '#d1fae5' : p.status === 'failed' ? '#fee2e2' : '#fef3c7',
-                        color: p.status === 'completed' ? '#065f46' : p.status === 'failed' ? '#991b1b' : '#92400e',
-                      }}>
-                        {p.status}
-                      </span>
-                    </div>
-                  </div>
-                ))
-              )}
-              {payments.length > 5 && (
-                <button
-                  onClick={() => setActiveTab('payments')}
-                  style={{ marginTop: '12px', fontSize: '13px', color: '#2563eb', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
-                >
-                  View all {payments.length} payments
-                </button>
+          {hasPendingBankTransfer && !hasPendingConfirmation && (
+            <div style={{
+              marginTop: '14px', padding: '10px 14px',
+              background: '#fffbeb', border: '1px solid #fcd34d',
+              borderRadius: '8px', fontSize: '13px', color: '#92400e', lineHeight: 1.5,
+            }}>
+              You have a pending bank transfer. Once you've sent the payment, click
+              "I have made the transfer" in your payment history below.
+            </div>
+          )}
+        </div>
+
+        {/* ── Section B: Payment History ──────────────────────────────────── */}
+        {payments.length > 0 && (
+          <div style={{
+            background: 'white', borderRadius: '16px',
+            border: '1px solid #e2e8f0', marginBottom: '28px', overflow: 'hidden',
+          }}>
+            <div style={{ padding: '20px 24px', borderBottom: '1px solid #f1f5f9' }}>
+              <h2 style={{ margin: 0, fontSize: '17px', fontWeight: '700', color: '#0a1929' }}>
+                Payment History
+              </h2>
+              {confirmError && (
+                <div style={{
+                  marginTop: '10px', padding: '8px 14px', background: '#fee2e2',
+                  border: '1px solid #fca5a5', borderRadius: '6px',
+                  fontSize: '13px', color: '#991b1b',
+                }}>
+                  {confirmError}
+                </div>
               )}
             </div>
 
-            {isManagement && (
-              <div style={{ background: 'white', borderRadius: '12px', border: '1px solid #e2e8f0', padding: '24px' }}>
-                <h3 style={{ fontSize: '16px', fontWeight: '700', color: '#0a1929', margin: '0 0 16px' }}>Quick Actions</h3>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  <button
-                    onClick={() => setShowPayModal(true)}
-                    style={{
-                      padding: '12px', background: '#2563eb', color: 'white',
-                      border: 'none', borderRadius: '8px', fontWeight: '700',
-                      fontSize: '14px', cursor: 'pointer', textAlign: 'center',
-                    }}
-                  >
-                    Renew / Upgrade Subscription
-                  </button>
-                  <button
-                    onClick={() => navigate('/pricing')}
-                    style={{
-                      padding: '12px', background: 'transparent', color: '#2563eb',
-                      border: '1.5px solid #2563eb', borderRadius: '8px', fontWeight: '600',
-                      fontSize: '14px', cursor: 'pointer', textAlign: 'center',
-                    }}
-                  >
-                    Compare Plans
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Payment history */}
-        {activeTab === 'payments' && (
-          <div style={{ background: 'white', borderRadius: '12px', border: '1px solid #e2e8f0', overflow: 'hidden' }}>
-            {payments.length === 0 ? (
-              <div style={{ padding: '40px', textAlign: 'center', color: '#94a3b8', fontSize: '14px' }}>
-                No payment history yet.
-              </div>
-            ) : (
-              <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                  <thead>
-                    <tr style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0' }}>
-                      {['Date', 'Amount', 'Method', 'Status', 'Provider Status', 'Phone', 'Details'].map(h => (
-                        <th key={h} style={{ padding: '12px', textAlign: 'left', fontSize: '12px', fontWeight: '700', color: '#64748b' }}>{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {payments.map(p => (
-                      <PaymentRow key={p.id} payment={p} isAdmin={isAdmin} onManualActivate={handleManualActivate} />
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0' }}>
+                    {['Reference', 'Method', 'Amount', 'Status', 'Date', 'Action'].map(h => (
+                      <th key={h} style={{
+                        padding: '10px 14px', textAlign: 'left',
+                        fontSize: '11px', fontWeight: '700', color: '#64748b',
+                        letterSpacing: '0.5px', whiteSpace: 'nowrap',
+                      }}>
+                        {h}
+                      </th>
                     ))}
-                  </tbody>
-                </table>
-              </div>
+                  </tr>
+                </thead>
+                <tbody>
+                  {payments.map((p, i) => {
+                    const isBankPending = p.payment_method === 'bank_transfer_crdb' && p.status === 'pending';
+                    return (
+                      <tr
+                        key={p.id}
+                        style={{ background: i % 2 === 0 ? 'white' : '#fafafa', borderBottom: '1px solid #f1f5f9' }}
+                      >
+                        <td style={{ padding: '12px 14px', fontFamily: 'monospace', fontSize: '12px', fontWeight: '700', color: '#1e40af' }}>
+                          {p.payment_reference || '—'}
+                        </td>
+                        <td style={{ padding: '12px 14px', fontSize: '13px', color: '#64748b', whiteSpace: 'nowrap' }}>
+                          {PAYMENT_METHOD_LABELS[p.payment_method] || p.payment_method}
+                        </td>
+                        <td style={{ padding: '12px 14px', fontSize: '13px', fontWeight: '700', color: '#0a1929', whiteSpace: 'nowrap' }}>
+                          {formatTZS(p.amount_gross_tzs ?? p.amount_tzs)}
+                        </td>
+                        <td style={{ padding: '12px 14px' }}>
+                          <PaymentStatusBadge status={p.status} />
+                        </td>
+                        <td style={{ padding: '12px 14px', fontSize: '12px', color: '#64748b', whiteSpace: 'nowrap' }}>
+                          {new Date(p.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                        </td>
+                        <td style={{ padding: '12px 14px' }}>
+                          {isBankPending && isManagement && (
+                            <button
+                              onClick={() => handleConfirmTransfer(p.id)}
+                              disabled={confirmingId === p.id}
+                              style={{
+                                padding: '6px 14px', background: '#2563eb', color: 'white',
+                                border: 'none', borderRadius: '6px', fontWeight: '700',
+                                fontSize: '12px', cursor: confirmingId === p.id ? 'not-allowed' : 'pointer',
+                                opacity: confirmingId === p.id ? 0.7 : 1, whiteSpace: 'nowrap',
+                              }}
+                            >
+                              {confirmingId === p.id ? 'Confirming...' : 'I have made the transfer'}
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* ── Section C: Plans ─────────────────────────────────────────────── */}
+        <div style={{
+          background: 'white', borderRadius: '16px',
+          border: '1px solid #e2e8f0', marginBottom: '28px', overflow: 'hidden',
+        }}>
+          <div style={{ padding: '20px 24px', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+            <div>
+              <h2 style={{ margin: 0, fontSize: '17px', fontWeight: '700', color: '#0a1929' }}>Plans</h2>
+              <p style={{ margin: '3px 0 0', fontSize: '13px', color: '#64748b' }}>
+                {hasActiveSub ? 'Your current plan is highlighted.' : 'Choose a plan to get started.'}
+              </p>
+            </div>
+            {isManagement && (
+              <button
+                onClick={() => setShowPayModal(true)}
+                style={{
+                  padding: '10px 22px', background: '#2563eb', color: 'white',
+                  border: 'none', borderRadius: '8px', fontWeight: '700',
+                  fontSize: '14px', cursor: 'pointer',
+                }}
+              >
+                Pay Now
+              </button>
+            )}
+          </div>
+
+          <div style={{ padding: '24px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
+            {plans.map(plan => {
+              const action = getPlanAction(plan);
+              const isCurrent = plan.tier === activeTier && hasActiveSub;
+              return (
+                <div
+                  key={plan.tier}
+                  style={{
+                    border: `2px solid ${isCurrent ? '#2563eb' : '#e2e8f0'}`,
+                    borderRadius: '12px', padding: '20px',
+                    background: isCurrent ? '#eff6ff' : 'white',
+                    position: 'relative',
+                    transition: 'border-color 0.15s',
+                  }}
+                >
+                  {isCurrent && (
+                    <div style={{
+                      position: 'absolute', top: '-1px', right: '16px',
+                      background: '#2563eb', color: 'white',
+                      fontSize: '10px', fontWeight: '800', letterSpacing: '0.5px',
+                      padding: '3px 10px', borderRadius: '0 0 6px 6px',
+                    }}>
+                      YOUR CURRENT PLAN
+                    </div>
+                  )}
+                  <div style={{ fontWeight: '800', fontSize: '16px', color: '#0a1929', marginBottom: '6px' }}>
+                    {plan.display_name || TIER_LABELS[plan.tier] || plan.name}
+                  </div>
+                  <div style={{ fontSize: '11px', color: '#64748b', marginBottom: '14px' }}>
+                    {plan.max_users ?? '∞'} users · {plan.max_clients ?? '∞'} clients
+                  </div>
+                  <div style={{ marginBottom: '16px' }}>
+                    {plan.contact_sales ? (
+                      <span style={{ fontSize: '14px', color: '#64748b', fontWeight: '600' }}>Contact sales</span>
+                    ) : (
+                      <>
+                        <span style={{ fontSize: '20px', fontWeight: '800', color: '#0a1929' }}>
+                          {formatTZS(plan.price_monthly_tzs)}
+                        </span>
+                        <span style={{ fontSize: '12px', color: '#94a3b8' }}> / month</span>
+                        <div style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>
+                          or {formatTZS(plan.price_annual_tzs)} / year
+                        </div>
+                      </>
+                    )}
+                  </div>
+                  {isManagement && (
+                    action.variant === 'current' ? (
+                      <div style={{
+                        padding: '9px 16px', textAlign: 'center', borderRadius: '8px',
+                        background: '#e0e7ff', color: '#3730a3',
+                        fontSize: '13px', fontWeight: '700',
+                      }}>
+                        Current plan
+                      </div>
+                    ) : action.variant === 'ghost' ? (
+                      <a
+                        href="mailto:info@iursperitis.co.tz"
+                        style={{
+                          display: 'block', padding: '9px 16px', textAlign: 'center',
+                          border: '1.5px solid #e2e8f0', borderRadius: '8px',
+                          color: '#475569', fontSize: '13px', fontWeight: '600',
+                          textDecoration: 'none',
+                        }}
+                      >
+                        {action.label}
+                      </a>
+                    ) : (
+                      <button
+                        onClick={() => setShowPayModal(true)}
+                        style={{
+                          display: 'block', width: '100%', padding: '9px 16px',
+                          background: '#2563eb', color: 'white',
+                          border: 'none', borderRadius: '8px',
+                          fontSize: '13px', fontWeight: '700', cursor: 'pointer',
+                        }}
+                      >
+                        {action.label}
+                      </button>
+                    )
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* ── Admin: Webhook log (collapsed) ──────────────────────────────── */}
+        {isAdmin && (
+          <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #e2e8f0', overflow: 'hidden' }}>
+            <button
+              onClick={() => setShowWebhooks(w => !w)}
+              style={{
+                width: '100%', padding: '16px 24px',
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                background: 'none', border: 'none', cursor: 'pointer',
+                fontSize: '14px', fontWeight: '700', color: '#0a1929',
+                textAlign: 'left',
+              }}
+            >
+              <span>Webhook Log ({webhookLogs.length})</span>
+              <span style={{ fontSize: '18px', color: '#64748b' }}>{showWebhooks ? '−' : '+'}</span>
+            </button>
+            {showWebhooks && (
+              webhookLogs.length === 0 ? (
+                <div style={{ padding: '24px', textAlign: 'center', color: '#94a3b8', fontSize: '14px', borderTop: '1px solid #f1f5f9' }}>
+                  No webhook events recorded yet.
+                </div>
+              ) : (
+                <div style={{ overflowX: 'auto', borderTop: '1px solid #f1f5f9' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                    <thead>
+                      <tr style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0' }}>
+                        {['Transaction ID', 'Status', 'Signature', 'Received', 'Payload'].map(h => (
+                          <th key={h} style={{ padding: '10px 12px', textAlign: 'left', fontSize: '11px', fontWeight: '700', color: '#64748b' }}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {webhookLogs.map(entry => <WebhookLogRow key={entry.id} entry={entry} />)}
+                    </tbody>
+                  </table>
+                </div>
+              )
             )}
           </div>
         )}
 
-        {/* Webhook log (admin only) */}
-        {activeTab === 'webhooks' && isAdmin && (
-          <div style={{ background: 'white', borderRadius: '12px', border: '1px solid #e2e8f0', overflow: 'hidden' }}>
-            {webhookLogs.length === 0 ? (
-              <div style={{ padding: '40px', textAlign: 'center', color: '#94a3b8', fontSize: '14px' }}>
-                No webhook events recorded yet.
-              </div>
-            ) : (
-              <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                  <thead>
-                    <tr style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0' }}>
-                      {['Transaction ID', 'Status', 'Signature', 'Received', 'Payload'].map(h => (
-                        <th key={h} style={{ padding: '12px', textAlign: 'left', fontSize: '12px', fontWeight: '700', color: '#64748b' }}>{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {webhookLogs.map(entry => <WebhookLogRow key={entry.id} entry={entry} />)}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-        )}
       </div>
 
       {showPayModal && org && (

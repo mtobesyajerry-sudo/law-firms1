@@ -98,6 +98,26 @@ Deno.serve(async (req: Request) => {
     if (!["small_firm", "medium_firm", "launch_smoke_test"].includes(body.tier)) {
       return jsonError("Invalid tier; only small_firm and medium_firm are self-serve payable", 400);
     }
+
+    // ── Duplicate in-progress payment check (5-minute window) ───────────────
+    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+    const { data: recentPayment } = await supabaseAdmin
+      .from("subscription_payments")
+      .select("id, payment_reference")
+      .eq("organization_id", profile.organization_id)
+      .eq("tier", body.tier)
+      .eq("billing_cycle", body.billing_cycle)
+      .eq("status", "processing")
+      .gte("initiated_at", fiveMinutesAgo)
+      .limit(1)
+      .maybeSingle();
+
+    if (recentPayment) {
+      return jsonError(
+        "A payment is already in progress for this plan. Please wait and try again if it doesn't complete.",
+        409
+      );
+    }
     if (!["monthly", "annual"].includes(body.billing_cycle)) {
       return jsonError("Invalid billing_cycle", 400);
     }
