@@ -285,7 +285,7 @@ function MfaSettingsPage() {
   );
 }
 
-function ProtectedRoute({ children, adminOnly = false, managementOnly = false, staffOnly = false, complianceOnly = false }) {
+function ProtectedRoute({ children, adminOnly = false, managementOnly = false, staffOnly = false, complianceOnly = false, billingOnly = false }) {
   const { user, profile, loading, signOut, isEarlyClient, requiresPasswordChange,
     requiresMfaEnrollment, showMfaNudge, mfaGracePeriodEnds, refreshMfaState,
     isTrialing, trialEndsAt, daysUntilTrialEnds, trialExpiredNeedPayment } = useAuth();
@@ -414,6 +414,10 @@ function ProtectedRoute({ children, adminOnly = false, managementOnly = false, s
     return <Navigate to="/client/dashboard" replace />;
   }
 
+  if (billingOnly && !(profile?.role === 'management' || profile?.role === 'admin')) {
+    return <Navigate to="/client/dashboard" replace />;
+  }
+
   // Management access: admin, management, senior_partner, OR early clients (first 5 in org)
   if (managementOnly && !(profile?.role === 'admin' || profile?.role === 'management' || profile?.role === 'senior_partner' || (profile?.role === 'client' && isEarlyClient))) {
     return <Navigate to="/client/dashboard" replace />;
@@ -493,7 +497,7 @@ function AppRoutes() {
       <Route
         path="/billing"
         element={
-          <ProtectedRoute>
+          <ProtectedRoute billingOnly={true}>
             <BillingPage />
           </ProtectedRoute>
         }

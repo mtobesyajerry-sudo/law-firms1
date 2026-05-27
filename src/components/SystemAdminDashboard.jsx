@@ -469,6 +469,14 @@ export default function SystemAdminDashboard() {
               <span style={styles.badge}>{stats.newEnquiries}</span>
             )}
           </button>
+          {(profile?.role === 'management' || profile?.role === 'admin') && (
+            <button
+              onClick={() => navigate('/billing')}
+              style={{ ...styles.tab }}
+            >
+              Billing
+            </button>
+          )}
         </div>
 
         {activeTab === 'overview' && (

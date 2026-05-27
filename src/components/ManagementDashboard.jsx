@@ -1055,6 +1055,14 @@ export default function ManagementDashboard() {
           >
             Content Management
           </button>
+          {profile?.role === 'admin' && (
+            <button
+              onClick={() => navigate('/admin/payments')}
+              style={dashboardStyles.tab}
+            >
+              Payments
+            </button>
+          )}
         </div>
 
         {activeTab === 'registration' && (
