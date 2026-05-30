@@ -9,13 +9,14 @@ import {
   getRequiredAction,
   calculateRiskLevel
 } from '../data/assessmentData';
-import { getFilteredSections } from '../utils/frameworkUtils';
+import { getFilteredSections, resolveFrameworkType } from '../utils/frameworkUtils';
 import MaturityAssessmentSection from './MaturityAssessmentSection';
 
 export default function DetailedAssessmentReport({ assessment, sectionScores = [], responses = [], onClose }) {
   const [keyFindings, setKeyFindings] = useState(null);
   const tier = assessment.entity_tier || assessment.dnfbp_tier || 2;
-  const filteredSections = getFilteredSections('banks_financial_institutions', tier);
+  const frameworkType = assessment.framework_type || resolveFrameworkType(assessment?.organizations?.sector);
+  const filteredSections = getFilteredSections(frameworkType, tier);
 
   useEffect(() => {
     const loadKeyFindings = async () => {

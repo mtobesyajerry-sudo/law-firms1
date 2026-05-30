@@ -24,7 +24,8 @@ import { supabase } from '../supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
 import { validatePassword } from '../utils/security';
 import { getRiskColor, getRiskLabel, institutionCategories, calculateSectionScore, calculateRiskLevel } from '../data/assessmentData';
-import { getFilteredSections } from '../utils/frameworkUtils';
+import { getFilteredSections, resolveFrameworkType } from '../utils/frameworkUtils';
+import { SECTOR_NAMES } from '../data/sectorConfig';
 import MarkdownRenderer from './MarkdownRenderer';
 import { dashboardStyles, getBadgeStyle, getRiskBadgeStyle, getStatusBadgeStyle } from '../utils/dashboardStyles';
 import LoadingSpinner from './LoadingSpinner';
@@ -187,7 +188,8 @@ export default function SystemAdminDashboard() {
         if (scoresError) continue;
 
         const tier = assessment.entity_tier || assessment.dnfbp_tier || 2;
-        const sections = getFilteredSections('banks_financial_institutions', tier);
+        const frameworkType = assessment.framework_type || resolveFrameworkType(assessment?.organizations?.sector);
+        const sections = getFilteredSections(frameworkType, tier);
 
         for (const section of sections) {
           const sectionResponses = responses.filter(r => r.section_code === section.code);
@@ -551,7 +553,7 @@ export default function SystemAdminDashboard() {
           name: editOrg.name,
           business_type: editOrg.business_type,
           size: editOrg.size,
-          dnfbp_category: editOrg.dnfbp_category,
+          sector: editOrg.sector || null,
         })
         .eq('id', editOrg.id);
 
@@ -1790,6 +1792,19 @@ export default function SystemAdminDashboard() {
                   <option value="small">Small (1-10 lawyers)</option>
                   <option value="medium">Medium (11-50 lawyers)</option>
                   <option value="large">Large (50+ lawyers)</option>
+                </select>
+              </div>
+              <div style={styles.formGroup}>
+                <label style={styles.label}>Sector</label>
+                <select
+                  value={editOrg.sector || ''}
+                  onChange={(e) => setEditOrg({ ...editOrg, sector: e.target.value || null })}
+                  style={styles.select}
+                >
+                  <option value="">-- Select Sector --</option>
+                  {Object.entries(SECTOR_NAMES).map(([value, label]) => (
+                    <option key={value} value={value}>{label}</option>
+                  ))}
                 </select>
               </div>
               <div style={styles.modalActions}>

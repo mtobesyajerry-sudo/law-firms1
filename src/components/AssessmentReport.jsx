@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import { getRiskColor, getRiskLabel, institutionCategories, requiresEDD, getRequiredAction } from '../data/assessmentData';
-import { getFrameworkLabel, getFilteredSections } from '../utils/frameworkUtils';
+import { getFrameworkLabel, getFilteredSections, resolveFrameworkType } from '../utils/frameworkUtils';
 import { useAuth } from '../contexts/AuthContext';
 import DetailedAssessmentReport from './DetailedAssessmentReport';
 import PrintableAssessmentReport from './PrintableAssessmentReport';
@@ -287,7 +287,8 @@ export default function AssessmentReport() {
   }
 
   const tier = assessment.entity_tier || assessment.dnfbp_tier || 2;
-  const filteredSections = getFilteredSections('banks_financial_institutions', tier);
+  const frameworkType = assessment.framework_type || resolveFrameworkType(assessment?.organizations?.sector);
+  const filteredSections = getFilteredSections(frameworkType, tier);
 
   const assessmentSections = [];
   filteredSections.forEach(module => {

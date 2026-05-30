@@ -7,10 +7,12 @@ import KYCClientManagement from './KYCClientManagement';
 import { dashboardStyles, getBadgeStyle, getRiskBadgeStyle, getStatusBadgeStyle } from '../utils/dashboardStyles';
 import LoadingSpinner from './LoadingSpinner';
 import RoleUpgradeRequestForm from './RoleUpgradeRequestForm';
+import { resolveFrameworkType } from '../utils/frameworkUtils';
 
 export default function StaffDashboard() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [showRoleUpgradeForm, setShowRoleUpgradeForm] = useState(false);
+  const [org, setOrg] = useState(null);
   const [stats, setStats] = useState({
     myMatters: 0,
     openMatters: 0,
@@ -67,6 +69,16 @@ export default function StaffDashboard() {
       setLoading(false);
     }
   }, [profile, user, activeView]);
+
+  useEffect(() => {
+    if (!profile?.organization_id) return;
+    supabase
+      .from('organizations')
+      .select('id, sector')
+      .eq('id', profile.organization_id)
+      .maybeSingle()
+      .then(({ data }) => { if (data) setOrg(data); });
+  }, [profile?.organization_id]);
 
   const loadDashboardData = async () => {
     try {
@@ -348,7 +360,7 @@ export default function StaffDashboard() {
                 return (
                   <div
                     key={client.id}
-                    onClick={() => navigate(`/client/kyc/${client.id}`)}
+                    onClick={() => navigate(`/kyc-client/${client.id}`)}
                     style={{
                       padding: '16px',
                       background: 'white',
@@ -600,12 +612,38 @@ export default function StaffDashboard() {
               <span style={{ fontSize: '24px' }}>👥</span>
               My Assigned Clients
             </h3>
-            <button
-              onClick={() => changeView('clients')}
-              style={styles.viewAllButton}
-            >
-              View All →
-            </button>
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              {(() => {
+                const frameworkType = resolveFrameworkType(org?.sector);
+                if (frameworkType === 'insurer') {
+                  return (
+                    <button
+                      onClick={() => navigate('/kyc-form')}
+                      style={{ ...styles.viewAllButton, background: '#d4af37', color: '#0a1929', fontWeight: '600' }}
+                    >
+                      + New KYC
+                    </button>
+                  );
+                }
+                if (frameworkType === 'audit_firm') {
+                  return (
+                    <button
+                      onClick={() => navigate('/accountant-kyc-form')}
+                      style={{ ...styles.viewAllButton, background: '#d4af37', color: '#0a1929', fontWeight: '600' }}
+                    >
+                      + New KYC
+                    </button>
+                  );
+                }
+                return null;
+              })()}
+              <button
+                onClick={() => changeView('clients')}
+                style={styles.viewAllButton}
+              >
+                View All →
+              </button>
+            </div>
           </div>
           {myClients.length === 0 ? (
             <p style={{ color: '#64748b', fontSize: '14px' }}>No clients assigned</p>
@@ -887,7 +925,7 @@ function OverdueReviewsList({ organizationId, userId }) {
                   cursor: 'pointer',
                   transition: 'all 0.3s ease'
                 }}
-                onClick={() => navigate(`/kyc-client-details/${client.id}`)}
+                onClick={() => navigate(`/kyc-client/${client.id}`)}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.transform = 'translateY(-2px)';
                   e.currentTarget.style.boxShadow = `0 8px 24px ${urgencyColor}40`;

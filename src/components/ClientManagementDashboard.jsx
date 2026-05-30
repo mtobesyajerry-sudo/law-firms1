@@ -334,8 +334,8 @@ export default function ClientManagementDashboard() {
           .from('organizations')
           .insert({
             name: organizationName,
-            dnfbp_category: 'Other',
-            framework_type: 'law_firm'
+            business_type: 'law_firm',
+            sector: 'law_firm'
           })
           .select()
           .single();
