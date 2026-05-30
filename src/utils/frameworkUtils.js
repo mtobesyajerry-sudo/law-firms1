@@ -32,16 +32,15 @@ import {
 // ---------------------------------------------------------------------------
 export function resolveFrameworkType(sector) {
   switch (sector) {
-    case 'insurer':         return 'insurer';
-    case 'audit_firm':      return 'audit_firm';
+    case 'insurance':
+    case 'insurer':             return 'insurer';
+    case 'accounting':
+    case 'audit_firm':          return 'audit_firm';
     case 'general_dnfbp':
-    case 'dnfbp':           return 'general_dnfbp';
-    case 'legal_professionals':
-    case 'law_firm':        return 'legal_professionals';
-    default:
-      // All live orgs have sector=null and business_type='law_firm'.
-      // Any unrecognised or missing value safe-defaults to legal_professionals.
-      return 'legal_professionals';
+    case 'dnfbp':               return 'general_dnfbp';
+    case 'law_firm':
+    case 'legal_professionals': return 'legal_professionals';
+    default:                    return 'legal_professionals';
   }
 }
 
