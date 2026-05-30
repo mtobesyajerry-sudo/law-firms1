@@ -25,6 +25,8 @@ export default function Auth() {
   const [sectorConfirmed, setSectorConfirmed] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [privacyAccepted, setPrivacyAccepted] = useState(false);
+  const [dnfbpCategories, setDnfbpCategories] = useState([]);
+  const [selectedCategory, setSelectedCategory] = useState('');
   const [existingOrgData, setExistingOrgData] = useState(null);
   const [brelaCheckLoading, setBrelaCheckLoading] = useState(false);
   const [requestedTier, setRequestedTier] = useState('small_firm');
@@ -41,8 +43,25 @@ export default function Auth() {
   useEffect(() => {
     if (mode === 'register') {
       checkIfFirstUser();
+      loadDnfbpCategories();
     }
   }, [mode]);
+
+  const loadDnfbpCategories = async () => {
+    const { data } = await supabase
+      .from('dnfbp_framework_mappings')
+      .select('category_value, category_label, framework_type')
+      .eq('is_active', true)
+      .not('category_label', 'is', null)
+      .order('framework_type')
+      .order('category_label');
+    const categories = data || [];
+    setDnfbpCategories(categories);
+    if (categories.length > 0) {
+      const lawFirm = categories.find(c => c.category_value === 'law_firm');
+      setSelectedCategory(lawFirm ? 'law_firm' : categories[0].category_value);
+    }
+  };
 
   const checkIfFirstUser = async () => {
     setCheckingFirstUser(true);
@@ -208,6 +227,17 @@ export default function Auth() {
     setError('Sign-in cancelled.');
   };
 
+  const FRAMEWORK_TO_SECTOR = {
+    law_firm:   'law_firm',
+    insurer:    'insurance',
+    audit_firm: 'accounting',
+    dnfbp:      'general_dnfbp',
+  };
+  const deriveSector = (frameworkType) => FRAMEWORK_TO_SECTOR[frameworkType] ?? 'general_dnfbp';
+  const selectedCategoryRow = dnfbpCategories.find(c => c.category_value === selectedCategory);
+  const derivedSector = deriveSector(selectedCategoryRow?.framework_type);
+  const isLawFirm = derivedSector === 'law_firm';
+
   const handleRegisterSubmit = async (e) => {
     e.preventDefault();
     setError('');
@@ -298,6 +328,12 @@ export default function Auth() {
           return;
         }
 
+        if (!selectedCategory) {
+          setError('Please select your DNFBP category');
+          setLoading(false);
+          return;
+        }
+
         if (existingOrgData && existingOrgData.full) {
           setError('This organization already has the maximum of 3 users. Please contact your administrator.');
           setLoading(false);
@@ -305,7 +341,7 @@ export default function Auth() {
         }
 
         if ((!existingOrgData || existingOrgData.full) && !lawFirmName) {
-          setError('Law Firm Name is required for new registrations');
+          setError('Organisation name is required for new registrations');
           setLoading(false);
           return;
         }
@@ -316,7 +352,7 @@ export default function Auth() {
           return;
         }
 
-        if (!sectorConfirmed || !termsAccepted || !privacyAccepted) {
+        if (!termsAccepted || !privacyAccepted) {
           setError('Please accept all required consents to proceed');
           setLoading(false);
           return;
@@ -346,6 +382,8 @@ export default function Auth() {
           encrypted_password: encryptedPassword,
           is_primary_contact: isPrimaryContact,
           sector_confirmed: sectorConfirmed,
+          dnfbp_category: selectedCategory,
+          sector: derivedSector,
           terms_accepted: termsAccepted,
           privacy_policy_accepted: privacyAccepted,
           registration_status: 'pending',
@@ -372,11 +410,10 @@ export default function Auth() {
         setMobileNumber('');
         setPassword('');
         setConfirmPassword('');
+        setSelectedCategory('');
         setSectorConfirmed(false);
         setTermsAccepted(false);
         setPrivacyAccepted(false);
-        setDataProcessingConsent(false);
-        setAmlCftConsent(false);
 
         setTimeout(() => {
           setMode('login');
@@ -565,6 +602,22 @@ export default function Auth() {
               <>
                 <div style={styles.sectionTitle}>Registration Details</div>
                 <div style={styles.formGroup}>
+                  <label style={styles.label}>DNFBP Category *</label>
+                  <select
+                    value={selectedCategory}
+                    onChange={(e) => setSelectedCategory(e.target.value)}
+                    style={styles.input}
+                    required
+                  >
+                    <option value="">Select your category...</option>
+                    {dnfbpCategories.map(c => (
+                      <option key={c.category_value} value={c.category_value}>
+                        {c.category_label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div style={styles.formGroup}>
                   <label style={styles.label}>Business Registration Number (BRELA) *</label>
                   <input
                     type="text"
@@ -612,9 +665,13 @@ export default function Auth() {
 
                 {(!existingOrgData || existingOrgData.full) && (
                   <>
-                    <div style={styles.sectionTitle}>Law Firm Information</div>
+                    <div style={styles.sectionTitle}>
+                      {isLawFirm ? 'Law Firm Information' : 'Organisation Information'}
+                    </div>
                     <div style={styles.formGroup}>
-                      <label style={styles.label}>Law Firm Name *</label>
+                      <label style={styles.label}>
+                        {isLawFirm ? 'Law Firm Name' : 'Organisation Name'} *
+                      </label>
                       <input
                         type="text"
                         value={lawFirmName}
@@ -664,10 +721,12 @@ export default function Auth() {
                         required
                       >
                         <option value="">Select designation</option>
-                        <option value="Partner">Partner</option>
-                        <option value="Associate">Associate</option>
+                        {isLawFirm && <option value="Partner">Partner</option>}
+                        {isLawFirm && <option value="Associate">Associate</option>}
                         <option value="Compliance Officer">Compliance Officer</option>
                         <option value="Administrator">Administrator</option>
+                        {!isLawFirm && <option value="Director">Director</option>}
+                        {!isLawFirm && <option value="Manager">Manager</option>}
                       </select>
                     </div>
 
@@ -765,19 +824,26 @@ export default function Auth() {
                   </>
                 )}
 
-                <div style={styles.sectionTitle}>Sector Confirmation</div>
-                <label style={styles.checkboxLabel}>
-                  <input
-                    type="checkbox"
-                    checked={sectorConfirmed}
-                    onChange={(e) => setSectorConfirmed(e.target.checked)}
-                    style={styles.checkbox}
-                    required
-                  />
-                  <span style={styles.checkboxText}>
-                    We confirm that we are a law firm or advocate licensed in Tanzania.
-                  </span>
-                </label>
+                {selectedCategory && (
+                  <div style={{
+                    padding: '12px 16px',
+                    background: '#f0fdf4',
+                    border: '1px solid #86efac',
+                    borderRadius: '8px',
+                    fontSize: '13px',
+                    color: '#15803d',
+                    marginBottom: '8px',
+                  }}>
+                    <strong>Selected category:</strong>{' '}
+                    {selectedCategoryRow?.category_label}
+                    {derivedSector === 'general_dnfbp' && (
+                      <div style={{ marginTop: '6px', color: '#92400e' }}>
+                        Note: full AML assessment questionnaires for this category are coming soon.
+                        You can still register and access client management features.
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 <div style={styles.sectionTitle}>Consent & Compliance</div>
                 <div style={styles.consentBox}>
