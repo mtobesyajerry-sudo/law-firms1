@@ -164,7 +164,12 @@ export default function AssessmentForm() {
         return;
       }
 
-      const framework = resolveFrameworkType(assessData.organizations?.sector);
+      // Existing assessments carry their framework_type on the row.
+      // Only fall back to the org's sector when the stored value is absent
+      // (pre-dispatch rows created before this change, or new assessments not
+      // yet past the introduction step).
+      const framework = assessData.framework_type
+        || resolveFrameworkType(assessData.organizations?.sector);
       setFrameworkType(framework);
       const tier = assessData.entity_tier || assessData.dnfbp_tier || 2;
       setEntityTier(tier);
