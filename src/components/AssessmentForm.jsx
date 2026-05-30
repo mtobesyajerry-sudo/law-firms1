@@ -20,7 +20,8 @@ import {
   getQuestionCountForTier,
   calculateScores,
   getTotalQuestionCountForFramework,
-  getFrameworkLabel
+  getFrameworkLabel,
+  resolveFrameworkType
 } from '../utils/frameworkUtils';
 import { serverValidateFile } from '../utils/documentUtils';
 import AssessmentIntroduction from './AssessmentIntroduction';
@@ -41,7 +42,7 @@ export default function AssessmentForm() {
   const [showDisclaimer, setShowDisclaimer] = useState(false);
   const [disclaimerAgreed, setDisclaimerAgreed] = useState(false);
   const [disclaimerExpanded, setDisclaimerExpanded] = useState(false);
-  const [frameworkType] = useState('banks_financial_institutions');
+  const [frameworkType, setFrameworkType] = useState('legal_professionals');
   const [entityTier, setEntityTier] = useState(2);
   const [filteredSections, setFilteredSections] = useState([]);
   const [attachments, setAttachments] = useState({});
@@ -163,7 +164,8 @@ export default function AssessmentForm() {
         return;
       }
 
-      const framework = 'banks_financial_institutions';
+      const framework = resolveFrameworkType(assessData.organizations?.sector);
+      setFrameworkType(framework);
       const tier = assessData.entity_tier || assessData.dnfbp_tier || 2;
       setEntityTier(tier);
       const sections = getFilteredSections(framework, tier);
@@ -249,7 +251,7 @@ export default function AssessmentForm() {
   const handleIntroductionComplete = async (introData) => {
     setSaving(true);
     try {
-      const framework = 'banks_financial_institutions';
+      const framework = resolveFrameworkType(assessment?.organizations?.sector);
 
       const calculatedTier = determineEntityTier(
         framework,

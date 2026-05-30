@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { institutionCategories, employeeRanges, turnoverRanges } from '../data/assessmentData';
+import { resolveFrameworkType } from '../utils/frameworkUtils';
 
 export default function AssessmentIntroduction({ assessment, organization, onComplete }) {
   const navigate = useNavigate();
@@ -37,7 +38,7 @@ export default function AssessmentIntroduction({ assessment, organization, onCom
   const initialEntityCategory = assessment?.entity_category || '';
 
   const [formData, setFormData] = useState({
-    framework_type: 'banks_financial_institutions',
+    framework_type: resolveFrameworkType(organization?.sector),
     entity_category: initialEntityCategory,
     contact_person: assessment?.contact_person || '',
     contact_position: assessment?.contact_position || '',

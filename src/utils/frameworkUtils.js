@@ -1,152 +1,270 @@
 import {
-  responseOptions,
-  riskRatingOptions,
-  calculateSectionScore,
-  getRiskColor,
-  calculateRiskLevel,
-  getTotalQuestionCount
-} from '../data/assessmentData';
-
-import {
   banksFinancialInstitutionsFramework,
   banksFinancialInstitutionsAssessmentData,
   calculateBankInherentRisk,
   calculateBankCompliance,
   calculateBankEffectiveness,
-  calculateBankResidualRisk,
-  calculateBankMaturity
+  calculateBankResidualRisk
 } from '../data/bankAssessmentData';
 
+import {
+  insurerTierProfiles,
+  insurerModules,
+  calculateInsurerInherentRisk,
+  calculateInsurerCompliance,
+  calculateInsurerEffectiveness,
+  calculateInsurerResidualRisk
+} from '../data/insurerAssessmentData';
+
+import {
+  auditFirmTierProfiles,
+  auditFirmModules,
+  calculateAuditFirmInherentRisk,
+  calculateAuditFirmCompliance,
+  calculateAuditFirmEffectiveness,
+  calculateAuditFirmResidualRisk
+} from '../data/auditFirmAssessmentData';
+
+// ---------------------------------------------------------------------------
+// Sector → storage value mapping.
+// Call when creating a new assessment to translate an org's sector field
+// into the value stored in assessments.framework_type.
+// ---------------------------------------------------------------------------
+export function resolveFrameworkType(sector) {
+  switch (sector) {
+    case 'insurer':         return 'insurer';
+    case 'audit_firm':      return 'audit_firm';
+    case 'general_dnfbp':
+    case 'dnfbp':           return 'general_dnfbp';
+    case 'legal_professionals':
+    case 'law_firm':        return 'legal_professionals';
+    default:
+      // All live orgs have sector=null and business_type='law_firm'.
+      // Any unrecognised or missing value safe-defaults to legal_professionals.
+      return 'legal_professionals';
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Framework data
+// banks_financial_institutions and legal_professionals both return the same
+// law-firm/bank content (the bank shim re-exports law-firm data), keeping
+// the live tenant byte-for-byte identical to before.
+// ---------------------------------------------------------------------------
 export function getFrameworkData(frameworkType) {
-  return {
-    type: 'banks_financial_institutions',
-    framework: banksFinancialInstitutionsFramework,
-    assessmentData: banksFinancialInstitutionsAssessmentData
-  };
+  switch (frameworkType) {
+    case 'insurer':
+      return {
+        type: 'insurer',
+        framework: { name: 'Insurance Company', tiers: insurerTierProfiles },
+        assessmentData: { modules: insurerModules }
+      };
+
+    case 'audit_firm':
+      return {
+        type: 'audit_firm',
+        framework: { name: 'Audit Firm', tiers: auditFirmTierProfiles },
+        assessmentData: { modules: auditFirmModules }
+      };
+
+    case 'general_dnfbp':
+    case 'dnfbp':
+      return { type: 'general_dnfbp', notConfigured: true, label: 'General DNFBP' };
+
+    case 'banks_financial_institutions':
+    case 'legal_professionals':
+    default:
+      return {
+        type: frameworkType || 'legal_professionals',
+        framework: banksFinancialInstitutionsFramework,
+        assessmentData: banksFinancialInstitutionsAssessmentData
+      };
+  }
 }
 
+// ---------------------------------------------------------------------------
+// Tier determination — same size-based logic for all sectors.
+// The highRiskCategories list is bank-specific but harmless for other sectors
+// because those category values never appear in insurer/audit-firm dropdowns.
+// ---------------------------------------------------------------------------
 export function determineEntityTier(frameworkType, numberOfEmployees, annualTurnover, entityCategory) {
-  return determineBankTier(numberOfEmployees, annualTurnover, entityCategory);
-}
-
-function determineBankTier(numberOfEmployees, annualTurnover, entityCategory) {
   const highRiskCategories = ['commercial_bank', 'investment_bank', 'bureau_de_change', 'money_transfer'];
-
-  if (highRiskCategories.includes(entityCategory)) {
-    return 3;
-  }
-
-  const isVeryLargeEmployeeBase = numberOfEmployees === '201+';
-  const isLargeEmployeeBase = numberOfEmployees === '51-200';
-  const isMediumEmployeeBase = numberOfEmployees === '11-50';
-  const isLargeTurnover = annualTurnover === '1b_plus';
-  const isMediumTurnover = annualTurnover === '101m_1b';
-
-  if (isVeryLargeEmployeeBase || isLargeTurnover) {
-    return 3;
-  }
-
-  if (isLargeEmployeeBase || isMediumTurnover) {
-    return 2;
-  }
-
-  if (isMediumEmployeeBase) {
-    return 2;
-  }
-
+  if (highRiskCategories.includes(entityCategory)) return 3;
+  if (numberOfEmployees === '201+' || annualTurnover === '1b_plus')   return 3;
+  if (numberOfEmployees === '51-200' || annualTurnover === '101m_1b') return 2;
+  if (numberOfEmployees === '11-50')                                   return 2;
   return 1;
 }
 
-export function getFilteredSections(frameworkType, tier) {
-  return getBankFilteredSections(tier);
-}
-
-function getBankFilteredSections(tier) {
+// ---------------------------------------------------------------------------
+// Section filtering — produces modules shaped as:
+//   [{ code: 'MODULE_module1', name, description, subsections: [{code, name, questions}] }]
+// The MODULE_${moduleKey} wrapper is identical across all sectors so that
+// DetailedAssessmentReport / PrintableAssessmentReport keep working.
+// ---------------------------------------------------------------------------
+function buildFilteredSections(modulesObj, tier) {
   const modules = [];
-  const moduleKeys = Object.keys(banksFinancialInstitutionsAssessmentData.modules);
-  console.log('📊 getBankFilteredSections called with tier:', tier);
-  console.log('📊 Available module keys:', moduleKeys);
-
-  moduleKeys.forEach(moduleKey => {
-    const moduleData = banksFinancialInstitutionsAssessmentData.modules[moduleKey];
-    console.log(`📊 Processing module ${moduleKey}:`, moduleData.title);
+  Object.keys(modulesObj).forEach(moduleKey => {
+    const moduleData = modulesObj[moduleKey];
     const subsections = [];
 
     Object.keys(moduleData.sections).forEach(sectionCode => {
       const section = moduleData.sections[sectionCode];
       const applicableQuestions = section.questions.filter(q => q.minTier <= tier);
-
       if (applicableQuestions.length > 0) {
-        subsections.push({
-          code: sectionCode,
-          name: section.title,
-          questions: applicableQuestions
-        });
+        subsections.push({ code: sectionCode, name: section.title, questions: applicableQuestions });
       }
     });
 
     if (subsections.length > 0) {
-      console.log(`📊 Module ${moduleKey} has ${subsections.length} subsections - ADDED`);
       modules.push({
         code: `MODULE_${moduleKey}`,
         name: moduleData.title,
         description: moduleData.description,
-        subsections: subsections
+        subsections
       });
-    } else {
-      console.log(`📊 Module ${moduleKey} has 0 subsections - SKIPPED`);
     }
   });
-
-  console.log('📊 Final modules array length:', modules.length);
   return modules;
 }
 
-export function getTierDescription(frameworkType, tier) {
-  return banksFinancialInstitutionsFramework.tiers[tier]?.description || '';
+export function getFilteredSections(frameworkType, tier) {
+  switch (frameworkType) {
+    case 'insurer':
+      return buildFilteredSections(insurerModules, tier);
+    case 'audit_firm':
+      return buildFilteredSections(auditFirmModules, tier);
+    case 'general_dnfbp':
+    case 'dnfbp':
+      return [];
+    case 'banks_financial_institutions':
+    case 'legal_professionals':
+    default:
+      return buildFilteredSections(banksFinancialInstitutionsAssessmentData.modules, tier);
+  }
 }
 
+// ---------------------------------------------------------------------------
+// Tier description
+// ---------------------------------------------------------------------------
+export function getTierDescription(frameworkType, tier) {
+  switch (frameworkType) {
+    case 'insurer':    return insurerTierProfiles[tier]?.description || '';
+    case 'audit_firm': return auditFirmTierProfiles[tier]?.description || '';
+    case 'banks_financial_institutions':
+    case 'legal_professionals':
+    default:           return banksFinancialInstitutionsFramework.tiers[tier]?.description || '';
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Question counts
+// ---------------------------------------------------------------------------
 export function getQuestionCountForTier(frameworkType, tier) {
-  const modules = getBankFilteredSections(tier);
+  const modules = getFilteredSections(frameworkType, tier);
   let total = 0;
-  modules.forEach(module => {
-    module.subsections.forEach(subsection => {
-      total += subsection.questions.length;
-    });
-  });
+  modules.forEach(module => module.subsections.forEach(sub => { total += sub.questions.length; }));
   return total;
 }
 
-export function calculateScores(frameworkType, responses, tier) {
-  return calculateBankScores(responses, tier);
-}
-
-function calculateBankScores(responses, tier) {
-  const inherentResult = calculateBankInherentRisk(responses, tier);
-  const complianceResult = calculateBankCompliance(responses, tier);
-  const effectivenessResult = calculateBankEffectiveness(responses, tier);
-  const maturityResult = calculateBankMaturity(responses, tier);
-  const residualResult = calculateBankResidualRisk(inherentResult.score, complianceResult, effectivenessResult);
-
-  return {
-    module1: inherentResult,
-    module2: complianceResult,
-    module3: effectivenessResult,
-    module4: maturityResult,
-    residualRisk: residualResult,
-    overallRisk: residualResult.rating,
-    hasRedFlags: residualResult.criticalGaps && residualResult.criticalGaps.length > 0,
-    redFlags: residualResult.criticalGaps || [],
-    criticalGaps: residualResult.criticalGaps || []
-  };
-}
-
 export function getTotalQuestionCountForFramework(frameworkType) {
-  return getQuestionCountForTier('banks_financial_institutions', 3);
+  return getQuestionCountForTier(frameworkType, 3);
 }
 
+// ---------------------------------------------------------------------------
+// Score calculation
+//
+// module4 (maturity) is sourced from the Institutional Maturity Assessment
+// (MaturityDashboard / controlAssessmentService), not from the question bank.
+// calculateBankMaturity references lawFirmsModules.module4 which does not
+// exist in any data file — calling it would throw a TypeError at runtime.
+// module4 is set to null for all sectors; the maturity path is unaffected.
+// ---------------------------------------------------------------------------
+export function calculateScores(frameworkType, responses, tier) {
+  switch (frameworkType) {
+    case 'insurer': {
+      const inherentResult      = calculateInsurerInherentRisk(responses, tier);
+      const complianceResult    = calculateInsurerCompliance(responses, tier);
+      const effectivenessResult = calculateInsurerEffectiveness(responses, tier);
+      const residualResult      = calculateInsurerResidualRisk(
+        inherentResult.score, complianceResult, effectivenessResult
+      );
+      return {
+        module1: inherentResult,
+        module2: complianceResult,
+        module3: effectivenessResult,
+        module4: null,
+        residualRisk: residualResult,
+        overallRisk: residualResult.rating,
+        hasRedFlags: residualResult.criticalGaps?.length > 0,
+        redFlags: residualResult.criticalGaps || [],
+        criticalGaps: residualResult.criticalGaps || []
+      };
+    }
+
+    case 'audit_firm': {
+      const inherentResult      = calculateAuditFirmInherentRisk(responses, tier);
+      const complianceResult    = calculateAuditFirmCompliance(responses, tier);
+      const effectivenessResult = calculateAuditFirmEffectiveness(responses, tier);
+      const residualResult      = calculateAuditFirmResidualRisk(
+        inherentResult.score, complianceResult, effectivenessResult
+      );
+      return {
+        module1: inherentResult,
+        module2: complianceResult,
+        module3: effectivenessResult,
+        module4: null,
+        residualRisk: residualResult,
+        overallRisk: residualResult.rating,
+        hasRedFlags: residualResult.criticalGaps?.length > 0,
+        redFlags: residualResult.criticalGaps || [],
+        criticalGaps: residualResult.criticalGaps || []
+      };
+    }
+
+    case 'general_dnfbp':
+    case 'dnfbp':
+      return null;
+
+    case 'banks_financial_institutions':
+    case 'legal_professionals':
+    default: {
+      // Preserves prior logic exactly — calculateBankMaturity is NOT called
+      // (lawFirmsModules.module4 is undefined; calling it would throw).
+      const inherentResult      = calculateBankInherentRisk(responses, tier);
+      const complianceResult    = calculateBankCompliance(responses, tier);
+      const effectivenessResult = calculateBankEffectiveness(responses, tier);
+      const residualResult      = calculateBankResidualRisk(
+        inherentResult.score, complianceResult, effectivenessResult
+      );
+      return {
+        module1: inherentResult,
+        module2: complianceResult,
+        module3: effectivenessResult,
+        module4: null,
+        residualRisk: residualResult,
+        overallRisk: residualResult.rating,
+        hasRedFlags: residualResult.criticalGaps && residualResult.criticalGaps.length > 0,
+        redFlags: residualResult.criticalGaps || [],
+        criticalGaps: residualResult.criticalGaps || []
+      };
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Labels
+// ---------------------------------------------------------------------------
 export function getFrameworkLabel(frameworkType) {
-  return 'Bank / Financial Institution';
+  switch (frameworkType) {
+    case 'insurer':                      return 'Insurance Company';
+    case 'audit_firm':                   return 'Audit Firm';
+    case 'general_dnfbp':
+    case 'dnfbp':                        return 'General DNFBP';
+    case 'legal_professionals':          return 'Law Firm / Legal Professional';
+    case 'banks_financial_institutions':
+    default:                             return 'Bank / Financial Institution';
+  }
 }
 
 export function getModuleTitle(frameworkType, moduleCode) {
