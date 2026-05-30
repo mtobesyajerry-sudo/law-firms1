@@ -1,17 +1,19 @@
 // Multi-Sector DNFBP Configuration System
-// Provides sector-specific configurations for Insurance, Accounting, and General DNFBPs
+// Provides sector-specific configurations for Insurance, Accounting, General DNFBPs, and Law Firms
 
 export const SECTORS = {
   INSURANCE: 'insurance',
   ACCOUNTING: 'accounting',
-  GENERAL_DNFBP: 'general_dnfbp'
+  GENERAL_DNFBP: 'general_dnfbp',
+  LAW_FIRM: 'law_firm'
 };
 
 // Sector Display Names
 export const SECTOR_NAMES = {
   [SECTORS.INSURANCE]: 'Insurance Company',
   [SECTORS.ACCOUNTING]: 'Accounting & Audit Firm',
-  [SECTORS.GENERAL_DNFBP]: 'General DNFBP'
+  [SECTORS.GENERAL_DNFBP]: 'General DNFBP',
+  [SECTORS.LAW_FIRM]: 'Law Firm / Legal Professional'
 };
 
 // Terminology Mapping
@@ -45,6 +47,16 @@ export const SECTOR_TERMINOLOGY = {
     serviceProviders: 'Staff',
     professionalBody: 'Relevant Regulatory Authority',
     registration: 'Business License'
+  },
+  [SECTORS.LAW_FIRM]: {
+    customer: 'Client',
+    customers: 'Clients',
+    serviceUnit: 'Matter',
+    serviceUnits: 'Matters',
+    serviceProvider: 'Advocate',
+    serviceProviders: 'Advocates',
+    professionalBody: 'Tanganyika Law Society (TLS)',
+    registration: 'Practising Certificate'
   }
 };
 
@@ -77,6 +89,14 @@ export const ORGANIZATION_TYPES = {
     { value: 'company_service_provider', label: 'Company Service Provider' },
     { value: 'casino', label: 'Casino' },
     { value: 'other_dnfbp', label: 'Other DNFBP' }
+  ],
+  [SECTORS.LAW_FIRM]: [
+    { value: 'law_firm_small',    label: 'Small / Sole Practitioner Firm' },
+    { value: 'law_firm_medium',   label: 'Medium / Corporate Firm' },
+    { value: 'law_firm_large',    label: 'Large / International / Specialist Firm' },
+    { value: 'legal_consultancy', label: 'Legal Consultancy' },
+    { value: 'notary_services',   label: 'Notary Services' },
+    { value: 'trust_company',     label: 'Trust and Company Service Provider' }
   ]
 };
 
@@ -112,10 +132,18 @@ export const SECTOR_ROLES = {
     { value: 'advisor', label: 'Service Advisor', level: 'operational', isManagement: false },
     { value: 'compliance_officer', label: 'Compliance Officer', level: 'compliance', isManagement: false },
     { value: 'mlro', label: 'MLRO', level: 'compliance', isManagement: false }
+  ],
+  [SECTORS.LAW_FIRM]: [
+    { value: 'senior_partner',     label: 'Senior Partner',     level: 'management',  isManagement: true },
+    { value: 'partner',            label: 'Partner',            level: 'management',  isManagement: true },
+    { value: 'management',         label: 'Management Team',    level: 'management',  isManagement: true },
+    { value: 'staff',              label: 'Associate / Staff',  level: 'operational', isManagement: false },
+    { value: 'compliance_officer', label: 'Compliance Officer', level: 'compliance',  isManagement: false },
+    { value: 'mlro',               label: 'MLRO',               level: 'compliance',  isManagement: false }
   ]
 };
 
-// Service Unit Types (Policies/Engagements/Transactions) with AML Triggers
+// Service Unit Types (Policies/Engagements/Transactions/Matters) with AML Triggers
 export const SERVICE_UNIT_TYPES = {
   [SECTORS.INSURANCE]: [
     {
@@ -274,6 +302,68 @@ export const SERVICE_UNIT_TYPES = {
       threshold: 5000000,
       riskLevel: 'very_high'
     }
+  ],
+  [SECTORS.LAW_FIRM]: [
+    {
+      value: 'litigation',
+      label: 'Litigation',
+      amlTriggers: [],
+      riskLevel: 'low'
+    },
+    {
+      value: 'real_property_transaction',
+      label: 'Purchase/Sale of Real Property',
+      amlTriggers: ['real_property_transaction'],
+      riskLevel: 'high'
+    },
+    {
+      value: 'commercial_enterprise_transaction',
+      label: 'Purchase/Sale of Commercial Enterprises',
+      amlTriggers: ['commercial_enterprise_transaction'],
+      riskLevel: 'high'
+    },
+    {
+      value: 'client_funds_management',
+      label: 'Management of Client Funds/Securities/Assets',
+      amlTriggers: ['client_funds_management'],
+      riskLevel: 'very_high'
+    },
+    {
+      value: 'bank_account_management',
+      label: 'Opening/Management of Bank/Savings Accounts',
+      amlTriggers: ['bank_account_management'],
+      riskLevel: 'high'
+    },
+    {
+      value: 'corporation_capital_organization',
+      label: 'Organizing Capital for Corporations/Legal Entities',
+      amlTriggers: ['corporation_capital_organization'],
+      riskLevel: 'high'
+    },
+    {
+      value: 'entity_creation_management',
+      label: 'Creation/Management/Direction of Corporations/Entities',
+      amlTriggers: ['entity_creation_management'],
+      riskLevel: 'high'
+    },
+    {
+      value: 'business_entity_transaction',
+      label: 'Buying/Selling of Business Entities',
+      amlTriggers: ['business_entity_transaction'],
+      riskLevel: 'high'
+    },
+    {
+      value: 'financial_transaction_representation',
+      label: 'Acting on Behalf of Client in Financial Transactions',
+      amlTriggers: ['financial_transaction_representation'],
+      riskLevel: 'very_high'
+    },
+    {
+      value: 'real_estate_transaction_representation',
+      label: 'Acting on Behalf of Client in Real Estate Transactions',
+      amlTriggers: ['real_estate_transaction_representation'],
+      riskLevel: 'high'
+    }
   ]
 };
 
@@ -368,6 +458,36 @@ export const TIER_PROFILES = {
       questionCount: 62,
       escalationTriggers: []
     }
+  },
+  [SECTORS.LAW_FIRM]: {
+    1: {
+      name: 'Tier 1 – Small / Sole Practitioner Firm',
+      description: 'Sole practitioners and small firms, domestic clients, low-risk matter types',
+      questionCount: 35,
+      escalationTriggers: [
+        'Property transactions',
+        'Company formation',
+        'Client funds management',
+        'Foreign clients'
+      ]
+    },
+    2: {
+      name: 'Tier 2 – Medium / Corporate Firm',
+      description: 'Corporate and mid-size firms, mixed matter types, some international clients',
+      questionCount: 50,
+      escalationTriggers: [
+        'High-value transactions',
+        'PEP clients',
+        'High-risk jurisdictions',
+        'Complex corporate structures'
+      ]
+    },
+    3: {
+      name: 'Tier 3 – Large / International / Specialist Firm',
+      description: 'Large, international, or specialist firms with complex AML exposure',
+      questionCount: 62,
+      escalationTriggers: []
+    }
   }
 };
 
@@ -398,19 +518,19 @@ export const getCustomerLabel = (sector, singular = true) => {
 
 export const isManagementRole = (sector, role) => {
   const sectorRoles = SECTOR_ROLES[sector];
-  const roleConfig = sectorRoles.find(r => r.value === role);
+  const roleConfig = sectorRoles?.find(r => r.value === role);
   return roleConfig?.isManagement || false;
 };
 
 export const getAMLTriggersForServiceType = (sector, serviceType) => {
   const serviceTypes = SERVICE_UNIT_TYPES[sector];
-  const config = serviceTypes.find(st => st.value === serviceType);
+  const config = serviceTypes?.find(st => st.value === serviceType);
   return config?.amlTriggers || [];
 };
 
 export const getServiceTypeRiskLevel = (sector, serviceType) => {
   const serviceTypes = SERVICE_UNIT_TYPES[sector];
-  const config = serviceTypes.find(st => st.value === serviceType);
+  const config = serviceTypes?.find(st => st.value === serviceType);
   return config?.riskLevel || 'medium';
 };
 
