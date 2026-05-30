@@ -15,7 +15,7 @@ export const institutionCategories = [
 export const dnfbpCategories = institutionCategories;
 
 export function getFrameworkForCategory(categoryValue) {
-  return 'legal_professionals';
+  return 'law_firm';
 }
 
 export const employeeRanges = [
