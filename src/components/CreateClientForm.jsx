@@ -96,14 +96,14 @@ export default function CreateClientForm({ onClose, onSuccess, frameworkType }) 
         created_by: profile.id,
         relationship_manager_id: profile.id,
         client_type: formData.client_type,
-        client_name: formData.client_name,
-        client_id_number: formData.client_id_number,
+        client_name_plain: formData.client_name,
+        national_id_plain: formData.client_id_number || null,
         date_of_birth: formData.date_of_birth || null,
         nationality: formData.nationality,
         country_of_residence: formData.country_of_residence,
         email: formData.email,
-        phone_number: formData.phone_number,
-        physical_address: formData.physical_address,
+        phone_plain: formData.phone_number || null,
+        address_plain: formData.physical_address || null,
         mailing_address: formData.mailing_address,
         business_activity: formData.business_activity,
         industry_sector: formData.industry_sector,
@@ -133,6 +133,7 @@ export default function CreateClientForm({ onClose, onSuccess, frameworkType }) 
             policy_type: formData.policy_type,
             premium_amount: formData.premium_amount,
             premium_frequency: formData.premium_frequency,
+            // beneficiary_name stored in plaintext JSONB — no encrypted column exists; revisit if one is added
             beneficiary_name: formData.beneficiary_name,
             beneficiary_relationship: formData.beneficiary_relationship
           }),
@@ -143,7 +144,7 @@ export default function CreateClientForm({ onClose, onSuccess, frameworkType }) 
           }),
           identification: {
             type: formData.id_document_type,
-            number: formData.id_document_number,
+            // document number stored encrypted via national_id_plain above; not repeated here
             issuing_authority: formData.id_issuing_authority,
             issue_date: formData.id_issue_date,
             expiry_date: formData.id_expiry_date

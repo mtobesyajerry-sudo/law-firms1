@@ -32,7 +32,7 @@ export default function AccountantKycReport() {
       }
 
       const { data, error } = await supabase
-        .from('kyc_clients')
+        .from('kyc_clients_decrypted')
         .select('*')
         .eq('id', id)
         .maybeSingle();

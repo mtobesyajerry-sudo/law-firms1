@@ -63,7 +63,7 @@ export default function KycCddForm({ recordId: propRecordId, onSave, onCancel })
     try {
       setLoading(true);
       const { data, error } = await supabase
-        .from('kyc_clients')
+        .from('kyc_clients_decrypted')
         .select('*')
         .eq('id', recordId)
         .maybeSingle();
@@ -83,7 +83,21 @@ export default function KycCddForm({ recordId: propRecordId, onSave, onCancel })
         delete cleanCustomerData.customer_risk_factors;
 
         setFormData({
-          customer_data: cleanCustomerData,
+          customer_data: {
+            ...cleanCustomerData,
+            // Re-populate PII fields from decrypted top-level columns for form display
+            // (these were stripped from customer_data JSONB on save; view exposes them decrypted)
+            fullName:           data.client_name  || cleanCustomerData.fullName  || '',
+            legalName:          data.client_name  || cleanCustomerData.legalName || '',
+            nationalId:         data.national_id  || cleanCustomerData.nationalId || '',
+            registrationNumber: data.national_id  || cleanCustomerData.registrationNumber || '',
+            tinNumber:          data.tax_id        || cleanCustomerData.tinNumber || '',
+            passportNumber:     data.passport_number || cleanCustomerData.passportNumber || '',
+            phoneNumber:        data.phone         || cleanCustomerData.phoneNumber || '',
+            contactPhone:       data.phone         || cleanCustomerData.contactPhone || '',
+            residentialAddress: data.address       || cleanCustomerData.residentialAddress || '',
+            registeredAddress:  data.address       || cleanCustomerData.registeredAddress || '',
+          },
           beneficial_owners: data.beneficial_owners || [],
           policy_information: data.policy_information || {},
           beneficiaries: data.beneficiaries || [],
@@ -436,48 +450,6 @@ export default function KycCddForm({ recordId: propRecordId, onSave, onCancel })
     }
   };
 
-  const findOrCreateClient = async () => {
-    try {
-      const clientName = formData.customer_data?.fullName || formData.customer_data?.legalName;
-      if (!clientName) return null;
-
-      const { data: existingClients } = await supabase
-        .from('clients')
-        .select('*')
-        .eq('organization_id', profile.organization_id)
-        .eq('client_name', clientName)
-        .maybeSingle();
-
-      if (existingClients) {
-        return existingClients.id;
-      }
-
-      const clientData = {
-        organization_id: profile.organization_id,
-        client_name: clientName,
-        client_type: customerType === 'natural_person' ? 'individual' : 'legal_entity',
-        client_identifier: formData.customer_data?.nationalId || formData.customer_data?.registrationNumber || formData.customer_data?.tinNumber,
-        email: formData.customer_data?.email,
-        phone: formData.customer_data?.phoneNumber || formData.customer_data?.contactPhone,
-        address: formData.customer_data?.residentialAddress || formData.customer_data?.registeredAddress,
-        country: formData.customer_data?.nationality || formData.customer_data?.countryOfIncorporation,
-        created_by: profile.id
-      };
-
-      const { data: newClient, error } = await supabase
-        .from('clients')
-        .insert([clientData])
-        .select()
-        .single();
-
-      if (error) throw error;
-      return newClient.id;
-    } catch (error) {
-      console.error('Error creating client:', error);
-      return null;
-    }
-  };
-
   const handleSaveDraft = async () => {
     try {
       setLoading(true);
@@ -486,16 +458,28 @@ export default function KycCddForm({ recordId: propRecordId, onSave, onCancel })
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
-      const clientId = await findOrCreateClient();
+      // Promote PII fields to *_plain columns for encryption; strip them from JSONB
+      const {
+        fullName, legalName, nationalId, registrationNumber, tinNumber,
+        passportNumber, phoneNumber, contactPhone, residentialAddress,
+        registeredAddress, ...safeCustomerData
+      } = formData.customer_data || {};
 
       const customerDataWithRisk = {
-        ...(formData.customer_data || {}),
+        ...safeCustomerData,
         customer_risk_factors: formData.customer_risk || {}
       };
 
       const kycRecord = {
         customer_type: customerType,
         customer_data: customerDataWithRisk,
+        // PII fields — trigger encrypts these and nulls them immediately
+        client_name_plain:     fullName || legalName || null,
+        national_id_plain:     nationalId || registrationNumber || null,
+        tax_id_plain:          tinNumber || null,
+        passport_number_plain: passportNumber || null,
+        phone_plain:           phoneNumber || contactPhone || null,
+        address_plain:         residentialAddress || registeredAddress || null,
         beneficial_owners: formData.beneficial_owners || [],
         policy_information: formData.policy_information || {},
         beneficiaries: formData.beneficiaries || [],
@@ -508,7 +492,6 @@ export default function KycCddForm({ recordId: propRecordId, onSave, onCancel })
         customer_declaration: formData.customer_declaration || {},
         compliance_approval: formData.compliance_approval || {},
         matter_id: matterId || null,
-        client_id: clientId,
         status: 'draft'
       };
 
@@ -548,8 +531,6 @@ export default function KycCddForm({ recordId: propRecordId, onSave, onCancel })
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
-      const clientId = await findOrCreateClient();
-
       const riskCalculation = calculateKycRiskScore({
         customer_data: formData.customer_data,
         policy_information: formData.policy_information,
@@ -586,14 +567,28 @@ export default function KycCddForm({ recordId: propRecordId, onSave, onCancel })
         reviewFrequency = (riskCalculation.riskLevel === 'Very High') ? 'monthly' : 'quarterly';
       }
 
+      // Promote PII fields to *_plain columns for encryption; strip them from JSONB
+      const {
+        fullName, legalName, nationalId, registrationNumber, tinNumber,
+        passportNumber, phoneNumber, contactPhone, residentialAddress,
+        registeredAddress, ...safeCustomerData
+      } = formData.customer_data || {};
+
       const customerDataWithRisk = {
-        ...(formData.customer_data || {}),
+        ...safeCustomerData,
         customer_risk_factors: formData.customer_risk || {}
       };
 
       const kycRecord = {
         customer_type: customerType,
         customer_data: customerDataWithRisk,
+        // PII fields — trigger encrypts these and nulls them immediately
+        client_name_plain:     fullName || legalName || null,
+        national_id_plain:     nationalId || registrationNumber || null,
+        tax_id_plain:          tinNumber || null,
+        passport_number_plain: passportNumber || null,
+        phone_plain:           phoneNumber || contactPhone || null,
+        address_plain:         residentialAddress || registeredAddress || null,
         beneficial_owners: formData.beneficial_owners || [],
         policy_information: formData.policy_information || {},
         beneficiaries: formData.beneficiaries || [],
@@ -606,7 +601,6 @@ export default function KycCddForm({ recordId: propRecordId, onSave, onCancel })
         customer_declaration: formData.customer_declaration || {},
         compliance_approval: formData.compliance_approval || {},
         matter_id: matterId || null,
-        client_id: clientId,
         risk_assessment: riskCalculation.riskAssessment,
         total_risk_score: riskCalculation.totalScore,
         risk_level: riskCalculation.riskLevel,

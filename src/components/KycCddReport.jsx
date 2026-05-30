@@ -38,7 +38,7 @@ export default function KycCddReport({ recordId: propRecordId, onClose }) {
 
       setLoading(true);
       const { data, error } = await supabase
-        .from('kyc_clients')
+        .from('kyc_clients_decrypted')
         .select('*')
         .eq('id', recordId)
         .maybeSingle();

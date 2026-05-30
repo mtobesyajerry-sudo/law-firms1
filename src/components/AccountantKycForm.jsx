@@ -188,21 +188,25 @@ export default function AccountantKycForm() {
         return 'annual';
       };
 
+      // Build metadata without PII fields — those go into *_plain columns for encryption
+      const { full_name, legal_name, telephone_number, residential_address,
+              registered_address, id_number, registration_number: _reg, ...safeMetadata } = formData;
+
       const kycRecord = {
         organization_id: organization.id,
-        client_name: formData.full_name || formData.legal_name || 'Unnamed Client',
+        client_name_plain: formData.full_name || formData.legal_name || '',
         client_type: clientType,
-        client_id_number: idNumber,
+        national_id_plain: idNumber || null,
         email: email,
-        phone_number: phone,
-        physical_address: address,
+        phone_plain: phone || null,
+        address_plain: address || null,
         nationality: country,
         onboarding_status: 'draft',
         base_risk_score: riskAssessment.totalScore,
         current_risk_rating: riskAssessment.riskLevel,
         edd_required: riskAssessment.riskLevel === 'High Risk' || riskAssessment.riskLevel === 'Very High Risk',
         review_frequency: getReviewFrequency(riskAssessment.riskLevel),
-        metadata: formData,
+        metadata: safeMetadata,
         created_by: user.id,
         relationship_manager_id: user.id,
         created_at: new Date().toISOString()

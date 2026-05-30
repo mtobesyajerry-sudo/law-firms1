@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
 
-export default function BeneficialOwnershipModule({ matterId, onUpdate }) {
+export default function BeneficialOwnershipModule({ clientId, onUpdate }) {
   const [owners, setOwners] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [editingOwner, setEditingOwner] = useState(null);
@@ -25,17 +25,17 @@ export default function BeneficialOwnershipModule({ matterId, onUpdate }) {
   });
 
   useEffect(() => {
-    if (matterId) {
+    if (clientId) {
       loadOwners();
     }
-  }, [matterId]);
+  }, [clientId]);
 
   const loadOwners = async () => {
     try {
       const { data, error } = await supabase
-        .from('client_matters')
-        .select('beneficial_owners')
-        .eq('id', matterId)
+        .from('kyc_clients')
+        .select('beneficial_owners, ownership_structure_verified')
+        .eq('id', clientId)
         .single();
 
       if (error) throw error;
@@ -69,15 +69,13 @@ export default function BeneficialOwnershipModule({ matterId, onUpdate }) {
       }
 
       const { error } = await supabase
-        .from('client_matters')
+        .from('kyc_clients')
         .update({
           beneficial_owners: updatedOwners,
-          beneficial_ownership_verified: updatedOwners.every(o => o.verified),
-          ownership_structure_complex: updatedOwners.length > 3 ||
-            updatedOwners.some(o => o.owner_type === 'corporate'),
+          ownership_structure_verified: updatedOwners.every(o => o.verified),
           updated_at: new Date().toISOString()
         })
-        .eq('id', matterId);
+        .eq('id', clientId);
 
       if (error) throw error;
 
@@ -127,13 +125,13 @@ export default function BeneficialOwnershipModule({ matterId, onUpdate }) {
       const updatedOwners = owners.filter(o => o.id !== ownerId);
 
       const { error } = await supabase
-        .from('client_matters')
+        .from('kyc_clients')
         .update({
           beneficial_owners: updatedOwners,
-          beneficial_ownership_verified: updatedOwners.every(o => o.verified),
+          ownership_structure_verified: updatedOwners.every(o => o.verified),
           updated_at: new Date().toISOString()
         })
-        .eq('id', matterId);
+        .eq('id', clientId);
 
       if (error) throw error;
 
