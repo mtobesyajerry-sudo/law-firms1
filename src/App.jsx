@@ -26,6 +26,10 @@ import AdminPaymentsPage from './components/AdminPaymentsPage';
 import PrivacyPage from './pages/PrivacyPage';
 import TermsPage from './pages/TermsPage';
 import { validatePassword } from './utils/security';
+import AccountantKycForm from './components/AccountantKycForm';
+import AccountantKycReport from './components/AccountantKycReport';
+import KycCddForm from './components/KycCddForm';
+import KycCddReport from './components/KycCddReport';
 
 // Shown when profile.password_change_required = true.
 // The user cannot reach any other route until they set a compliant password.
@@ -642,6 +646,47 @@ function AppRoutes() {
         }
       />
       <Route path="*" element={<Navigate to="/" />} />
+      {/* Multi-sector KYC/CDD routes */}
+      <Route
+        path="/accountant-kyc-form"
+        element={
+          <ProtectedRoute>
+            <AccountantKycForm />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/accountant-kyc-report/:id"
+        element={
+          <ProtectedRoute>
+            <AccountantKycReport />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/kyc-form"
+        element={
+          <ProtectedRoute>
+            <KycCddForm />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/kyc-form/:id"
+        element={
+          <ProtectedRoute>
+            <KycCddForm />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/kyc-report/:id"
+        element={
+          <ProtectedRoute>
+            <KycCddReport />
+          </ProtectedRoute>
+        }
+      />
     </Routes>
   );
 }
