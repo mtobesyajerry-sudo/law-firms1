@@ -826,7 +826,7 @@ export default function AssessmentForm() {
     );
   }
 
-  if (frameworkType === 'general_dnfbp' || filteredSections.length === 0) {
+  if (frameworkType === 'general_dnfbp' || (!loading && filteredSections.length === 0)) {
     return (
       <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f8fafc' }}>
         <div style={{ textAlign: 'center', maxWidth: '480px', padding: '48px 32px', background: 'white', borderRadius: '16px', border: '1px solid #e5e7eb', boxShadow: '0 4px 16px rgba(0,0,0,0.08)' }}>
