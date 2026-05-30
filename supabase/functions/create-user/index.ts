@@ -178,7 +178,7 @@ async function handleApproveRegistration(supabaseAdmin: any, registrationId: str
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          from: "Iuris Peritis Compliance <billing@iursperitis.co.tz>",
+          from: "Iuris Peritis Compliance <onboarding@resend.dev>",
           to: [registration.firm_email],
           subject: welcomeSubject,
           text: welcomeBody,
@@ -224,7 +224,7 @@ async function handleApproveRegistration(supabaseAdmin: any, registrationId: str
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            from: "Iuris Peritis Compliance <billing@iursperitis.co.tz>",
+            from: "Iuris Peritis Compliance <onboarding@resend.dev>",
             to: ["info@iurisperitis.co.tz"],
             subject: salesSubject,
             text: salesBody,

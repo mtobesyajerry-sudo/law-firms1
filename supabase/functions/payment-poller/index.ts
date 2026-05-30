@@ -155,7 +155,7 @@ Deno.serve(async (req: Request) => {
                 const emailRes = await fetch("https://api.resend.com/emails", {
                   method: "POST",
                   headers: { "Authorization": `Bearer ${resendKey}`, "Content-Type": "application/json" },
-                  body: JSON.stringify({ from: "Iuris Peritis Billing <billing@iursperitis.co.tz>", to: [contactEmail], ...emailPayload }),
+                  body: JSON.stringify({ from: "Iuris Peritis Billing <onboarding@resend.dev>", to: [contactEmail], ...emailPayload }),
                 });
                 const emailBody = await emailRes.json().catch(() => ({}));
                 if (!emailRes.ok) {
