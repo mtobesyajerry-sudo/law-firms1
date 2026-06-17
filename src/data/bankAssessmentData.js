@@ -36,7 +36,7 @@ export function getBanksFinancialInstitutionsQuestionsForTier(tier) {
 }
 
 // Calculation functions remain unchanged - they work with any questionnaire structure
-export function calculateBankInherentRisk(responses, tier) {
+export function calculateBankInherentRisk(responses, tier, modules = lawFirmsModules) {
   const sectionScores = {};
 
   // FATF-compliant weights for inherent risk factors (per specification)
@@ -55,7 +55,7 @@ export function calculateBankInherentRisk(responses, tier) {
     'No': 1          // Low exposure (baseline risk, never zero)
   };
 
-  const module1 = lawFirmsModules.module1;
+  const module1 = modules.module1;
   Object.keys(module1.sections).forEach(sectionCode => {
     const section = module1.sections[sectionCode];
     const applicableQuestions = section.questions.filter(q => q.minTier <= tier);
@@ -103,7 +103,7 @@ export function calculateBankInherentRisk(responses, tier) {
   };
 }
 
-export function calculateBankCompliance(responses, tier) {
+export function calculateBankCompliance(responses, tier, modules = lawFirmsModules) {
   const scoring = {
     'Fully implemented & documented': 1.0,
     'Partially implemented': 0.5,
@@ -117,7 +117,7 @@ export function calculateBankCompliance(responses, tier) {
 
   const criticalControls = ['B1.1', 'B2.1', 'B3.1', 'B4.1', 'B5.1'];
 
-  const module2 = lawFirmsModules.module2;
+  const module2 = modules.module2;
   Object.values(module2.sections).forEach(section => {
     const applicableQuestions = section.questions.filter(q => q.minTier <= tier);
 
@@ -169,7 +169,7 @@ export function calculateBankCompliance(responses, tier) {
   };
 }
 
-export function calculateBankEffectiveness(responses, tier) {
+export function calculateBankEffectiveness(responses, tier, modules = lawFirmsModules) {
   const scoring = {
     'Effective': 1.0,
     'Weak': 0.25,
@@ -179,7 +179,7 @@ export function calculateBankEffectiveness(responses, tier) {
   let totalScore = 0;
   let maxScore = 0;
 
-  const module3 = lawFirmsModules.module3;
+  const module3 = modules.module3;
   Object.values(module3.sections).forEach(section => {
     const applicableQuestions = section.questions.filter(q => q.minTier <= tier);
 

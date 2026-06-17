@@ -8,13 +8,9 @@ import {
 } from '../data/bankAssessmentData';
 
 import {
-  insurerTierProfiles,
-  insurerModules,
-  calculateInsurerInherentRisk,
-  calculateInsurerCompliance,
-  calculateInsurerEffectiveness,
-  calculateInsurerResidualRisk
-} from '../data/insurerAssessmentData';
+  insurersAssessmentData,
+  insurersModules
+} from '../data/insuranceAssessmentData';
 
 import {
   auditFirmTierProfiles,
@@ -55,8 +51,8 @@ export function getFrameworkData(frameworkType) {
     case 'insurer':
       return {
         type: 'insurer',
-        framework: { name: 'Insurance Company', tiers: insurerTierProfiles },
-        assessmentData: { modules: insurerModules }
+        framework: insurersAssessmentData.framework,
+        assessmentData: insurersAssessmentData
       };
 
     case 'audit_firm':
@@ -130,7 +126,7 @@ function buildFilteredSections(modulesObj, tier) {
 export function getFilteredSections(frameworkType, tier) {
   switch (frameworkType) {
     case 'insurer':
-      return buildFilteredSections(insurerModules, tier);
+      return buildFilteredSections(insurersModules, tier);
     case 'audit_firm':
       return buildFilteredSections(auditFirmModules, tier);
     case 'general_dnfbp':
@@ -148,7 +144,7 @@ export function getFilteredSections(frameworkType, tier) {
 // ---------------------------------------------------------------------------
 export function getTierDescription(frameworkType, tier) {
   switch (frameworkType) {
-    case 'insurer':    return insurerTierProfiles[tier]?.description || '';
+    case 'insurer':    return insurersAssessmentData.tierProfiles[tier]?.description || '';
     case 'audit_firm': return auditFirmTierProfiles[tier]?.description || '';
     case 'banks_financial_institutions':
     case 'legal_professionals':
@@ -182,10 +178,10 @@ export function getTotalQuestionCountForFramework(frameworkType) {
 export function calculateScores(frameworkType, responses, tier) {
   switch (frameworkType) {
     case 'insurer': {
-      const inherentResult      = calculateInsurerInherentRisk(responses, tier);
-      const complianceResult    = calculateInsurerCompliance(responses, tier);
-      const effectivenessResult = calculateInsurerEffectiveness(responses, tier);
-      const residualResult      = calculateInsurerResidualRisk(
+      const inherentResult      = calculateBankInherentRisk(responses, tier, insurersModules);
+      const complianceResult    = calculateBankCompliance(responses, tier, insurersModules);
+      const effectivenessResult = calculateBankEffectiveness(responses, tier, insurersModules);
+      const residualResult      = calculateBankResidualRisk(
         inherentResult.score, complianceResult, effectivenessResult
       );
       return {
