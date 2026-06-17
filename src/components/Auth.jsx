@@ -447,7 +447,7 @@ export default function Auth() {
           <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '20px' }}>
             <img src="/Iuris_new_compliance_1.png" alt="Iuris Compliance" style={{ maxWidth: '260px', height: 'auto' }} />
           </div>
-          <p style={styles.subtitle}>Comprehensive AML/CFT Compliance Management for Designated Non-Financial Businesses and Professionals</p>
+          <p style={styles.subtitle}>Comprehensive AML/CFT Compliance Management for Designated Non-Financial Businesses and Professionals (DNFBPs)</p>
         </div>
 
         <div style={styles.tabContainer}>
@@ -924,7 +924,7 @@ const styles = {
     background: 'white',
     borderRadius: '16px',
     boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
-    maxWidth: '450px',
+    maxWidth: '600px',
     width: '100%',
     padding: '40px',
     border: '2px solid #d4af37',
