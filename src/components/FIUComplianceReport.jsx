@@ -3,13 +3,21 @@ import { supabase } from '../supabaseClient';
 import { Document, Paragraph, TextRun, AlignmentType, HeadingLevel, Table, TableRow, TableCell, WidthType, BorderStyle, Packer } from 'docx';
 import { saveAs } from 'file-saver';
 import {
-  generateCustomerRiskNarrative,
-  generateProductRiskNarrative,
-  generateGeographicRiskNarrative,
-  generateTransactionRiskNarrative,
-  generateTechnicalComplianceNarrative,
-  generateEffectivenessNarrative
+  generateCustomerRiskNarrative as generateCustomerRiskNarrativeLaw,
+  generateProductRiskNarrative as generateProductRiskNarrativeLaw,
+  generateGeographicRiskNarrative as generateGeographicRiskNarrativeLaw,
+  generateTransactionRiskNarrative as generateTransactionRiskNarrativeLaw,
+  generateTechnicalComplianceNarrative as generateTechnicalComplianceNarrativeLaw,
+  generateEffectivenessNarrative as generateEffectivenessNarrativeLaw
 } from '../services/reportNarratives';
+import {
+  generateCustomerRiskNarrative as generateCustomerRiskNarrativeIns,
+  generateProductRiskNarrative as generateProductRiskNarrativeIns,
+  generateGeographicRiskNarrative as generateGeographicRiskNarrativeIns,
+  generateTransactionRiskNarrative as generateTransactionRiskNarrativeIns,
+  generateTechnicalComplianceNarrative as generateTechnicalComplianceNarrativeIns,
+  generateEffectivenessNarrative as generateEffectivenessNarrativeIns
+} from '../data/insuranceReportNarratives';
 
 export default function FIUComplianceReport({ assessment, sectionScores, responses, onClose }) {
   const [organization, setOrganization] = useState(null);
@@ -90,6 +98,14 @@ export default function FIUComplianceReport({ assessment, sectionScores, respons
       end: assessmentDate
     };
   };
+
+  const isInsurer = assessment?.framework_type === 'insurer';
+  const generateCustomerRiskNarrative    = isInsurer ? generateCustomerRiskNarrativeIns    : generateCustomerRiskNarrativeLaw;
+  const generateProductRiskNarrative     = isInsurer ? generateProductRiskNarrativeIns     : generateProductRiskNarrativeLaw;
+  const generateGeographicRiskNarrative  = isInsurer ? generateGeographicRiskNarrativeIns  : generateGeographicRiskNarrativeLaw;
+  const generateTransactionRiskNarrative = isInsurer ? generateTransactionRiskNarrativeIns : generateTransactionRiskNarrativeLaw;
+  const generateTechnicalComplianceNarrative = isInsurer ? generateTechnicalComplianceNarrativeIns : generateTechnicalComplianceNarrativeLaw;
+  const generateEffectivenessNarrative   = isInsurer ? generateEffectivenessNarrativeIns   : generateEffectivenessNarrativeLaw;
 
   const calculateInherentRiskScores = () => {
     if (!riskBreakdown) {
