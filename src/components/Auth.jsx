@@ -665,19 +665,15 @@ export default function Auth() {
 
                 {(!existingOrgData || existingOrgData.full) && (
                   <>
-                    <div style={styles.sectionTitle}>
-                      {isLawFirm ? 'Law Firm Information' : 'Organisation Information'}
-                    </div>
+                    <div style={styles.sectionTitle}>Organisation Information</div>
                     <div style={styles.formGroup}>
-                      <label style={styles.label}>
-                        {isLawFirm ? 'Law Firm Name' : 'Organisation Name'} *
-                      </label>
+                      <label style={styles.label}>Organisation Name *</label>
                       <input
                         type="text"
                         value={lawFirmName}
                         onChange={(e) => setLawFirmName(e.target.value)}
                         style={styles.input}
-                        placeholder="Full registered name"
+                        placeholder="Full registered name of your organisation"
                         required
                       />
                     </div>
@@ -686,13 +682,13 @@ export default function Auth() {
 
                 {(!existingOrgData || existingOrgData.full) && (
                   <div style={styles.formGroup}>
-                    <label style={styles.label}>Firm Email Address *</label>
+                    <label style={styles.label}>Organisation Email Address *</label>
                     <input
                       type="email"
                       value={firmEmail}
                       onChange={(e) => setFirmEmail(e.target.value)}
                       style={styles.input}
-                      placeholder="Official firm email"
+                      placeholder="Official organisation email"
                       required
                     />
                   </div>
@@ -721,12 +717,13 @@ export default function Auth() {
                         required
                       >
                         <option value="">Select designation</option>
-                        {isLawFirm && <option value="Partner">Partner</option>}
-                        {isLawFirm && <option value="Associate">Associate</option>}
+                        <option value="Director">Director</option>
+                        <option value="Partner">Partner</option>
+                        <option value="Manager">Manager</option>
                         <option value="Compliance Officer">Compliance Officer</option>
+                        <option value="MLRO">Money Laundering Reporting Officer (MLRO)</option>
                         <option value="Administrator">Administrator</option>
-                        {!isLawFirm && <option value="Director">Director</option>}
-                        {!isLawFirm && <option value="Manager">Manager</option>}
+                        <option value="Other">Other</option>
                       </select>
                     </div>
 
@@ -749,30 +746,30 @@ export default function Auth() {
                     <div style={styles.sectionTitle}>Choose Your Plan</div>
                     <p style={{ fontSize: '13px', color: '#64748b', margin: '0 0 12px' }}>
                       Start with a free 14-day trial — no payment required upfront.
-                      Tiers reflect firm capacity (users and clients), not feature levels.
+                      Tiers reflect organisational capacity (users and clients), not feature levels.
                     </p>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '8px' }}>
                       {[
                         {
                           tier: 'small_firm',
-                          label: 'Small Firm',
+                          label: 'Small',
                           price: 'TZS 250,000 / month',
                           capacity: '12 users · 150 clients',
-                          hint: 'For firms with up to 10 advocates',
+                          hint: 'For organisations with up to 10 staff',
                         },
                         {
                           tier: 'medium_firm',
-                          label: 'Medium Firm',
+                          label: 'Medium',
                           price: 'TZS 600,000 / month',
                           capacity: '30 users · 600 clients',
-                          hint: 'For firms with 11–30 advocates',
+                          hint: 'For organisations with 11–30 staff',
                         },
                         {
                           tier: 'large_firm',
-                          label: 'Large Firm',
+                          label: 'Large',
                           price: 'Contact for pricing',
                           capacity: 'Unlimited users & clients',
-                          hint: 'For firms with 31+ advocates',
+                          hint: 'For organisations with 31+ staff',
                         },
                       ].map(({ tier, label, price, capacity, hint }) => {
                         const isSelected = requestedTier === tier;
@@ -817,8 +814,8 @@ export default function Auth() {
                         border: '1px solid #bfdbfe', borderRadius: '8px',
                         fontSize: '12px', color: '#1d4ed8', marginBottom: '4px',
                       }}>
-                        Your trial will use Medium Firm capabilities. Our team will contact you during the trial
-                        to discuss Large Firm pricing and onboarding.
+                        Your trial will use Medium plan capabilities. Our team will contact you during the trial
+                        to discuss Large plan pricing and onboarding.
                       </div>
                     )}
                   </>
