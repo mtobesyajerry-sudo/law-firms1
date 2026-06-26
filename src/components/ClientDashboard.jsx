@@ -4,6 +4,39 @@ import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../supabaseClient';
 import LoadingSpinner from './LoadingSpinner';
 
+function formatSectorLabel(sector) {
+  const labels = {
+    insurance_company: 'Insurance Company',
+    insurer:           'Insurance Company',
+    audit_firm:        'Audit Firm',
+    accountant:        'Accountant / Auditor',
+    law_firm:          'Law Firm / Legal Professional',
+    legal_professional:'Law Firm / Legal Professional',
+    real_estate_agent: 'Real Estate Agent',
+    trust_company:     'Trust / Company Service Provider',
+    precious_metals:   'Dealer in Precious Metals / Stones',
+    casino:            'Casino / Gaming Operator',
+    money_transfer:    'Money Transfer Operator',
+    exchange_bureau:   'Foreign Exchange Bureau',
+    investment_advisor:'Investment Advisor',
+    dnfbp:             'General DNFBP',
+    other:             'Other DNFBP',
+  };
+  return labels[sector] || (sector ? sector.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) : '-');
+}
+
+function formatSubscriptionTier(tier) {
+  const labels = {
+    small_firm:  'Small',
+    medium_firm: 'Medium',
+    large_firm:  'Large',
+    small:       'Small',
+    medium:      'Medium',
+    large:       'Large',
+  };
+  return labels[tier] || (tier ? tier.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) : '-');
+}
+
 export default function ClientDashboard() {
   const { profile, organization, signOut, loading, isEarlyClient } = useAuth();
   const navigate = useNavigate();
@@ -248,7 +281,7 @@ export default function ClientDashboard() {
                     fontSize: '13px',
                     borderBottom: '2px solid #d4af37',
                     letterSpacing: '0.5px'
-                  }}>Business Type</th>
+                  }}>Sector / Type</th>
                   <th style={{
                     padding: '10px 12px',
                     textAlign: 'left',
@@ -258,7 +291,7 @@ export default function ClientDashboard() {
                     fontSize: '13px',
                     borderBottom: '2px solid #d4af37',
                     letterSpacing: '0.5px'
-                  }}>Organization Size</th>
+                  }}>Organisation Size</th>
                   <th style={{
                     padding: '10px 12px',
                     textAlign: 'left',
@@ -268,7 +301,7 @@ export default function ClientDashboard() {
                     fontSize: '13px',
                     borderBottom: '2px solid #d4af37',
                     letterSpacing: '0.5px'
-                  }}>DNFBP Category</th>
+                  }}>Subscription Plan</th>
                   <th style={{
                     padding: '10px 12px',
                     textAlign: 'left',
@@ -321,7 +354,7 @@ export default function ClientDashboard() {
                     padding: '10px 12px',
                     color: '#2d3748',
                     fontSize: '14px'
-                  }}>{organization.business_type || '-'}</td>
+                  }}>{formatSectorLabel(organization.sector || organization.business_type)}</td>
                   <td style={{
                     padding: '10px 12px',
                     color: '#2d3748',
@@ -340,10 +373,9 @@ export default function ClientDashboard() {
                       fontWeight: '600',
                       display: 'inline-block',
                       background: '#dbeafe',
-                      color: '#1e40af',
-                      textTransform: 'capitalize'
+                      color: '#1e40af'
                     }}>
-                      {(organization.law_firm_type || organization.business_type)?.replace('_', ' ') || '-'}
+                      {formatSubscriptionTier(organization.subscription_tier)}
                     </span>
                   </td>
                   <td style={{
