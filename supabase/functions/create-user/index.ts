@@ -106,6 +106,16 @@ async function handleApproveRegistration(supabaseAdmin: any, registrationId: str
   const decryptedPassword = decryptPassword(registration.encrypted_password);
   if (!decryptedPassword) throw new Error("Failed to decrypt password");
 
+  // Clean up any pre-existing auth user for this email (e.g. from a failed previous approval attempt)
+  const { data: existingUsers } = await supabaseAdmin.auth.admin.listUsers();
+  const existingAuthUser = existingUsers?.users?.find((u: any) => u.email === registration.firm_email);
+  if (existingAuthUser) {
+    await supabaseAdmin.from("user_profiles").delete().eq("id", existingAuthUser.id);
+    const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(existingAuthUser.id);
+    if (deleteError) throw new Error(`Cannot remove existing auth user: ${deleteError.message}`);
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+  }
+
   const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
     email: registration.firm_email,
     password: decryptedPassword,
