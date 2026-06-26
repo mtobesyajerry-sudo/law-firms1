@@ -56,11 +56,17 @@ async function handleApproveRegistration(supabaseAdmin: any, registrationId: str
   const requestedTier: string = registration.requested_tier || "small_firm";
   const trialTier: string = requestedTier === "large_firm" ? "medium_firm" : requestedTier;
 
+  // Derive sector and business_type from what the registrant selected.
+  // Fall back to 'law_firm' only if neither field was captured (legacy registrations).
+  const orgSector: string = registration.sector || registration.dnfbp_category || "law_firm";
+  const orgBusinessType: string = registration.dnfbp_category || registration.sector || "law_firm";
+
   const { data: orgData, error: orgError } = await supabaseAdmin
     .from("organizations")
     .insert({
       name: registration.law_firm_name,
-      business_type: "law_firm",
+      business_type: orgBusinessType,
+      sector: orgSector,
       law_firm_type: trialTier,
       subscription_tier: trialTier,
       brela_registration: registration.brela_registration_number,

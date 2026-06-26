@@ -8,8 +8,10 @@ function formatSectorLabel(sector) {
   const labels = {
     insurance_company: 'Insurance Company',
     insurer:           'Insurance Company',
+    insurance:         'Insurance Company',
     audit_firm:        'Audit Firm',
     accountant:        'Accountant / Auditor',
+    accounting:        'Accountant / Auditor',
     law_firm:          'Law Firm / Legal Professional',
     legal_professional:'Law Firm / Legal Professional',
     real_estate_agent: 'Real Estate Agent',

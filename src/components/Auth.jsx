@@ -58,8 +58,7 @@ export default function Auth() {
     const categories = data || [];
     setDnfbpCategories(categories);
     if (categories.length > 0) {
-      const lawFirm = categories.find(c => c.category_value === 'law_firm');
-      setSelectedCategory(lawFirm ? 'law_firm' : categories[0].category_value);
+      setSelectedCategory('');
     }
   };
 
