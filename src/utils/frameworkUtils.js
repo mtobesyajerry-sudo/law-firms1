@@ -97,15 +97,18 @@ export function determineEntityTier(frameworkType, numberOfEmployees, annualTurn
 // The MODULE_${moduleKey} wrapper is identical across all sectors so that
 // DetailedAssessmentReport / PrintableAssessmentReport keep working.
 // ---------------------------------------------------------------------------
-function buildFilteredSections(modulesObj, tier) {
+function buildFilteredSections(modulesObj, tier, profileFirst = false) {
   const modules = [];
   Object.keys(modulesObj).forEach(moduleKey => {
     const moduleData = modulesObj[moduleKey];
     const subsections = [];
+    const isModule1 = moduleKey === 'module1';
 
     Object.keys(moduleData.sections).forEach(sectionCode => {
       const section = moduleData.sections[sectionCode];
-      const applicableQuestions = section.questions.filter(q => q.minTier <= tier);
+      const applicableQuestions = (profileFirst && isModule1)
+        ? section.questions
+        : section.questions.filter(q => q.minTier <= tier);
       if (applicableQuestions.length > 0) {
         subsections.push({ code: sectionCode, name: section.title, questions: applicableQuestions });
       }
@@ -123,19 +126,19 @@ function buildFilteredSections(modulesObj, tier) {
   return modules;
 }
 
-export function getFilteredSections(frameworkType, tier) {
+export function getFilteredSections(frameworkType, tier, profileFirst = false) {
   switch (frameworkType) {
     case 'insurer':
-      return buildFilteredSections(insurersModules, tier);
+      return buildFilteredSections(insurersModules, tier, profileFirst);
     case 'audit_firm':
-      return buildFilteredSections(auditFirmModules, tier);
+      return buildFilteredSections(auditFirmModules, tier, profileFirst);
     case 'general_dnfbp':
     case 'dnfbp':
       return [];
     case 'banks_financial_institutions':
     case 'legal_professionals':
     default:
-      return buildFilteredSections(banksFinancialInstitutionsAssessmentData.modules, tier);
+      return buildFilteredSections(banksFinancialInstitutionsAssessmentData.modules, tier, profileFirst);
   }
 }
 

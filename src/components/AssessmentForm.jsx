@@ -45,6 +45,10 @@ export default function AssessmentForm() {
   const [frameworkType, setFrameworkType] = useState('legal_professionals');
   const [entityTier, setEntityTier] = useState(2);
   const [filteredSections, setFilteredSections] = useState([]);
+  const [sizeFloorTier, setSizeFloorTier] = useState(1);
+  const [showTierDetermination, setShowTierDetermination] = useState(false);
+  const [autoTierResult, setAutoTierResult] = useState(null);
+  const [tierDetermined, setTierDetermined] = useState(false);
   const [attachments, setAttachments] = useState({});
   const [uploadingFiles, setUploadingFiles] = useState({});
   const [declarationConfirmed, setDeclarationConfirmed] = useState({});
@@ -173,12 +177,6 @@ export default function AssessmentForm() {
       setFrameworkType(framework);
       const tier = assessData.entity_tier || assessData.dnfbp_tier || 2;
       setEntityTier(tier);
-      const sections = getFilteredSections(framework, tier);
-      console.log('🔍 Loading assessment - Total modules:', sections.length);
-      sections.forEach((mod, i) => {
-        console.log(`  Module ${i+1}: ${mod.name} - ${mod.subsections?.length || 0} subsections`);
-      });
-      setFilteredSections(sections);
 
       const { data: responsesData, error: responsesError } = await supabase
         .from('assessment_responses')
@@ -187,6 +185,19 @@ export default function AssessmentForm() {
 
       if (responsesError) throw responsesError;
       setResponses(responsesData || []);
+
+      const hasModule23 = (responsesData || []).some(r => /^[BC]/.test(r.question_code || ''));
+      setSizeFloorTier(tier);
+      if (hasModule23) {
+        const sections = getFilteredSections(framework, tier, true);
+        setFilteredSections(sections);
+        setTierDetermined(true);
+      } else {
+        const m1 = getFilteredSections(framework, tier, true)
+          .filter(m => m.code === 'MODULE_module1');
+        setFilteredSections(m1);
+        setTierDetermined(false);
+      }
 
       const { data: scoresData, error: scoresError } = await supabase
         .from('section_scores')
@@ -277,6 +288,7 @@ export default function AssessmentForm() {
           annual_turnover: introData.annual_turnover,
           geographical_presence: introData.geographical_presence,
           framework_type: framework,
+          entity_tier: calculatedTier,
           introduction_completed: true,
           status: 'in_progress'
         })
@@ -284,12 +296,10 @@ export default function AssessmentForm() {
 
       if (error) throw error;
 
+      setSizeFloorTier(calculatedTier);
       setEntityTier(calculatedTier);
-      const introSections = getFilteredSections(framework, calculatedTier);
-      console.log('🔍 After introduction - Total modules:', introSections.length);
-      introSections.forEach((mod, i) => {
-        console.log(`  Module ${i+1}: ${mod.name} - ${mod.subsections?.length || 0} subsections`);
-      });
+      const introSections = getFilteredSections(framework, calculatedTier, true)
+        .filter(m => m.code === 'MODULE_module1');
       setFilteredSections(introSections);
       setAssessment({
         ...assessment,
@@ -536,7 +546,44 @@ export default function AssessmentForm() {
     }
   };
 
+  const triggerTierDetermination = () => {
+    const responsesMap = {};
+    responses.forEach(r => {
+      if (r.question_code && r.response) responsesMap[r.question_code] = r.response;
+    });
+    const frameworkData = getFrameworkData(frameworkType);
+    const autoResult = frameworkData.assessmentData?.determineAutomaticTier?.(responsesMap);
+    const autoTier = autoResult?.tier ?? sizeFloorTier;
+    const proposedTier = Math.max(sizeFloorTier, autoTier);
+    setAutoTierResult({
+      autoTier,
+      proposedTier,
+      reason: autoResult?.reason || 'Based on risk profile responses'
+    });
+    setShowTierDetermination(true);
+  };
+
+  const handleTierConfirm = async (confirmedTier) => {
+    const safeTier = Math.max(confirmedTier, autoTierResult.proposedTier);
+    try {
+      await supabase.from('assessments').update({ entity_tier: safeTier }).eq('id', id);
+    } catch (error) {
+      console.error('Error persisting confirmed tier:', error);
+    }
+    setEntityTier(safeTier);
+    setTierDetermined(true);
+    setShowTierDetermination(false);
+    const confirmedSections = getFilteredSections(frameworkType, safeTier, true);
+    setFilteredSections(confirmedSections);
+    setCurrentSectionIndex(1);
+  };
+
   const goToNextSection = () => {
+    const currentCode = filteredSections[currentSectionIndex]?.code;
+    if (currentCode === 'MODULE_module1' && !tierDetermined) {
+      triggerTierDetermination();
+      return;
+    }
     if (currentSectionIndex < filteredSections.length - 1) {
       setCurrentSectionIndex(currentSectionIndex + 1);
     } else {
@@ -823,6 +870,85 @@ export default function AssessmentForm() {
         organization={assessment.organizations}
         onComplete={handleIntroductionComplete}
       />
+    );
+  }
+
+  if (showTierDetermination && autoTierResult) {
+    const { autoTier, proposedTier, reason } = autoTierResult;
+    const tierLabels = {
+      1: { name: 'Tier 1', sub: 'Small / Standard' },
+      2: { name: 'Tier 2', sub: 'Medium / Intermediate' },
+      3: { name: 'Tier 3', sub: 'Large / Enhanced' }
+    };
+    return (
+      <div style={styles.container}>
+        <div style={styles.headerCard}>
+          <div style={styles.headerContent}>
+            <div>
+              <div style={styles.headerTitle}>AML/CFT Compliance System</div>
+              <h1 style={styles.headerSubtitle}>Assessment Level Determination</h1>
+            </div>
+            <button onClick={navigateToDashboard} style={styles.backButton}
+              onMouseEnter={e => { e.currentTarget.style.background='rgba(255,255,255,0.2)'; e.currentTarget.style.borderColor='#d4af37'; }}
+              onMouseLeave={e => { e.currentTarget.style.background='rgba(255,255,255,0.1)'; e.currentTarget.style.borderColor='rgba(255,255,255,0.2)'; }}
+            >← Back</button>
+          </div>
+        </div>
+        <div style={{ maxWidth:'700px', margin:'0 auto', padding:'32px 24px' }}>
+          <div style={{ background:'white', borderRadius:'12px', padding:'40px', boxShadow:'0 4px 20px rgba(0,0,0,0.1)', border:'1px solid #e5e7eb' }}>
+            <h2 style={{ margin:'0 0 8px', fontSize:'22px', fontWeight:'700', color:'#0a1929' }}>Risk-Based Tier Determination</h2>
+            <p style={{ margin:'0 0 32px', color:'#64748b', fontSize:'14px', lineHeight:'1.6' }}>
+              Module 1 responses have been analysed. The system has determined an appropriate assessment level based on your organisation's size and inherent risk profile.
+            </p>
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'16px', marginBottom:'24px' }}>
+              <div style={{ padding:'20px', background:'#f8fafc', borderRadius:'8px', border:'1px solid #e2e8f0' }}>
+                <p style={{ margin:'0 0 6px', fontSize:'11px', fontWeight:'700', color:'#94a3b8', textTransform:'uppercase', letterSpacing:'0.6px' }}>Size Floor</p>
+                <p style={{ margin:'0 0 4px', fontSize:'26px', fontWeight:'800', color:'#0a1929' }}>{tierLabels[sizeFloorTier].name}</p>
+                <p style={{ margin:0, fontSize:'12px', color:'#64748b' }}>{tierLabels[sizeFloorTier].sub}</p>
+                <p style={{ margin:'8px 0 0', fontSize:'11px', color:'#94a3b8' }}>Derived from employees &amp; annual turnover</p>
+              </div>
+              <div style={{ padding:'20px', background:'#f8fafc', borderRadius:'8px', border:'1px solid #e2e8f0' }}>
+                <p style={{ margin:'0 0 6px', fontSize:'11px', fontWeight:'700', color:'#94a3b8', textTransform:'uppercase', letterSpacing:'0.6px' }}>Risk Profile</p>
+                <p style={{ margin:'0 0 4px', fontSize:'26px', fontWeight:'800', color:'#0a1929' }}>{tierLabels[autoTier].name}</p>
+                <p style={{ margin:0, fontSize:'12px', color:'#64748b' }}>{tierLabels[autoTier].sub}</p>
+                <p style={{ margin:'8px 0 0', fontSize:'11px', color:'#94a3b8' }}>Derived from Module 1 responses</p>
+              </div>
+            </div>
+            <div style={{ padding:'20px 24px', background:'#fffbeb', border:'2px solid #d4af37', borderRadius:'8px', marginBottom:'32px' }}>
+              <p style={{ margin:'0 0 4px', fontSize:'11px', fontWeight:'700', color:'#92400e', textTransform:'uppercase', letterSpacing:'0.6px' }}>Recommended Assessment Level</p>
+              <p style={{ margin:'0 0 10px', fontSize:'30px', fontWeight:'800', color:'#0a1929' }}>{tierLabels[proposedTier].name} — {tierLabels[proposedTier].sub}</p>
+              <p style={{ margin:0, fontSize:'13px', color:'#78350f', lineHeight:'1.6' }}>{reason}</p>
+            </div>
+            <p style={{ margin:'0 0 14px', fontSize:'13px', fontWeight:'700', color:'#374151', textTransform:'uppercase', letterSpacing:'0.4px' }}>
+              Confirm or escalate (you cannot select a level below Tier {proposedTier}):
+            </p>
+            <div style={{ display:'flex', gap:'12px', marginBottom:'28px' }}>
+              {[1,2,3].map(t => {
+                const isDisabled = t < proposedTier;
+                const isRecommended = t === proposedTier;
+                return (
+                  <button key={t} onClick={() => !isDisabled && handleTierConfirm(t)} disabled={isDisabled}
+                    style={{ flex:1, padding:'18px 12px', borderRadius:'8px',
+                      border: isRecommended ? '2px solid #d4af37' : '1px solid #d1d5db',
+                      background: isRecommended ? '#d4af37' : isDisabled ? '#f3f4f6' : 'white',
+                      color: isRecommended ? 'white' : isDisabled ? '#9ca3af' : '#0a1929',
+                      fontWeight:'700', fontSize:'15px',
+                      cursor: isDisabled ? 'not-allowed' : 'pointer',
+                      opacity: isDisabled ? 0.5 : 1, transition:'all 0.2s', textAlign:'center' }}>
+                    <div>{tierLabels[t].name}</div>
+                    <div style={{ fontSize:'11px', fontWeight:'500', marginTop:'4px', opacity:0.85 }}>{tierLabels[t].sub}</div>
+                    {isRecommended && <div style={{ fontSize:'10px', fontWeight:'700', marginTop:'6px', background:'rgba(255,255,255,0.25)', borderRadius:'4px', padding:'2px 6px', display:'inline-block' }}>RECOMMENDED</div>}
+                    {isDisabled && <div style={{ fontSize:'10px', fontWeight:'600', marginTop:'6px', color:'#9ca3af' }}>NOT AVAILABLE</div>}
+                  </button>
+                );
+              })}
+            </div>
+            <p style={{ margin:0, fontSize:'12px', color:'#94a3b8', textAlign:'center', lineHeight:'1.5' }}>
+              The confirmed level determines which questions appear in Modules 2 and 3. A higher level includes additional questions commensurate with elevated risk.
+            </p>
+          </div>
+        </div>
+      </div>
     );
   }
 
