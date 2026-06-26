@@ -18,7 +18,6 @@ export default function Auth() {
   const [registrationType, setRegistrationType] = useState('new_firm');
   const [lawFirmName, setLawFirmName] = useState('');
   const [brelaRegistrationNumber, setBrelaRegistrationNumber] = useState('');
-  const [firmEmail, setFirmEmail] = useState('');
   const [contactPersonName, setContactPersonName] = useState('');
   const [contactPersonDesignation, setContactPersonDesignation] = useState('');
   const [mobileNumber, setMobileNumber] = useState('');
@@ -97,7 +96,6 @@ export default function Auth() {
         if (org.can_accept_users) {
           setExistingOrgData(org);
           setLawFirmName(org.name);
-          setFirmEmail(org.contact_email || '');
         } else {
           setExistingOrgData({ ...org, full: true });
         }
@@ -373,7 +371,7 @@ export default function Auth() {
         const registrationData = {
           brela_registration_number: brelaRegistrationNumber,
           law_firm_name: existingOrgData && !existingOrgData.full ? existingOrgData.name : lawFirmName,
-          firm_email: existingOrgData && !existingOrgData.full ? (existingOrgData.contact_email || firmEmail) : firmEmail,
+          firm_email: existingOrgData?.contact_email || null,
           user_full_name: fullName,
           user_email: email,
           user_position: contactPersonDesignation || 'Management User',
@@ -403,7 +401,6 @@ export default function Auth() {
 
         setLawFirmName('');
         setBrelaRegistrationNumber('');
-        setFirmEmail('');
         setContactPersonName('');
         setContactPersonDesignation('');
         setMobileNumber('');
@@ -677,20 +674,6 @@ export default function Auth() {
                       />
                     </div>
                   </>
-                )}
-
-                {(!existingOrgData || existingOrgData.full) && (
-                  <div style={styles.formGroup}>
-                    <label style={styles.label}>Organisation Email Address *</label>
-                    <input
-                      type="email"
-                      value={firmEmail}
-                      onChange={(e) => setFirmEmail(e.target.value)}
-                      style={styles.input}
-                      placeholder="Official organisation email"
-                      required
-                    />
-                  </div>
                 )}
 
                 {(!existingOrgData || existingOrgData.full) && (

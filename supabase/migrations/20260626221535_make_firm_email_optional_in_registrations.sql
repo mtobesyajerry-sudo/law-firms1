@@ -1,0 +1,1 @@
+ALTER TABLE management_user_registrations ALTER COLUMN firm_email DROP NOT NULL;
