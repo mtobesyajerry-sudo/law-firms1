@@ -106,9 +106,12 @@ async function handleApproveRegistration(supabaseAdmin: any, registrationId: str
   const decryptedPassword = decryptPassword(registration.encrypted_password);
   if (!decryptedPassword) throw new Error("Failed to decrypt password");
 
+  // Use the individual registrant's personal email, not the shared company email
+  const loginEmail: string = registration.user_email || registration.firm_email;
+
   // Clean up any pre-existing auth user for this email (e.g. from a failed previous approval attempt)
   const { data: existingUsers } = await supabaseAdmin.auth.admin.listUsers();
-  const existingAuthUser = existingUsers?.users?.find((u: any) => u.email === registration.firm_email);
+  const existingAuthUser = existingUsers?.users?.find((u: any) => u.email === loginEmail);
   if (existingAuthUser) {
     await supabaseAdmin.from("user_profiles").delete().eq("id", existingAuthUser.id);
     const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(existingAuthUser.id);
@@ -117,7 +120,7 @@ async function handleApproveRegistration(supabaseAdmin: any, registrationId: str
   }
 
   const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
-    email: registration.firm_email,
+    email: loginEmail,
     password: decryptedPassword,
     email_confirm: true,
     user_metadata: { full_name: registration.user_full_name || registration.law_firm_name },
@@ -131,7 +134,7 @@ async function handleApproveRegistration(supabaseAdmin: any, registrationId: str
     .from("user_profiles")
     .insert({
       id: authData.user.id,
-      email: registration.firm_email,
+      email: loginEmail,
       role: "management",
       full_name: registration.user_full_name || registration.law_firm_name,
       organization_id: orgData.id,
@@ -181,7 +184,7 @@ async function handleApproveRegistration(supabaseAdmin: any, registrationId: str
     `Trial ends:    ${fmt(trialEnd)}`,
     "",
     "You can log in immediately at https://iuris-peritis.co.tz using the email address",
-    `and password you chose during registration (${registration.firm_email}).`,
+    `and password you chose during registration (${loginEmail}).`,
     "",
     "If you have any questions, reply to this email or contact us at info@iurisperitis.co.tz.",
     "",
@@ -203,7 +206,7 @@ async function handleApproveRegistration(supabaseAdmin: any, registrationId: str
         },
         body: JSON.stringify({
           from: "Iuris Peritis Compliance <onboarding@resend.dev>",
-          to: [registration.firm_email],
+          to: [loginEmail],
           subject: welcomeSubject,
           text: welcomeBody,
         }),
@@ -222,7 +225,7 @@ async function handleApproveRegistration(supabaseAdmin: any, registrationId: str
       `Organisation:   ${registration.law_firm_name}`,
       `BRELA number:   ${registration.brela_registration_number || "—"}`,
       `Contact name:   ${registration.user_full_name || "—"}`,
-      `Contact email:  ${registration.firm_email}`,
+      `Contact email:  ${loginEmail}`,
       `Mobile:         ${registration.mobile_number || "—"}`,
       "Trial tier:     Medium Firm capabilities (large_firm requested)",
       `Trial start:    ${fmt(trialStart)}`,
