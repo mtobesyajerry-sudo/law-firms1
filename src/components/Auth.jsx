@@ -627,7 +627,7 @@ export default function Auth() {
                       checkOrganizationByBrela(e.target.value);
                     }}
                     style={styles.input}
-                    placeholder="Enter BRELA number to check for existing firm"
+                    placeholder="Enter BRELA number to check for existing organisation"
                     required
                   />
                   {brelaCheckLoading && (
@@ -636,10 +636,10 @@ export default function Auth() {
                   {existingOrgData && !existingOrgData.full && (
                     <div style={styles.existingOrgInfo}>
                       <div style={{ marginBottom: '8px' }}>
-                        <strong>Existing Firm Found:</strong> {existingOrgData.name}
+                        <strong>Existing Organisation Found:</strong> {existingOrgData.name}
                       </div>
                       <div style={{ fontSize: '13px', color: '#059669', marginBottom: '8px' }}>
-                        You will be added to this firm ({existingOrgData.user_count}/3 users)
+                        You will be added to this organisation ({existingOrgData.user_count}/3 users)
                       </div>
                       <div style={{
                         fontSize: '12px',
@@ -650,15 +650,15 @@ export default function Auth() {
                         borderRadius: '6px',
                         borderLeft: '3px solid #d4af37'
                       }}>
-                        Firm information is already on file. You only need to enter your personal details below.
+                        Organisation information is already on file. You only need to enter your personal details below.
                       </div>
                     </div>
                   )}
                   {existingOrgData && existingOrgData.full && (
                     <div style={styles.warningBox}>
-                      <strong>Firm Registration Full</strong>
+                      <strong>Organisation Registration Full</strong>
                       <br />
-                      This firm already has 3 registered users. Please contact your administrator.
+                      This organisation already has 3 registered users. Please contact your administrator.
                     </div>
                   )}
                 </div>
@@ -882,7 +882,7 @@ export default function Auth() {
                   <div style={styles.securityText}>
                     <strong>Security Assurance:</strong> This platform applies encryption, strict access control,
                     and institutional data isolation. All client information remains confidential and is accessible
-                    only to authorised users within your firm.
+                    only to authorised users within your organisation.
                   </div>
                 </div>
               </>
