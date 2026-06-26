@@ -9,4 +9,16 @@ export default defineConfig({
   optimizeDeps: {
     include: ['react-markdown', 'remark-gfm'],
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+          'vendor-supabase': ['@supabase/supabase-js'],
+          'vendor-docx': ['docx', 'file-saver'],
+          'vendor-crypto': ['crypto-js'],
+        },
+      },
+    },
+  },
 });
