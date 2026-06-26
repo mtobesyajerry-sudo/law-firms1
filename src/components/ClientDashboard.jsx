@@ -29,12 +29,12 @@ function formatSectorLabel(sector) {
 
 function formatSubscriptionTier(tier) {
   const labels = {
-    small_firm:  'Small',
-    medium_firm: 'Medium',
-    large_firm:  'Large',
-    small:       'Small',
-    medium:      'Medium',
-    large:       'Large',
+    small_firm:  'Small — 12 users · 150 clients',
+    medium_firm: 'Medium — 30 users · 600 clients',
+    large_firm:  'Large — Unlimited',
+    small:       'Small — 12 users · 150 clients',
+    medium:      'Medium — 30 users · 600 clients',
+    large:       'Large — Unlimited',
   };
   return labels[tier] || (tier ? tier.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) : '-');
 }
@@ -402,28 +402,41 @@ export default function ClientDashboard() {
                     color: '#2d3748',
                     fontSize: '14px'
                   }}>
-                    {organization.subscription_expiry_date ? (
-                      <>
-                        {new Date(organization.subscription_expiry_date).toLocaleDateString()}
-                        <span style={{
-                          marginLeft: '8px',
-                          padding: '3px 8px',
-                          borderRadius: '8px',
-                          fontSize: '11px',
-                          fontWeight: '600',
-                          background: new Date(organization.subscription_expiry_date) > new Date() ? '#d1fae5' : '#fee2e2',
-                          color: new Date(organization.subscription_expiry_date) > new Date() ? '#065f46' : '#991b1b'
-                        }}>
-                          {new Date(organization.subscription_expiry_date) > new Date() ? 'Active' : 'Expired'}
-                        </span>
-                      </>
-                    ) : '-'}
+                    {(() => {
+                      const expiry = organization.subscription_expiry_date || organization.trial_ends_at;
+                      if (!expiry) return '-';
+                      const expiryDate = new Date(expiry);
+                      const isActive = expiryDate > new Date();
+                      return (
+                        <>
+                          {expiryDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                          {organization.is_trialing && (
+                            <span style={{ marginLeft: '6px', fontSize: '11px', color: '#92400e', fontWeight: '600' }}>
+                              (Trial)
+                            </span>
+                          )}
+                          <span style={{
+                            marginLeft: '8px',
+                            padding: '3px 8px',
+                            borderRadius: '8px',
+                            fontSize: '11px',
+                            fontWeight: '600',
+                            background: isActive ? '#d1fae5' : '#fee2e2',
+                            color: isActive ? '#065f46' : '#991b1b'
+                          }}>
+                            {isActive ? 'Active' : 'Expired'}
+                          </span>
+                        </>
+                      );
+                    })()}
                   </td>
                   <td style={{
                     padding: '10px 12px',
                     color: '#2d3748',
                     fontSize: '14px'
-                  }}>{organization.max_users || 'Unlimited'}</td>
+                  }}>
+                    {organization.max_users != null ? organization.max_users : 'Unlimited'}
+                  </td>
                 </tr>
               </tbody>
             </table>

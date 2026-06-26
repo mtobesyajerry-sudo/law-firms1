@@ -61,6 +61,13 @@ async function handleApproveRegistration(supabaseAdmin: any, registrationId: str
   const orgSector: string = registration.sector || registration.dnfbp_category || "law_firm";
   const orgBusinessType: string = registration.dnfbp_category || registration.sector || "law_firm";
 
+  const tierMaxUsers: Record<string, number | null> = {
+    small_firm: 12,
+    medium_firm: 30,
+    large_firm: null,
+  };
+  const maxUsers = tierMaxUsers[trialTier] ?? 12;
+
   const { data: orgData, error: orgError } = await supabaseAdmin
     .from("organizations")
     .insert({
@@ -69,6 +76,7 @@ async function handleApproveRegistration(supabaseAdmin: any, registrationId: str
       sector: orgSector,
       law_firm_type: trialTier,
       subscription_tier: trialTier,
+      max_users: maxUsers,
       brela_registration: registration.brela_registration_number,
       tls_registration: registration.tls_registration_number,
       contact_email: registration.firm_email,
