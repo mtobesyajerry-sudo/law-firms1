@@ -346,7 +346,7 @@ export default function DualApprovalInterface({ user, organizationId }) {
     return <LoadingSpinner fullPage />;
   }
 
-  if (!hasManagementAccess) {
+  if (!hasManagementAccess || requests.length === 0) {
     return null;
   }
 
@@ -360,11 +360,7 @@ export default function DualApprovalInterface({ user, organizationId }) {
         </div>
       </div>
 
-      {requests.length === 0 ? (
-        <div style={styles.emptyState}>
-          No pending role upgrade requests
-        </div>
-      ) : (
+      {(
         requests.map(request => {
           const requestApprovals = approvals[request.id] || [];
           const hasUserApproved = requestApprovals.some(a => a.approver_user_id === user.id);
