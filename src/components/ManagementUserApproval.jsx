@@ -118,17 +118,19 @@ export default function ManagementUserApproval({ user }) {
         organizationId = orgData.id;
       }
 
-      // Create the user account using edge function
+      // Create the user account using edge function — use the caller's session JWT, not the anon key
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error('No active session — please log in again');
+
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-user`,
         {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
+            'Authorization': `Bearer ${session.access_token}`
           },
           body: JSON.stringify({
-            admin_user_id: user.id,
             email: registration.user_email,
             password: decryptedPassword,
             full_name: registration.user_full_name,
