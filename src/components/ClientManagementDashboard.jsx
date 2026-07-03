@@ -470,7 +470,9 @@ export default function ClientManagementDashboard() {
 
           if (response.error) {
             console.error('Edge function error:', response.error);
-            throw response.error;
+            const status = response.error.context?.status ?? response.error.status ?? '';
+            const msg = response.error.message || JSON.stringify(response.error);
+            throw new Error(status ? `HTTP ${status}: ${msg}` : msg);
           }
 
           const newUserData = response.data;
@@ -479,7 +481,7 @@ export default function ClientManagementDashboard() {
           if (!newUserData || !newUserData.success) {
             const errorMsg = newUserData?.error || 'Failed to create user account';
             const errorDetails = newUserData?.details || '';
-            throw new Error(`${errorMsg}\n\nDetails: ${errorDetails}`);
+            throw new Error(errorDetails ? `${errorMsg}\n\nDetails: ${errorDetails}` : errorMsg);
           }
 
           // Mark request as completed and clear the encrypted password
@@ -502,7 +504,7 @@ export default function ClientManagementDashboard() {
           }
         } catch (createError) {
           console.error('Error creating user:', createError);
-          alert('Approval recorded but failed to create user account. Please try again or contact support.\n\nError: ' + (createError.message || JSON.stringify(createError)));
+          alert('Failed to create user account.\n\nError: ' + (createError.message || JSON.stringify(createError)));
         }
       } else {
         alert(data.message + ` (${data.approval_count}/2 approvals)`);

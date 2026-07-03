@@ -141,8 +141,15 @@ export default function ManagementUserApproval({ user }) {
       );
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to create user');
+        let errorMsg = `HTTP ${response.status}`;
+        try {
+          const errorData = await response.json();
+          errorMsg += `: ${errorData.error || JSON.stringify(errorData)}`;
+        } catch {
+          const text = await response.text();
+          errorMsg += `: ${text || 'Unknown error'}`;
+        }
+        throw new Error(errorMsg);
       }
 
       const { user: createdUser } = await response.json();
