@@ -118,7 +118,7 @@ export default function ClientManagementDashboard() {
           .order('created_at', { ascending: false }),
         supabase
           .from('role_upgrade_requests')
-          .select('id, status, created_at, user_profiles!role_upgrade_requests_user_id_fkey(full_name, email, role)')
+          .select('id, user_id, status, created_at, user_profiles!role_upgrade_requests_user_id_fkey(full_name, email, role)')
           .eq('organization_id', organization.id)
           .order('created_at', { ascending: false })
           .limit(100),
@@ -683,7 +683,12 @@ export default function ClientManagementDashboard() {
         }}>
           {[
             { id: 'overview', label: 'Overview', icon: '📊' },
-            { id: 'users', label: `Users (${statistics.pendingRoleRequests + statistics.pendingAccessRequests})`, icon: '🔐' },
+            {
+              id: 'users',
+              label: 'Users',
+              icon: '🔐',
+              badge: statistics.pendingRoleRequests + statistics.pendingAccessRequests
+            },
             { id: 'clients', label: 'Clients', icon: '👥' },
             { id: 'matters', label: 'Matters', icon: '📋' },
             { id: 'assessments', label: 'Assessments', icon: '📝' },
@@ -709,6 +714,20 @@ export default function ClientManagementDashboard() {
             >
               <span style={{ marginRight: '6px' }}>{tab.icon}</span>
               {tab.label}
+              {tab.badge > 0 && (
+                <span style={{
+                  marginLeft: '6px',
+                  padding: '2px 7px',
+                  background: '#ef4444',
+                  color: 'white',
+                  borderRadius: '10px',
+                  fontSize: '11px',
+                  fontWeight: '700',
+                  lineHeight: '1.4'
+                }}>
+                  {tab.badge}
+                </span>
+              )}
             </button>
           ))}
           {(profile?.role === 'management' || profile?.role === 'admin') && (
