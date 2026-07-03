@@ -224,7 +224,7 @@ export default function NewUserRequestForm({ onClose, onSuccess }) {
                 fontSize: '15px',
                 fontFamily: 'inherit'
               }}
-              placeholder="e.g., Senior Associate, Legal Assistant"
+              placeholder="e.g., Compliance Officer, Manager, Analyst"
             />
           </div>
 
@@ -253,7 +253,7 @@ export default function NewUserRequestForm({ onClose, onSuccess }) {
                 fontSize: '15px',
                 fontFamily: 'inherit'
               }}
-              placeholder="sarah.johnson@lawfirm.com"
+              placeholder="e.g., staff@yourorganisation.com"
             />
           </div>
 

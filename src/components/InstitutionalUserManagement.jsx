@@ -481,7 +481,7 @@ export default function InstitutionalUserManagement({ user }) {
                 value={formData.position}
                 onChange={(e) => setFormData({ ...formData, position: e.target.value })}
                 style={styles.input}
-                placeholder="e.g., Associate, Paralegal, Compliance Manager"
+                placeholder="e.g., Compliance Manager, Underwriter, Auditor, Manager"
                 required
               />
             </div>

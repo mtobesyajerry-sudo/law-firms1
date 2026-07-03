@@ -699,13 +699,52 @@ export default function Auth() {
                         required
                       >
                         <option value="">Select designation</option>
-                        <option value="Director">Director</option>
-                        <option value="Partner">Partner</option>
-                        <option value="Manager">Manager</option>
-                        <option value="Compliance Officer">Compliance Officer</option>
-                        <option value="MLRO">Money Laundering Reporting Officer (MLRO)</option>
-                        <option value="Administrator">Administrator</option>
-                        <option value="Other">Other</option>
+                        {(() => {
+                          const cat = dnfbpCategories.find(c => c.category_value === selectedCategory);
+                          const ft = cat?.framework_type;
+                          if (ft === 'law_firm') return <>
+                            <option value="Managing Partner">Managing Partner</option>
+                            <option value="Partner">Partner</option>
+                            <option value="Director">Director</option>
+                            <option value="Manager">Manager</option>
+                            <option value="Compliance Officer">Compliance Officer</option>
+                            <option value="MLRO">Money Laundering Reporting Officer (MLRO)</option>
+                            <option value="Administrator">Administrator</option>
+                            <option value="Other">Other</option>
+                          </>;
+                          if (ft === 'insurer') return <>
+                            <option value="Chief Executive Officer">Chief Executive Officer</option>
+                            <option value="Director">Director</option>
+                            <option value="Underwriter">Underwriter</option>
+                            <option value="Actuary">Actuary</option>
+                            <option value="Claims Manager">Claims Manager</option>
+                            <option value="Risk Manager">Risk Manager</option>
+                            <option value="Compliance Officer">Compliance Officer</option>
+                            <option value="MLRO">Money Laundering Reporting Officer (MLRO)</option>
+                            <option value="Administrator">Administrator</option>
+                            <option value="Other">Other</option>
+                          </>;
+                          if (ft === 'audit_firm') return <>
+                            <option value="Managing Partner">Managing Partner</option>
+                            <option value="Partner">Partner</option>
+                            <option value="Senior Auditor">Senior Auditor</option>
+                            <option value="Auditor">Auditor</option>
+                            <option value="Compliance Officer">Compliance Officer</option>
+                            <option value="MLRO">Money Laundering Reporting Officer (MLRO)</option>
+                            <option value="Administrator">Administrator</option>
+                            <option value="Other">Other</option>
+                          </>;
+                          return <>
+                            <option value="Chief Executive Officer">Chief Executive Officer</option>
+                            <option value="Director">Director</option>
+                            <option value="General Manager">General Manager</option>
+                            <option value="Manager">Manager</option>
+                            <option value="Compliance Officer">Compliance Officer</option>
+                            <option value="MLRO">Money Laundering Reporting Officer (MLRO)</option>
+                            <option value="Administrator">Administrator</option>
+                            <option value="Other">Other</option>
+                          </>;
+                        })()}
                       </select>
                     </div>
 
