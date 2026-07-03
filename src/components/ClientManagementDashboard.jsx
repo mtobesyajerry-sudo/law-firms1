@@ -485,7 +485,7 @@ export default function ClientManagementDashboard() {
           }
 
           // Mark request as completed and clear the encrypted password
-          await supabase
+          const { error: completeErr } = await supabase
             .from('new_user_requests')
             .update({
               created_user_id: newUserData.user?.id,
@@ -495,6 +495,7 @@ export default function ClientManagementDashboard() {
               encrypted_temporary_password: null
             })
             .eq('id', requestId);
+          if (completeErr) console.error('Failed to mark request completed:', completeErr);
 
           const tempPassword = newUserData.temporary_password;
           if (tempPassword) {

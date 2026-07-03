@@ -34,7 +34,7 @@ import KycCddReport from './components/KycCddReport';
 // Shown when profile.password_change_required = true.
 // The user cannot reach any other route until they set a compliant password.
 function ForcePasswordChange() {
-  const { signOut, refreshProfile } = useAuth();
+  const { signOut, refreshProfile, patchProfile } = useAuth();
   const [pw, setPw] = React.useState('');
   const [confirm, setConfirm] = React.useState('');
   const [error, setError] = React.useState('');
@@ -51,16 +51,24 @@ function ForcePasswordChange() {
       const { error: updateErr } = await supabase.auth.updateUser({ password: pw });
       if (updateErr) throw updateErr;
       const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Session lost after password update — please log in again.');
       // Record new password hash in history to enable reuse prevention
       const encoded = new TextEncoder().encode(pw);
       const hashBuffer = await crypto.subtle.digest('SHA-256', encoded);
       const pwHash = Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
       await supabase.from('password_history').insert({ user_id: user.id, password_hash: pwHash });
-      // Clear the forced-change flag
-      await supabase.from('user_profiles')
-        .update({ password_change_required: false })
+      // Clear the forced-change flag — check error and row count explicitly
+      const { error: flagErr, count } = await supabase
+        .from('user_profiles')
+        .update({ password_change_required: false }, { count: 'exact' })
         .eq('id', user.id);
-      refreshProfile();
+      if (flagErr) throw new Error(`Failed to clear password change flag: ${flagErr.message}`);
+      if (count === 0) throw new Error('Password changed but account record could not be updated. Please contact support.');
+      // Immediately clear the flag in local React state so the route guard unblocks right away,
+      // regardless of any concurrent TOKEN_REFRESHED reload that might still carry the old value.
+      patchProfile({ password_change_required: false });
+      // Also await a full refresh to ensure all other profile fields are up to date.
+      await refreshProfile();
     } catch (err) {
       setError(err.message);
     } finally {

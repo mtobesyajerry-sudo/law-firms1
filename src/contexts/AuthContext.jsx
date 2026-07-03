@@ -348,9 +348,16 @@ export const AuthProvider = ({ children }) => {
 
   const refreshProfile = useCallback(() => {
     if (user?.id) {
-      loadUserProfile(user.id);
+      return loadUserProfile(user.id);
     }
+    return Promise.resolve();
   }, [user?.id, loadUserProfile]);
+
+  // Merge a partial profile update into local state immediately, without a round-trip.
+  // Used by ForcePasswordChange to eliminate the TOKEN_REFRESHED race condition.
+  const patchProfile = useCallback((patch) => {
+    setProfile(prev => prev ? { ...prev, ...patch } : prev);
+  }, []);
 
   // Grace period helpers
   const mfaGracePeriodEnds = profile?.mfa_grace_period_ends ?? null;
@@ -376,6 +383,7 @@ export const AuthProvider = ({ children }) => {
     hasActiveSubscription,
     hasAccess,
     refreshProfile,
+    patchProfile,
     revokedMessage,
     requiresPasswordChange: profile?.password_change_required === true,
     // Trial state
@@ -394,7 +402,7 @@ export const AuthProvider = ({ children }) => {
     // MFA challenge gate — true while user has aal1 session and needs TOTP to reach aal2
     pendingMfaChallenge,
     completeMfaChallenge,
-  }), [user, profile, organization, loading, signUp, signIn, signOut, isEarlyClient, hasActiveSubscription, hasAccess, refreshProfile, revokedMessage, isTrialing, trialEndsAt, daysUntilTrialEnds, trialExpiredNeedPayment, mfaEnrolled, mfaAssuranceLevel, mfaGracePeriodEnds, mfaGraceExpired, requiresMfaEnrollment, showMfaNudge, checkMfaState, pendingMfaChallenge, completeMfaChallenge]);
+  }), [user, profile, organization, loading, signUp, signIn, signOut, isEarlyClient, hasActiveSubscription, hasAccess, refreshProfile, patchProfile, revokedMessage, isTrialing, trialEndsAt, daysUntilTrialEnds, trialExpiredNeedPayment, mfaEnrolled, mfaAssuranceLevel, mfaGracePeriodEnds, mfaGraceExpired, requiresMfaEnrollment, showMfaNudge, checkMfaState, pendingMfaChallenge, completeMfaChallenge]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
