@@ -353,10 +353,11 @@ Deno.serve(async (req: Request) => {
 
     const isSystemAdmin = callerProfile.role === "system_admin";
     const isAdmin = callerProfile.role === "admin";
+    const isManagement = callerProfile.role === "management";
     // An admin with no organization_id is a global admin — same cross-org rights as system_admin
     const isGlobalAdmin = (isAdmin || isSystemAdmin) && callerProfile.organization_id === null;
 
-    if (!isAdmin && !isSystemAdmin) {
+    if (!isAdmin && !isSystemAdmin && !isManagement) {
       return new Response(JSON.stringify({ error: "Admin only" }), {
         status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -371,8 +372,14 @@ Deno.serve(async (req: Request) => {
     const requestBody = await req.json();
     const { action, registrationId } = requestBody;
 
-    // Registration approval — admin or system_admin only
+    // Registration approval — admin or system_admin only (not management)
     if (action === "approve_registration" && registrationId) {
+      if (!isAdmin && !isSystemAdmin) {
+        return new Response(JSON.stringify({ error: "Admin only" }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
       return await handleApproveRegistration(supabaseAdmin, registrationId);
     }
 
@@ -385,11 +392,34 @@ Deno.serve(async (req: Request) => {
       });
     }
 
+    // Management users can only create users within their own org and cannot assign elevated roles
+    if (isManagement) {
+      if (!callerProfile.organization_id) {
+        return new Response(JSON.stringify({ error: "Management user has no organization" }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      if (organization_id && organization_id !== callerProfile.organization_id) {
+        return new Response(JSON.stringify({ error: "Cannot create user in a different organization" }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const elevatedRoles = ["admin", "system_admin", "management"];
+      if (role && elevatedRoles.includes(role)) {
+        return new Response(JSON.stringify({ error: "Management users cannot assign elevated roles" }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
     // Step 5: Organization scoping — admin can only create users in their own org.
     // system_admin and global admins (admin with no org) may create users in any org.
     const targetOrgId = organization_id ?? callerProfile.organization_id;
 
-    if (!isSystemAdmin && !isGlobalAdmin && organization_id && organization_id !== callerProfile.organization_id) {
+    if (!isSystemAdmin && !isGlobalAdmin && !isManagement && organization_id && organization_id !== callerProfile.organization_id) {
       return new Response(
         JSON.stringify({ error: "Cannot create user in a different organization" }),
         { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } },
