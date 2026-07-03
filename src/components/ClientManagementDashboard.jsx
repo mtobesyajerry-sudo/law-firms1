@@ -1013,17 +1013,15 @@ export default function ClientManagementDashboard() {
                 </div>
               )}
 
-              {/* Show section if there are ANY pending requests */}
-              {roleUpgradeRequests.filter(r => r.status === 'pending').length > 0 && (
+              {/* Show section if there are pending requests from other users */}
+              {roleUpgradeRequests.filter(r => r.status === 'pending' && r.user_id !== profile?.id).length > 0 && (
                 <div style={{ marginBottom: '32px' }}>
                   <h4 style={{ margin: '0 0 16px 0', fontSize: '16px', fontWeight: '600', color: '#0a1929' }}>
                     Pending Role Upgrade Requests
                   </h4>
 
-                  {/* Requests from other users that can be approved */}
-                  {roleUpgradeRequests.filter(r => r.status === 'pending' && r.user_id !== profile?.id).length > 0 ? (
-                    <div style={{ display: 'grid', gap: '16px' }}>
-                      {roleUpgradeRequests
+                  <div style={{ display: 'grid', gap: '16px' }}>
+                    {roleUpgradeRequests
                         .filter(r => r.status === 'pending' && r.user_id !== profile?.id)
                         .map(request => (
                       <div
@@ -1124,27 +1122,28 @@ export default function ClientManagementDashboard() {
                         </div>
                       </div>
                     ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Show if current user has their own pending role upgrade request */}
+              {roleUpgradeRequests.filter(r => r.status === 'pending' && r.user_id === profile?.id).length > 0 && (
+                <div style={{ marginBottom: '32px' }}>
+                  <div style={{
+                    padding: '24px',
+                    background: '#fef3c7',
+                    border: '2px solid #f59e0b',
+                    borderRadius: '12px',
+                    textAlign: 'center'
+                  }}>
+                    <div style={{ fontSize: '48px', marginBottom: '12px' }}>⏳</div>
+                    <div style={{ fontSize: '15px', fontWeight: '600', color: '#0a1929', marginBottom: '8px' }}>
+                      Your Role Upgrade Request is Pending
                     </div>
-                  ) : (
-                    <div style={{
-                      padding: '24px',
-                      background: '#fef3c7',
-                      border: '2px solid #f59e0b',
-                      borderRadius: '12px',
-                      textAlign: 'center'
-                    }}>
-                      <div style={{ fontSize: '48px', marginBottom: '12px' }}>⏳</div>
-                      <div style={{ fontSize: '15px', fontWeight: '600', color: '#0a1929', marginBottom: '8px' }}>
-                        Your Role Upgrade Request is Pending
-                      </div>
-                      <div style={{ fontSize: '13px', color: '#64748b' }}>
-                        You cannot approve your own role upgrade request. Another management user or admin needs to review and approve it.
-                      </div>
-                      <div style={{ fontSize: '12px', color: '#78350f', marginTop: '12px', fontStyle: 'italic' }}>
-                        Tip: Have another authorized user (admin, management, senior partner, or one of the first 5 clients) log in to approve your request.
-                      </div>
+                    <div style={{ fontSize: '13px', color: '#64748b' }}>
+                      You cannot approve your own role upgrade request. Another management user needs to review and approve it.
                     </div>
-                  )}
+                  </div>
                 </div>
               )}
 
