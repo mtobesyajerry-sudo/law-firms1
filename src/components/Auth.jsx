@@ -362,12 +362,18 @@ export default function Auth() {
         // Final BRELA check at submit time in case the live lookup was missed or stale
         let resolvedOrgData = existingOrgData && !existingOrgData.full ? existingOrgData : null;
         if (!resolvedOrgData) {
-          const { data: orgByBrela } = await supabase.rpc('get_organization_by_brela', {
+          const { data: orgByBrela, error: brelaLookupError } = await supabase.rpc('get_organization_by_brela', {
             brela_number: brelaRegistrationNumber
           });
+          if (brelaLookupError) {
+            console.error('Submit-time BRELA lookup failed:', brelaLookupError);
+          }
           if (orgByBrela && orgByBrela.length > 0 && orgByBrela[0].can_accept_users) {
             resolvedOrgData = orgByBrela[0];
           }
+        }
+        if (!resolvedOrgData) {
+          console.error('Submit-time BRELA lookup returned no matching org for:', brelaRegistrationNumber, '— registration will be saved without existing_organization_id and a new org will be created on approval.');
         }
 
         // Check if this is the first user for this BRELA number

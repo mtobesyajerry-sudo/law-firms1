@@ -70,18 +70,23 @@ export default function ManagementUserApproval({ user }) {
         return;
       }
 
-      // Resolve organization: prefer explicit link, then look up by BRELA, then create new
+      // Resolve organization: prefer explicit link, then look up by BRELA, then upsert
       let organizationId = registration.existing_organization_id;
 
       if (!organizationId && registration.brela_registration_number) {
-        const { data: existingOrg } = await supabase
+        const { data: existingOrgs, error: lookupError } = await supabase
           .from('organizations')
           .select('id')
           .eq('brela_registration', registration.brela_registration_number)
-          .maybeSingle();
+          .limit(1);
 
-        if (existingOrg) {
-          organizationId = existingOrg.id;
+        if (lookupError) {
+          console.error('Error looking up organization by BRELA:', lookupError);
+          throw lookupError;
+        }
+
+        if (existingOrgs && existingOrgs.length > 0) {
+          organizationId = existingOrgs[0].id;
           // Backfill the link so future approvals for the same BRELA are immediate
           await supabase
             .from('management_user_registrations')
@@ -91,9 +96,11 @@ export default function ManagementUserApproval({ user }) {
       }
 
       if (!organizationId) {
+        // Use upsert with onConflict so concurrent approvals for the same BRELA
+        // cannot create duplicate organizations.
         const { data: orgData, error: orgError } = await supabase
           .from('organizations')
-          .insert({
+          .upsert({
             name: registration.law_firm_name,
             contact_email: registration.firm_email,
             brela_registration: registration.brela_registration_number,
@@ -103,7 +110,7 @@ export default function ManagementUserApproval({ user }) {
             law_firm_type: 'small_firm',
             is_active: true,
             max_users: 5
-          })
+          }, { onConflict: 'brela_registration' })
           .select()
           .single();
 
