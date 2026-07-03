@@ -359,6 +359,17 @@ export default function Auth() {
         const ENCRYPTION_KEY = 'user-registration-encryption-key-2026';
         const encryptedPassword = CryptoJS.AES.encrypt(password, ENCRYPTION_KEY).toString();
 
+        // Final BRELA check at submit time in case the live lookup was missed or stale
+        let resolvedOrgData = existingOrgData && !existingOrgData.full ? existingOrgData : null;
+        if (!resolvedOrgData) {
+          const { data: orgByBrela } = await supabase.rpc('get_organization_by_brela', {
+            brela_number: brelaRegistrationNumber
+          });
+          if (orgByBrela && orgByBrela.length > 0 && orgByBrela[0].can_accept_users) {
+            resolvedOrgData = orgByBrela[0];
+          }
+        }
+
         // Check if this is the first user for this BRELA number
         const { data: existingRegs } = await supabase
           .from('management_user_registrations')
@@ -370,8 +381,8 @@ export default function Auth() {
 
         const registrationData = {
           brela_registration_number: brelaRegistrationNumber,
-          law_firm_name: existingOrgData && !existingOrgData.full ? existingOrgData.name : lawFirmName,
-          firm_email: existingOrgData?.contact_email || null,
+          law_firm_name: resolvedOrgData ? resolvedOrgData.name : lawFirmName,
+          firm_email: resolvedOrgData?.contact_email || null,
           user_full_name: fullName,
           user_email: email,
           user_position: contactPersonDesignation || 'Management User',
@@ -384,11 +395,11 @@ export default function Auth() {
           terms_accepted: termsAccepted,
           privacy_policy_accepted: privacyAccepted,
           registration_status: 'pending',
-          requested_tier: existingOrgData && !existingOrgData.full ? null : requestedTier,
+          requested_tier: resolvedOrgData ? null : requestedTier,
         };
 
-        if (existingOrgData && !existingOrgData.full) {
-          registrationData.existing_organization_id = existingOrgData.id;
+        if (resolvedOrgData) {
+          registrationData.existing_organization_id = resolvedOrgData.id;
         }
 
         const { error: insertError } = await supabase

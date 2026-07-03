@@ -70,8 +70,25 @@ export default function ManagementUserApproval({ user }) {
         return;
       }
 
-      // If no organization exists, create it
+      // Resolve organization: prefer explicit link, then look up by BRELA, then create new
       let organizationId = registration.existing_organization_id;
+
+      if (!organizationId && registration.brela_registration_number) {
+        const { data: existingOrg } = await supabase
+          .from('organizations')
+          .select('id')
+          .eq('brela_registration', registration.brela_registration_number)
+          .maybeSingle();
+
+        if (existingOrg) {
+          organizationId = existingOrg.id;
+          // Backfill the link so future approvals for the same BRELA are immediate
+          await supabase
+            .from('management_user_registrations')
+            .update({ existing_organization_id: organizationId })
+            .eq('id', registration.id);
+        }
+      }
 
       if (!organizationId) {
         const { data: orgData, error: orgError } = await supabase
