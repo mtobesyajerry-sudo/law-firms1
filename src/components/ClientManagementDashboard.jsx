@@ -1281,7 +1281,7 @@ export default function ClientManagementDashboard() {
                         Member since {new Date(user.created_at).toLocaleDateString()}
                       </div>
 
-                      {user.id !== profile.id && (
+                      {user.id === profile.id && (
                         <button
                           onClick={() => {
                             setSelectedUserForRoleChange(user);
