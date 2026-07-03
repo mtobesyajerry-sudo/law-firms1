@@ -30,6 +30,8 @@ export default function Auth() {
   const [brelaCheckLoading, setBrelaCheckLoading] = useState(false);
   const [requestedTier, setRequestedTier] = useState('small_firm');
 
+  const [passwordValidation, setPasswordValidation] = useState({ isValid: false, errors: [] });
+
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
@@ -252,6 +254,18 @@ export default function Auth() {
       setError(pwCheck.errors.join(' '));
       setLoading(false);
       return;
+    }
+
+    try {
+      // DB-backed common password check (md5 hash match against 9,865-entry table)
+      const { data: isCommon } = await supabase.rpc('check_common_password', { candidate: password });
+      if (isCommon === true) {
+        setError('This password is too common. Please choose a more unique password.');
+        setLoading(false);
+        return;
+      }
+    } catch (commonPwErr) {
+      console.warn('Common password check failed (non-blocking):', commonPwErr);
     }
 
     try {
@@ -592,11 +606,31 @@ export default function Auth() {
               <input
                 type="password"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setPassword(val);
+                  setPasswordValidation(val.length > 0 ? validatePassword(val) : { isValid: false, errors: [] });
+                }}
                 style={styles.input}
                 required
-                minLength={6}
+                minLength={12}
               />
+              {password.length > 0 && (
+                <div style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  {[
+                    { test: password.length >= 12, label: 'At least 12 characters' },
+                    { test: /[A-Z]/.test(password), label: 'At least one uppercase letter' },
+                    { test: /[a-z]/.test(password), label: 'At least one lowercase letter' },
+                    { test: /\d/.test(password), label: 'At least one number' },
+                    { test: /[!@#$%^&*()_+\-=\[\]{}|;:,.<>?]/.test(password), label: 'At least one special character' },
+                  ].map(({ test, label }) => (
+                    <div key={label} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: test ? '#059669' : '#dc2626' }}>
+                      <span style={{ fontWeight: '700', fontSize: '14px', lineHeight: 1 }}>{test ? '✓' : '✗'}</span>
+                      {label}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div style={styles.formGroup}>
@@ -607,8 +641,14 @@ export default function Auth() {
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 style={styles.input}
                 required
-                minLength={6}
+                minLength={12}
               />
+              {confirmPassword.length > 0 && (
+                <div style={{ marginTop: '6px', fontSize: '12px', color: confirmPassword === password ? '#059669' : '#dc2626', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span style={{ fontWeight: '700', fontSize: '14px', lineHeight: 1 }}>{confirmPassword === password ? '✓' : '✗'}</span>
+                  {confirmPassword === password ? 'Passwords match' : 'Passwords do not match'}
+                </div>
+              )}
             </div>
 
             {!isFirstUser && (

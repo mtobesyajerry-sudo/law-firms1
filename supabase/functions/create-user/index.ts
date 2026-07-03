@@ -68,9 +68,11 @@ async function handleApproveRegistration(supabaseAdmin: any, registrationId: str
   };
   const maxUsers = tierMaxUsers[trialTier] ?? 12;
 
+  // Use upsert so a duplicate BRELA (e.g. concurrent approvals or retry after partial failure)
+  // returns the existing org instead of throwing a 23505 unique constraint violation.
   const { data: orgData, error: orgError } = await supabaseAdmin
     .from("organizations")
-    .insert({
+    .upsert({
       name: registration.law_firm_name,
       business_type: orgBusinessType,
       sector: orgSector,
@@ -84,7 +86,7 @@ async function handleApproveRegistration(supabaseAdmin: any, registrationId: str
       subscription_status: "active",
       subscription_fee: 0,
       requested_tier: requestedTier,
-    })
+    }, { onConflict: "brela_registration", ignoreDuplicates: false })
     .select()
     .single();
 
