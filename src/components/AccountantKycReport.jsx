@@ -50,7 +50,7 @@ export default function AccountantKycReport() {
 
       setRecord(data);
 
-      const assessment = calculateAccountantKycRisk(data.metadata || {});
+      const assessment = calculateAccountantKycRisk(data.customer_data || {});
       setRiskAssessment(assessment);
     } catch (err) {
       console.error('Error loading record:', err);
@@ -113,7 +113,7 @@ export default function AccountantKycReport() {
     return <div style={styles.error}>Record not found</div>;
   }
 
-  const formData = record.metadata || {};
+  const formData = record.customer_data || {};
 
   return (
     <div style={styles.container}>

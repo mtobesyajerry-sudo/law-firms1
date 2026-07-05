@@ -166,7 +166,7 @@ export default function AccountantKycForm() {
       const riskAssessment = calculateAccountantKycRisk(formData);
 
       // Determine client type
-      const clientType = formData.legal_name ? 'legal_entity' : 'individual';
+      const clientType = formData.legal_name ? 'corporate' : 'individual';
 
       // Extract contact information
       const email = formData.email_address || '';
@@ -218,10 +218,10 @@ export default function AccountantKycForm() {
         onboarding_status: kycComplete ? 'completed' : 'pending',
         current_dd_level: ddFloor,
         base_risk_score: riskAssessment.totalScore,
-        current_risk_rating: riskAssessment.riskLevel,
+        current_risk_rating: riskAssessment.riskLevel.replace(' Risk', ''),
         edd_required: riskAssessment.riskLevel === 'High Risk' || riskAssessment.riskLevel === 'Very High Risk',
         review_frequency: getReviewFrequency(riskAssessment.riskLevel),
-        metadata: safeMetadata,
+        customer_data: safeMetadata,
         created_by: user.id,
         relationship_manager_id: user.id,
         created_at: new Date().toISOString()
