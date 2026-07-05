@@ -928,7 +928,7 @@ export default function Dashboard() {
             </div>
           )
         ) : activeView === 'kyc' ? (
-          <KYCClientManagement />
+          <KYCClientManagement sector={organization?.sector} />
         ) : activeView === 'institutional' ? (
           <>
 

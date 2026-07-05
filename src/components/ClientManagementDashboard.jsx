@@ -1506,7 +1506,7 @@ export default function ClientManagementDashboard() {
           )}
 
           {activeTab === 'matters' && (
-            <MatterManagement />
+            <MatterManagement sector={organization?.sector} />
           )}
 
           {activeTab === 'assessments' && (
