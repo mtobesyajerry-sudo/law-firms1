@@ -13,13 +13,9 @@ import {
 } from '../data/insuranceAssessmentData';
 
 import {
-  auditFirmTierProfiles,
-  auditFirmModules,
-  calculateAuditFirmInherentRisk,
-  calculateAuditFirmCompliance,
-  calculateAuditFirmEffectiveness,
-  calculateAuditFirmResidualRisk
-} from '../data/auditFirmAssessmentData';
+  accountantsAssessmentData,
+  accountantsModules
+} from '../data/accountantAssessmentData';
 
 // ---------------------------------------------------------------------------
 // Sector → storage value mapping.
@@ -58,8 +54,8 @@ export function getFrameworkData(frameworkType) {
     case 'audit_firm':
       return {
         type: 'audit_firm',
-        framework: { name: 'Audit Firm', tiers: auditFirmTierProfiles },
-        assessmentData: { modules: auditFirmModules }
+        framework: accountantsAssessmentData.framework,
+        assessmentData: accountantsAssessmentData
       };
 
     case 'general_dnfbp':
@@ -131,7 +127,7 @@ export function getFilteredSections(frameworkType, tier, profileFirst = false) {
     case 'insurer':
       return buildFilteredSections(insurersModules, tier, profileFirst);
     case 'audit_firm':
-      return buildFilteredSections(auditFirmModules, tier, profileFirst);
+      return buildFilteredSections(accountantsModules, tier, profileFirst);
     case 'general_dnfbp':
     case 'dnfbp':
       return [];
@@ -148,7 +144,7 @@ export function getFilteredSections(frameworkType, tier, profileFirst = false) {
 export function getTierDescription(frameworkType, tier) {
   switch (frameworkType) {
     case 'insurer':    return insurersAssessmentData.tierProfiles[tier]?.description || '';
-    case 'audit_firm': return auditFirmTierProfiles[tier]?.description || '';
+    case 'audit_firm': return accountantsAssessmentData.tierProfiles[tier]?.description || '';
     case 'banks_financial_institutions':
     case 'legal_professionals':
     default:           return banksFinancialInstitutionsFramework.tiers[tier]?.description || '';
@@ -201,10 +197,10 @@ export function calculateScores(frameworkType, responses, tier) {
     }
 
     case 'audit_firm': {
-      const inherentResult      = calculateAuditFirmInherentRisk(responses, tier);
-      const complianceResult    = calculateAuditFirmCompliance(responses, tier);
-      const effectivenessResult = calculateAuditFirmEffectiveness(responses, tier);
-      const residualResult      = calculateAuditFirmResidualRisk(
+      const inherentResult      = calculateBankInherentRisk(responses, tier, accountantsModules);
+      const complianceResult    = calculateBankCompliance(responses, tier, accountantsModules);
+      const effectivenessResult = calculateBankEffectiveness(responses, tier, accountantsModules);
+      const residualResult      = calculateBankResidualRisk(
         inherentResult.score, complianceResult, effectivenessResult
       );
       return {
