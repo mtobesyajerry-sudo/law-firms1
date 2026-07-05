@@ -8,35 +8,7 @@ import { dashboardStyles, getBadgeStyle, getRiskBadgeStyle, getStatusBadgeStyle 
 import LoadingSpinner from './LoadingSpinner';
 import RoleUpgradeRequestForm from './RoleUpgradeRequestForm';
 import { resolveFrameworkType } from '../utils/frameworkUtils';
-
-function getSectorLabels(sector) {
-  if (sector === 'insurance' || sector === 'insurer') {
-    return {
-      subtitle: 'Client management, KYC operations, and policy handling',
-      myMatters: 'My Policies',
-      myClients: 'My Policyholders',
-      myActiveMatters: 'My Active Policies',
-      myAssignedClients: 'My Assigned Policyholders',
-      noMatters: 'No policies assigned',
-      noClients: 'No policyholders assigned',
-      manageMatters: 'Manage Policies',
-      manageClients: 'Manage Policyholders',
-      firmDashboard: 'Company Dashboard',
-    };
-  }
-  return {
-    subtitle: 'Client management, KYC operations, and matter handling',
-    myMatters: 'My Matters',
-    myClients: 'My Clients',
-    myActiveMatters: 'My Active Matters',
-    myAssignedClients: 'My Assigned Clients',
-    noMatters: 'No matters assigned',
-    noClients: 'No clients assigned',
-    manageMatters: 'Manage Matters',
-    manageClients: 'Manage Clients',
-    firmDashboard: 'Firm Dashboard',
-  };
-}
+import { getSectorLabels } from '../utils/sectorLabels';
 
 export default function StaffDashboard() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -233,7 +205,7 @@ export default function StaffDashboard() {
           ← Back
         </button>
         <div style={{ marginTop: '20px' }}>
-          <MatterManagement />
+          <MatterManagement sector={org?.sector} />
         </div>
       </div>
     );
@@ -272,7 +244,7 @@ export default function StaffDashboard() {
           ← Back
         </button>
         <div style={{ marginTop: '20px' }}>
-          <KYCClientManagement initialFilter={clientFilter} />
+          <KYCClientManagement initialFilter={clientFilter} sector={org?.sector} />
         </div>
       </div>
     );

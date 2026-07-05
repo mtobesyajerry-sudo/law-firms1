@@ -4,8 +4,9 @@ import { supabase } from '../supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
 import LoadingSpinner from './LoadingSpinner';
 import MatterDetailView from './MatterDetailView';
+import { getSectorLabels } from '../utils/sectorLabels';
 
-export default function MatterManagement() {
+export default function MatterManagement({ sector }) {
   const [searchParams, setSearchParams] = useSearchParams();
   const [matters, setMatters] = useState([]);
   const [clients, setClients] = useState([]);
@@ -18,6 +19,7 @@ export default function MatterManagement() {
   const { user, profile } = useAuth();
   const navigate = useNavigate();
   const isReadOnly = profile?.role === 'management' || profile?.role === 'compliance_officer' || profile?.role === 'mlro';
+  const labels = getSectorLabels(sector);
 
   // Restore selected matter and tab from URL on mount
   useEffect(() => {
@@ -266,32 +268,32 @@ export default function MatterManagement() {
       <div style={styles.sectionCard}>
         <div style={styles.header}>
           <div>
-            <h2 style={styles.title}>Matter Management</h2>
-            <p style={styles.subtitle}>Legal matter tracking and compliance monitoring</p>
+            <h2 style={styles.title}>{labels.matterMgmtTitle}</h2>
+            <p style={styles.subtitle}>{labels.matterMgmtSubtitle}</p>
           </div>
           {!isReadOnly && (
             <button
               onClick={() => setShowNewMatterModal(true)}
               style={styles.primaryButton}
             >
-              + Add New Matter
+              {labels.addMatter}
             </button>
           )}
         </div>
 
         <div style={styles.statsGrid}>
           <StatCard
-            title="Total Matters"
+            title={labels.totalMatters}
             value={matters.length}
             color="#0a1929"
           />
           <StatCard
-            title="Open Matters"
+            title={labels.openMatters}
             value={matters.filter(m => m.status === 'open' || m.status === 'active').length}
             color="#10b981"
           />
           <StatCard
-            title="High Risk Matters"
+            title={labels.highRiskMatters}
             value={matters.filter(m => m.risk_level === 'high' || m.risk_level === 'very_high').length}
             color="#ef4444"
           />
@@ -304,7 +306,7 @@ export default function MatterManagement() {
 
         <div style={styles.tabs}>
           <TabButton
-            label={`All Matters (${matters.length})`}
+            label={`${labels.tabAllMatters} (${matters.length})`}
             active={activeTab === 'all'}
             onClick={() => setActiveTab('all')}
           />
@@ -338,7 +340,7 @@ export default function MatterManagement() {
         <div style={styles.tableContainer}>
           {filteredMatters.length === 0 ? (
             <div style={styles.emptyState}>
-              <p>No matters found. Add your first matter to get started.</p>
+              <p>{labels.noMattersFound}</p>
             </div>
           ) : (
             <table style={styles.table}>

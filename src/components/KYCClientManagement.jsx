@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
 import LoadingSpinner from './LoadingSpinner';
+import { getSectorLabels } from '../utils/sectorLabels';
 import {
   clientTypes,
   calculateRiskScore,
@@ -19,7 +20,7 @@ import {
   dueDiligenceLevels
 } from '../data/kycData';
 
-export default function KYCClientManagement({ initialFilter = 'all' }) {
+export default function KYCClientManagement({ initialFilter = 'all', sector }) {
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showNewClientModal, setShowNewClientModal] = useState(false);
@@ -27,6 +28,7 @@ export default function KYCClientManagement({ initialFilter = 'all' }) {
   const { user, profile } = useAuth();
   const navigate = useNavigate();
   const isReadOnly = profile?.role === 'management';
+  const labels = getSectorLabels(sector);
 
   const amlTriggerActivities = [
     { value: 'real_property_transaction', label: 'Purchase/Sale of Real Property' },
@@ -98,37 +100,37 @@ export default function KYCClientManagement({ initialFilter = 'all' }) {
       <div style={styles.sectionCard}>
         <div style={styles.header}>
           <div>
-            <h2 style={styles.title}>KYC Client Management</h2>
-            <p style={styles.subtitle}>Risk-based customer due diligence system</p>
+            <h2 style={styles.title}>{labels.kycMgmtTitle}</h2>
+            <p style={styles.subtitle}>{labels.kycMgmtSubtitle}</p>
           </div>
           {!isReadOnly && (
             <button
               onClick={() => setShowNewClientModal(true)}
               style={styles.primaryButton}
             >
-              + Add New Client
+              {labels.addClient}
             </button>
           )}
         </div>
 
         <div style={styles.statsGrid}>
           <StatCard
-            title="Total Clients"
+            title={labels.totalClients}
             value={clients.length}
             color="#0a1929"
           />
           <StatCard
-            title="Active Clients"
+            title={labels.activeClients}
             value={clients.filter(c => c.client_status === 'active').length}
             color="#10b981"
           />
           <StatCard
-            title="High Risk Clients"
+            title={labels.highRiskClients}
             value={clients.filter(c => c.current_risk_rating === riskLevels.HIGH || c.current_risk_rating === riskLevels.VERY_HIGH).length}
             color="#ef4444"
           />
           <StatCard
-            title="PEP Clients"
+            title={labels.pepClients}
             value={clients.filter(c => c.pep_status).length}
             color="#d4af37"
           />
@@ -136,7 +138,7 @@ export default function KYCClientManagement({ initialFilter = 'all' }) {
 
         <div style={styles.tabs}>
           <TabButton
-            label={`All Clients (${clients.length})`}
+            label={`${labels.tabAllClients} (${clients.length})`}
             active={activeTab === 'all'}
             onClick={() => setActiveTab('all')}
           />
@@ -170,7 +172,7 @@ export default function KYCClientManagement({ initialFilter = 'all' }) {
         <div style={styles.tableContainer}>
           {filteredClients.length === 0 ? (
             <div style={styles.emptyState}>
-              <p>No clients found. Add your first client to get started.</p>
+              <p>{labels.noClientsFound}</p>
             </div>
           ) : (
             <table style={styles.table}>

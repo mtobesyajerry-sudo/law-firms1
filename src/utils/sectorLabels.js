@@ -1,0 +1,66 @@
+export function getSectorLabels(sector) {
+  if (sector === 'insurance' || sector === 'insurer') {
+    return {
+      // StaffDashboard overview
+      subtitle:           'Client management, KYC operations, and policy handling',
+      myMatters:          'My Policies',
+      myClients:          'My Policyholders',
+      myActiveMatters:    'My Active Policies',
+      myAssignedClients:  'My Assigned Policyholders',
+      noMatters:          'No policies assigned',
+      noClients:          'No policyholders assigned',
+      manageMatters:      'Manage Policies',
+      manageClients:      'Manage Policyholders',
+      firmDashboard:      'Company Dashboard',
+      // MatterManagement
+      matterMgmtTitle:    'Policy Management',
+      matterMgmtSubtitle: 'Policy tracking and compliance monitoring',
+      addMatter:          '+ Add New Policy',
+      totalMatters:       'Total Policies',
+      openMatters:        'Open Policies',
+      highRiskMatters:    'High Risk Policies',
+      tabAllMatters:      'All Policies',
+      noMattersFound:     'No policies found. Add your first policy to get started.',
+      // KYCClientManagement
+      kycMgmtTitle:       'KYC Policyholder Management',
+      kycMgmtSubtitle:    'Risk-based customer due diligence system',
+      addClient:          '+ Add New Policyholder',
+      totalClients:       'Total Policyholders',
+      activeClients:      'Active Policyholders',
+      highRiskClients:    'High Risk Policyholders',
+      pepClients:         'PEP Policyholders',
+      tabAllClients:      'All Policyholders',
+      noClientsFound:     'No policyholders found. Add your first policyholder to get started.',
+    };
+  }
+  // Default — law firm and all other sectors
+  return {
+    subtitle:           'Client management, KYC operations, and matter handling',
+    myMatters:          'My Matters',
+    myClients:          'My Clients',
+    myActiveMatters:    'My Active Matters',
+    myAssignedClients:  'My Assigned Clients',
+    noMatters:          'No matters assigned',
+    noClients:          'No clients assigned',
+    manageMatters:      'Manage Matters',
+    manageClients:      'Manage Clients',
+    firmDashboard:      'Firm Dashboard',
+    matterMgmtTitle:    'Matter Management',
+    matterMgmtSubtitle: 'Legal matter tracking and compliance monitoring',
+    addMatter:          '+ Add New Matter',
+    totalMatters:       'Total Matters',
+    openMatters:        'Open Matters',
+    highRiskMatters:    'High Risk Matters',
+    tabAllMatters:      'All Matters',
+    noMattersFound:     'No matters found. Add your first matter to get started.',
+    kycMgmtTitle:       'KYC Client Management',
+    kycMgmtSubtitle:    'Risk-based customer due diligence system',
+    addClient:          '+ Add New Client',
+    totalClients:       'Total Clients',
+    activeClients:      'Active Clients',
+    highRiskClients:    'High Risk Clients',
+    pepClients:         'PEP Clients',
+    tabAllClients:      'All Clients',
+    noClientsFound:     'No clients found. Add your first client to get started.',
+  };
+}
