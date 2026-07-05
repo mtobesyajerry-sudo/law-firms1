@@ -86,6 +86,23 @@ export default function KycCddForm({ recordId: propRecordId, onSave, onCancel })
         const cleanCustomerData = { ...customerData };
         delete cleanCustomerData.customer_risk_factors;
 
+        // source_of_funds may be a plain string (written by NewClientModal) or an object
+        // (written by KycCddForm). Normalise to object so form fields have something to show.
+        const rawSof = data.source_of_funds;
+        const normalizedSof = rawSof && typeof rawSof === 'object'
+          ? rawSof
+          : (rawSof ? { source_of_wealth: rawSof } : {});
+
+        // pep_status is a boolean top-level column written by NewClientModal.
+        // Merge it into pep_declaration so the PEP section pre-fills.
+        const existingPepDecl = data.pep_declaration || {};
+        const pepDeclaration = {
+          ...existingPepDecl,
+          ...(data.pep_status != null && !existingPepDecl.is_pep
+            ? { is_pep: data.pep_status ? 'Yes' : 'No' }
+            : {}),
+        };
+
         setFormData({
           customer_data: {
             ...cleanCustomerData,
@@ -101,6 +118,10 @@ export default function KycCddForm({ recordId: propRecordId, onSave, onCancel })
             contactPhone:       data.phone         || cleanCustomerData.contactPhone || '',
             residentialAddress: data.address       || cleanCustomerData.residentialAddress || '',
             registeredAddress:  data.address       || cleanCustomerData.registeredAddress || '',
+            // Top-level columns written by NewClientModal that customer_data doesn't carry
+            dateOfBirth:        data.date_of_birth        || cleanCustomerData.dateOfBirth || '',
+            nationality:        data.nationality           || cleanCustomerData.nationality || '',
+            countryOfResidence: data.country_of_residence || cleanCustomerData.countryOfResidence || '',
           },
           beneficial_owners: data.beneficial_owners || [],
           policy_information: data.policy_information || {},
@@ -108,12 +129,14 @@ export default function KycCddForm({ recordId: propRecordId, onSave, onCancel })
           // Insurance-only: payer identity from encrypted columns (view decrypts transparently)
           payer_name: data.payer_name || '',
           payer_identification: data.payer_identification || '',
-          source_of_funds: data.source_of_funds || {},
-          pep_declaration: data.pep_declaration || {},
+          source_of_funds: normalizedSof,
+          pep_declaration: pepDeclaration,
           sanctions_screening: data.sanctions_screening || {},
           customer_risk: customerRiskFactors,
           ongoing_monitoring: data.ongoing_monitoring || {},
           suspicious_indicators: data.suspicious_indicators || {},
+          // Preserve aml_trigger_activities written by NewClientModal so it survives the update
+          aml_trigger_activities: data.aml_trigger_activities || [],
           customer_declaration: data.customer_declaration || {},
           compliance_approval: data.compliance_approval || {}
         });
@@ -530,6 +553,8 @@ export default function KycCddForm({ recordId: propRecordId, onSave, onCancel })
         sanctions_screening: formData.sanctions_screening || {},
         ongoing_monitoring: formData.ongoing_monitoring || {},
         suspicious_indicators: formData.suspicious_indicators || [],
+        // Preserve aml_trigger_activities written by NewClientModal
+        aml_trigger_activities: formData.aml_trigger_activities || [],
         organization_id: profile?.organization_id || null,
         customer_declaration: formData.customer_declaration || {},
         compliance_approval: formData.compliance_approval || {},
@@ -719,6 +744,8 @@ export default function KycCddForm({ recordId: propRecordId, onSave, onCancel })
         sanctions_screening: formData.sanctions_screening || {},
         ongoing_monitoring: formData.ongoing_monitoring || {},
         suspicious_indicators: formData.suspicious_indicators || [],
+        // Preserve aml_trigger_activities written by NewClientModal
+        aml_trigger_activities: formData.aml_trigger_activities || [],
         organization_id: profile?.organization_id || null,
         customer_declaration: formData.customer_declaration || {},
         compliance_approval: formData.compliance_approval || {},
