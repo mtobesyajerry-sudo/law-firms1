@@ -9,6 +9,35 @@ import LoadingSpinner from './LoadingSpinner';
 import RoleUpgradeRequestForm from './RoleUpgradeRequestForm';
 import { resolveFrameworkType } from '../utils/frameworkUtils';
 
+function getSectorLabels(sector) {
+  if (sector === 'insurance' || sector === 'insurer') {
+    return {
+      subtitle: 'Client management, KYC operations, and policy handling',
+      myMatters: 'My Policies',
+      myClients: 'My Policyholders',
+      myActiveMatters: 'My Active Policies',
+      myAssignedClients: 'My Assigned Policyholders',
+      noMatters: 'No policies assigned',
+      noClients: 'No policyholders assigned',
+      manageMatters: 'Manage Policies',
+      manageClients: 'Manage Policyholders',
+      firmDashboard: 'Company Dashboard',
+    };
+  }
+  return {
+    subtitle: 'Client management, KYC operations, and matter handling',
+    myMatters: 'My Matters',
+    myClients: 'My Clients',
+    myActiveMatters: 'My Active Matters',
+    myAssignedClients: 'My Assigned Clients',
+    noMatters: 'No matters assigned',
+    noClients: 'No clients assigned',
+    manageMatters: 'Manage Matters',
+    manageClients: 'Manage Clients',
+    firmDashboard: 'Firm Dashboard',
+  };
+}
+
 export default function StaffDashboard() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [showRoleUpgradeForm, setShowRoleUpgradeForm] = useState(false);
@@ -20,7 +49,8 @@ export default function StaffDashboard() {
     highRiskClients: 0,
     conflictsPending: 0,
     eddRequired: 0,
-    overdueReviews: 0
+    overdueReviews: 0,
+    pendingApproval: 0
   });
   const [myMatters, setMyMatters] = useState([]);
   const [myClients, setMyClients] = useState([]);
@@ -29,6 +59,7 @@ export default function StaffDashboard() {
   const [clientFilter, setClientFilter] = useState('all');
   const { user, profile } = useAuth();
   const navigate = useNavigate();
+  const labels = getSectorLabels(org?.sector);
 
   // Restore active view from URL on mount
   useEffect(() => {
@@ -85,7 +116,7 @@ export default function StaffDashboard() {
       setLoading(true);
 
       // Run all queries in parallel for much faster loading
-      const [mattersRes, allMattersRes, clientsRes, allClientsRes, conflictsRes] = await Promise.all([
+      const [mattersRes, allMattersRes, clientsRes, allClientsRes, conflictsRes, pendingApprovalRes] = await Promise.all([
         supabase
           .from('matters')
           .select('*')
@@ -128,7 +159,14 @@ export default function StaffDashboard() {
           .from('conflict_checks')
           .select('id')
           .eq('organization_id', profile.organization_id)
-          .eq('resolution_status', 'pending')
+          .eq('resolution_status', 'pending'),
+
+        supabase
+          .from('kyc_clients')
+          .select('id')
+          .eq('organization_id', profile.organization_id)
+          .eq('relationship_manager_id', user.id)
+          .eq('senior_approval_status', 'pending')
       ]);
 
       const matters = mattersRes.data;
@@ -136,6 +174,7 @@ export default function StaffDashboard() {
       const clients = clientsRes.data;
       const allClients = allClientsRes.data;
       const conflicts = conflictsRes.data;
+      const pendingApprovalClients = pendingApprovalRes.data;
 
       const today = new Date().toISOString().split('T')[0];
       // A review is overdue if next_review_date is in the past AND the last_review_date is before next_review_date (meaning the review hasn't been completed yet)
@@ -155,7 +194,8 @@ export default function StaffDashboard() {
         highRiskClients: allClients?.filter(c => c.current_risk_rating === 'High' || c.current_risk_rating === 'Very High').length || 0,
         conflictsPending: conflicts?.length || 0,
         eddRequired: allClients?.filter(c => c.current_dd_level === 'enhanced').length || 0,
-        overdueReviews
+        overdueReviews,
+        pendingApproval: pendingApprovalClients?.length || 0
       });
     } catch (error) {
       console.error('Error loading dashboard data:', error);
@@ -255,7 +295,7 @@ export default function StaffDashboard() {
               </p>
             )}
             <p style={{ color: 'rgba(255,255,255,0.8)', fontSize: '14px', margin: '8px 0 0 0' }}>
-              Client management, KYC operations, and matter handling
+              {labels.subtitle}
             </p>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'flex-end' }}>
@@ -486,14 +526,14 @@ export default function StaffDashboard() {
           gap: '12px'
         }}>
         <StatCard
-          title="My Matters"
+          title={labels.myMatters}
           value={stats.myMatters}
           icon="📁"
           color="#3b82f6"
           onClick={() => changeView('matters')}
         />
         <StatCard
-          title="My Clients"
+          title={labels.myClients}
           value={stats.myClients}
           icon="👥"
           color="#8b5cf6"
@@ -520,6 +560,13 @@ export default function StaffDashboard() {
           color="#f59e0b"
           onClick={() => changeView('overdue-reviews')}
         />
+        <StatCard
+          title="Pending Approval"
+          value={stats.pendingApproval}
+          icon="✅"
+          color="#0891b2"
+          onClick={() => changeView('clients', 'pending_approval')}
+        />
         </div>
       </div>
 
@@ -539,7 +586,7 @@ export default function StaffDashboard() {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
             <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '700', color: '#0a1929', display: 'flex', alignItems: 'center', gap: '8px' }}>
               <span style={{ fontSize: '24px' }}>📁</span>
-              My Active Matters
+              {labels.myActiveMatters}
             </h3>
             <button
               onClick={() => changeView('matters')}
@@ -549,7 +596,7 @@ export default function StaffDashboard() {
             </button>
           </div>
           {myMatters.length === 0 ? (
-            <p style={{ color: '#64748b', fontSize: '14px' }}>No matters assigned</p>
+            <p style={{ color: '#64748b', fontSize: '14px' }}>{labels.noMatters}</p>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               {myMatters.map((matter) => {
@@ -610,7 +657,7 @@ export default function StaffDashboard() {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
             <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '700', color: '#0a1929', display: 'flex', alignItems: 'center', gap: '8px' }}>
               <span style={{ fontSize: '24px' }}>👥</span>
-              My Assigned Clients
+              {labels.myAssignedClients}
             </h3>
             <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
               {(() => {
@@ -646,7 +693,7 @@ export default function StaffDashboard() {
             </div>
           </div>
           {myClients.length === 0 ? (
-            <p style={{ color: '#64748b', fontSize: '14px' }}>No clients assigned</p>
+            <p style={{ color: '#64748b', fontSize: '14px' }}>{labels.noClients}</p>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               {myClients.map((client) => {
@@ -745,7 +792,7 @@ export default function StaffDashboard() {
           >
             <span style={{ fontSize: '24px' }}>📁</span>
             <div style={{ textAlign: 'left' }}>
-              <div style={{ fontWeight: '700', fontSize: '15px' }}>Manage Matters</div>
+              <div style={{ fontWeight: '700', fontSize: '15px' }}>{labels.manageMatters}</div>
               <div style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>
                 {stats.myMatters} assigned
               </div>
@@ -769,7 +816,7 @@ export default function StaffDashboard() {
           >
             <span style={{ fontSize: '24px' }}>👥</span>
             <div style={{ textAlign: 'left' }}>
-              <div style={{ fontWeight: '700', fontSize: '15px' }}>Manage Clients</div>
+              <div style={{ fontWeight: '700', fontSize: '15px' }}>{labels.manageClients}</div>
               <div style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>
                 {stats.myClients} assigned
               </div>
@@ -793,7 +840,7 @@ export default function StaffDashboard() {
           >
             <span style={{ fontSize: '24px' }}>📊</span>
             <div style={{ textAlign: 'left' }}>
-              <div style={{ fontWeight: '700', fontSize: '15px' }}>Firm Dashboard</div>
+              <div style={{ fontWeight: '700', fontSize: '15px' }}>{labels.firmDashboard}</div>
               <div style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>
                 Strategic view
               </div>
