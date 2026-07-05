@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
 import { accountantKycSections } from '../data/accountantKycData';
@@ -7,6 +7,7 @@ import { calculateAccountantKycRisk } from '../utils/accountantKycRiskCalculator
 import { isKycComplete } from '../utils/kycCompleteness';
 
 export default function AccountantKycForm() {
+  const { id } = useParams();
   const [currentSection, setCurrentSection] = useState(0);
   const [formData, setFormData] = useState({});
   const [loading, setLoading] = useState(false);
@@ -38,8 +39,48 @@ export default function AccountantKycForm() {
         }
 
         setOrganization(orgData);
-      } catch (error) {
-        console.error('Error checking access:', error);
+
+        if (id) {
+          // Edit mode: load existing record, verify it belongs to this org
+          const { data: record, error: recordError } = await supabase
+            .from('kyc_clients')
+            .select('*')
+            .eq('id', id)
+            .eq('organization_id', orgData.id)
+            .maybeSingle();
+
+          if (recordError) throw recordError;
+
+          if (!record) {
+            navigate('/client/dashboard');
+            return;
+          }
+
+          const isIndividual = record.client_type === 'individual' || record.client_type === 'natural_person';
+
+          setFormData({
+            // PII fields — populated for the matching client_type only to avoid
+            // cross-populating individual names into corporate fields and vice versa
+            ...(isIndividual
+              ? {
+                  full_name: record.client_name_plain || '',
+                  residential_address: record.address_plain || '',
+                  id_number: record.national_id_plain || '',
+                }
+              : {
+                  legal_name: record.client_name_plain || '',
+                  registered_address: record.address_plain || '',
+                  registration_number: record.national_id_plain || '',
+                }
+            ),
+            telephone_number: record.phone_plain || '',
+            nationality: record.nationality || '',
+            // All non-PII questionnaire fields — keys are identical to form field ids
+            ...(record.customer_data || {}),
+          });
+        }
+      } catch (err) {
+        console.error('Error checking access:', err);
         navigate('/client/dashboard');
       } finally {
         setCheckingAccess(false);
@@ -47,7 +88,7 @@ export default function AccountantKycForm() {
     };
 
     checkAccess();
-  }, [user, profile, navigate]);
+  }, [user, profile, navigate, id]);
 
   const handleInputChange = (fieldId, value) => {
     setFormData(prev => ({
@@ -227,16 +268,31 @@ export default function AccountantKycForm() {
         created_at: new Date().toISOString()
       };
 
-      const { data, error: insertError } = await supabase
-        .from('kyc_clients')
-        .insert([kycRecord])
-        .select()
-        .single();
+      if (id) {
+        // Edit path — update existing record; org guard prevents cross-org edits
+        const { error: updateError } = await supabase
+          .from('kyc_clients')
+          .update(kycRecord)
+          .eq('id', id)
+          .eq('organization_id', organization.id);
 
-      if (insertError) throw insertError;
+        if (updateError) throw updateError;
 
-      alert('KYC/CDD record saved as draft successfully!');
-      navigate(`/accountant-kyc-report/${data.id}`);
+        alert('KYC/CDD record updated successfully!');
+        navigate(`/accountant-kyc-report/${id}`);
+      } else {
+        // Create path — insert new record
+        const { data, error: insertError } = await supabase
+          .from('kyc_clients')
+          .insert([kycRecord])
+          .select()
+          .single();
+
+        if (insertError) throw insertError;
+
+        alert('KYC/CDD record saved as draft successfully!');
+        navigate(`/accountant-kyc-report/${data.id}`);
+      }
     } catch (err) {
       console.error('Error saving KYC record:', err);
       setError(err.message);
@@ -341,7 +397,7 @@ export default function AccountantKycForm() {
                 ...(loading ? styles.buttonDisabled : {})
               }}
             >
-              {loading ? 'Saving...' : 'Save as Draft'}
+              {loading ? 'Saving...' : id ? 'Save & Complete' : 'Save as Draft'}
             </button>
           )}
         </div>

@@ -14,9 +14,7 @@ export function getKycFormRoute(sector, clientId = null) {
 
   switch (frameworkType) {
     case 'audit_firm':
-      // AccountantKycForm is always a fresh create; it gates on org.sector = 'accounting'
-      // internally. ClientId not forwarded until an /accountant-kyc-form/:id edit route exists.
-      return '/accountant-kyc-form';
+      return clientId ? `/accountant-kyc-form/${clientId}` : '/accountant-kyc-form';
 
     case 'insurer':
       return clientId ? `/kyc-form/${clientId}` : '/kyc-form';
