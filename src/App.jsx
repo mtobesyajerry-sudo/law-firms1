@@ -660,14 +660,6 @@ function AppRoutes() {
         }
       />
       <Route
-        path="/accountant-kyc-form/:id"
-        element={
-          <ProtectedRoute>
-            <AccountantKycForm />
-          </ProtectedRoute>
-        }
-      />
-      <Route
         path="/accountant-kyc-report/:id"
         element={
           <ProtectedRoute>

@@ -1,13 +1,11 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
 import { accountantKycSections } from '../data/accountantKycData';
 import { calculateAccountantKycRisk } from '../utils/accountantKycRiskCalculator';
-import { isKycComplete } from '../utils/kycCompleteness';
 
 export default function AccountantKycForm() {
-  const { id } = useParams();
   const [currentSection, setCurrentSection] = useState(0);
   const [formData, setFormData] = useState({});
   const [loading, setLoading] = useState(false);
@@ -39,46 +37,6 @@ export default function AccountantKycForm() {
         }
 
         setOrganization(orgData);
-
-        if (id) {
-          // Edit mode: load existing record, verify it belongs to this org
-          const { data: record, error: recordError } = await supabase
-            .from('kyc_clients')
-            .select('*')
-            .eq('id', id)
-            .eq('organization_id', orgData.id)
-            .maybeSingle();
-
-          if (recordError) throw recordError;
-
-          if (!record) {
-            navigate('/client/dashboard');
-            return;
-          }
-
-          const isIndividual = record.client_type === 'individual' || record.client_type === 'natural_person';
-
-          setFormData({
-            // PII fields — populated for the matching client_type only to avoid
-            // cross-populating individual names into corporate fields and vice versa
-            ...(isIndividual
-              ? {
-                  full_name: record.client_name_plain || '',
-                  residential_address: record.address_plain || '',
-                  id_number: record.national_id_plain || '',
-                }
-              : {
-                  legal_name: record.client_name_plain || '',
-                  registered_address: record.address_plain || '',
-                  registration_number: record.national_id_plain || '',
-                }
-            ),
-            telephone_number: record.phone_plain || '',
-            nationality: record.nationality || '',
-            // All non-PII questionnaire fields — keys are identical to form field ids
-            ...(record.customer_data || {}),
-          });
-        }
       } catch (err) {
         console.error('Error checking access:', err);
         navigate('/client/dashboard');
@@ -88,7 +46,7 @@ export default function AccountantKycForm() {
     };
 
     checkAccess();
-  }, [user, profile, navigate, id]);
+  }, [user, profile, navigate]);
 
   const handleInputChange = (fieldId, value) => {
     setFormData(prev => ({
@@ -230,13 +188,19 @@ export default function AccountantKycForm() {
         return 'annual';
       };
 
-      // Determine completeness and DD level
-      const { complete: kycComplete } = isKycComplete({
-        riskFactors: { service: riskAssessment.riskBreakdown },
-        sourceOfFunds: formData.source_of_funds || '',
-        amlTriggers: ['none_apply'],
-        clientType,
-      });
+      // Validate required fields — hard block, no draft state for accounting
+      const nameValue = clientType === 'corporate' ? formData.legal_name : formData.full_name;
+      const idValue = clientType === 'corporate' ? formData.registration_number : formData.id_number;
+      const missingFields = [];
+      if (!nameValue?.trim()) missingFields.push('Client name (Section 1 or 3)');
+      if (!idValue?.trim()) missingFields.push('ID / Registration number (Section 2 or 3)');
+      if (!formData.telephone_number?.trim()) missingFields.push('Telephone number (Section 1)');
+      if (!formData.source_of_funds?.trim()) missingFields.push('Source of funds (Section 6)');
+
+      if (missingFields.length > 0) {
+        setError('Please complete the following required fields before submitting:\n• ' + missingFields.join('\n• '));
+        return;
+      }
 
       const ddFloor = riskAssessment.riskLevel === 'Very High Risk' || riskAssessment.riskLevel === 'High Risk'
         ? 'enhanced'
@@ -255,8 +219,8 @@ export default function AccountantKycForm() {
         phone_plain: phone || null,
         address_plain: address || null,
         nationality: country,
-        client_status: kycComplete ? 'active' : 'prospect',
-        onboarding_status: kycComplete ? 'completed' : 'pending',
+        client_status: 'active',
+        onboarding_status: 'completed',
         current_dd_level: ddFloor,
         base_risk_score: riskAssessment.totalScore,
         current_risk_rating: riskAssessment.riskLevel.replace(' Risk', ''),
@@ -268,31 +232,16 @@ export default function AccountantKycForm() {
         created_at: new Date().toISOString()
       };
 
-      if (id) {
-        // Edit path — update existing record; org guard prevents cross-org edits
-        const { error: updateError } = await supabase
-          .from('kyc_clients')
-          .update(kycRecord)
-          .eq('id', id)
-          .eq('organization_id', organization.id);
+      const { data, error: insertError } = await supabase
+        .from('kyc_clients')
+        .insert([kycRecord])
+        .select()
+        .single();
 
-        if (updateError) throw updateError;
+      if (insertError) throw insertError;
 
-        alert('KYC/CDD record updated successfully!');
-        navigate(`/accountant-kyc-report/${id}`);
-      } else {
-        // Create path — insert new record
-        const { data, error: insertError } = await supabase
-          .from('kyc_clients')
-          .insert([kycRecord])
-          .select()
-          .single();
-
-        if (insertError) throw insertError;
-
-        alert('KYC/CDD record saved as draft successfully!');
-        navigate(`/accountant-kyc-report/${data.id}`);
-      }
+      alert('KYC record submitted successfully!');
+      navigate(`/accountant-kyc-report/${data.id}`);
     } catch (err) {
       console.error('Error saving KYC record:', err);
       setError(err.message);
@@ -397,7 +346,7 @@ export default function AccountantKycForm() {
                 ...(loading ? styles.buttonDisabled : {})
               }}
             >
-              {loading ? 'Saving...' : id ? 'Save & Complete' : 'Save as Draft'}
+              {loading ? 'Submitting...' : 'Submit KYC'}
             </button>
           )}
         </div>

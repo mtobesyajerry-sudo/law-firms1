@@ -14,7 +14,7 @@ export function getKycFormRoute(sector, clientId = null) {
 
   switch (frameworkType) {
     case 'audit_firm':
-      return clientId ? `/accountant-kyc-form/${clientId}` : '/accountant-kyc-form';
+      return clientId ? null : '/accountant-kyc-form';
 
     case 'insurer':
       return clientId ? `/kyc-form/${clientId}` : '/kyc-form';
