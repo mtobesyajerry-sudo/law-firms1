@@ -92,18 +92,31 @@ async function handleApproveRegistration(supabaseAdmin: any, registrationId: str
 
   if (orgError) throw new Error(`Failed to create organization: ${orgError.message}`);
 
-  // Start the 14-day trial
-  const { error: trialError } = await supabaseAdmin.rpc("start_trial", {
-    p_org_id: orgData.id,
-    p_chosen_tier: trialTier,
-  });
-  if (trialError) throw new Error(`Failed to start trial: ${trialError.message}`);
+  // start_trial() must run exactly once per org.
+  // has_used_trial is set atomically inside start_trial(), so this is the reliable signal.
+  const orgIsNew = !orgData.has_used_trial;
 
-  // stamp payment_state = trialing (start_trial sets is_trialing but not payment_state)
-  await supabaseAdmin
-    .from("organizations")
-    .update({ payment_state: "trialing" })
-    .eq("id", orgData.id);
+  if (orgIsNew) {
+    const { error: trialError } = await supabaseAdmin.rpc("start_trial", {
+      p_org_id: orgData.id,
+      p_chosen_tier: trialTier,
+    });
+    if (trialError) {
+      // Concurrent approval or retry: org already trialing — not a real failure.
+      // Any other error (invalid tier, DB failure) is fatal.
+      if (!trialError.message.includes("already used its free trial")) {
+        throw new Error(`Failed to start trial: ${trialError.message}`);
+      }
+      console.warn("[create-user] start_trial skipped — org already trialing:", orgData.id);
+    } else {
+      // stamp payment_state = trialing (start_trial sets is_trialing but not payment_state)
+      await supabaseAdmin
+        .from("organizations")
+        .update({ payment_state: "trialing" })
+        .eq("id", orgData.id);
+    }
+  }
+  // else: existing org (co-admin 2/3) — inherits org's trialing state, no action needed.
 
   const decryptedPassword = decryptPassword(registration.encrypted_password);
   if (!decryptedPassword) throw new Error("Failed to decrypt password");
@@ -121,29 +134,41 @@ async function handleApproveRegistration(supabaseAdmin: any, registrationId: str
     await new Promise((resolve) => setTimeout(resolve, 1500));
   }
 
-  const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
-    email: loginEmail,
-    password: decryptedPassword,
-    email_confirm: true,
-    user_metadata: { full_name: registration.user_full_name || registration.law_firm_name },
-  });
-
-  if (authError) throw new Error(`Failed to create user: ${authError.message}`);
-
-  await new Promise((resolve) => setTimeout(resolve, 1000));
-
-  const { error: profileError } = await supabaseAdmin
-    .from("user_profiles")
-    .insert({
-      id: authData.user.id,
+  // Atomic: if profile insert fails, roll back the auth user so re-running is clean.
+  let createdAuthUserId: string | null = null;
+  try {
+    const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email: loginEmail,
-      role: "management",
-      full_name: registration.user_full_name || registration.law_firm_name,
-      organization_id: orgData.id,
-      password_change_required: false,
+      password: decryptedPassword,
+      email_confirm: true,
+      user_metadata: { full_name: registration.user_full_name || registration.law_firm_name },
     });
 
-  if (profileError) throw new Error(`Failed to create profile: ${profileError.message}`);
+    if (authError) throw new Error(`Failed to create user: ${authError.message}`);
+    createdAuthUserId = authData.user.id;
+
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+
+    const { error: profileError } = await supabaseAdmin
+      .from("user_profiles")
+      .insert({
+        id: authData.user.id,
+        email: loginEmail,
+        role: "management",
+        full_name: registration.user_full_name || registration.law_firm_name,
+        organization_id: orgData.id,
+        password_change_required: false,
+      });
+
+    if (profileError) throw new Error(`Failed to create profile: ${profileError.message}`);
+  } catch (userErr: any) {
+    // Roll back auth user so a retry starts clean.
+    if (createdAuthUserId) {
+      await supabaseAdmin.from("user_profiles").delete().eq("id", createdAuthUserId);
+      await supabaseAdmin.auth.admin.deleteUser(createdAuthUserId);
+    }
+    throw userErr;
+  }
 
   await supabaseAdmin
     .from("management_user_registrations")
