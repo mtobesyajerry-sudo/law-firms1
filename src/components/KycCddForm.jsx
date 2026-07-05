@@ -4,11 +4,13 @@ import { supabase } from '../supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
 import { kycSections, KYC_SECTIONS } from '../data/kycCddData';
 import { calculateKycRiskScore, validateKycSection, getNextReviewDate, checkSuspiciousActivity } from '../utils/kycRiskCalculator';
+import { calculateRiskScore as calculateInsuranceRiskScore, beneficiaryRiskFactors } from '../data/insuranceKycData';
 
 export default function KycCddForm({ recordId: propRecordId, onSave, onCancel }) {
   const { id: paramId } = useParams();
-  const { profile } = useAuth();
+  const { profile, organization } = useAuth();
   const recordId = propRecordId || paramId;
+  const isInsurance = organization?.sector === 'insurance' || organization?.sector === 'insurer';
   const [currentSection, setCurrentSection] = useState(0);
   const [customerType, setCustomerType] = useState('natural_person');
   const [formData, setFormData] = useState({});
@@ -101,6 +103,9 @@ export default function KycCddForm({ recordId: propRecordId, onSave, onCancel })
           beneficial_owners: data.beneficial_owners || [],
           policy_information: data.policy_information || {},
           beneficiaries: data.beneficiaries || [],
+          // Insurance-only: payer identity from encrypted columns (view decrypts transparently)
+          payer_name: data.payer_name || '',
+          payer_identification: data.payer_identification || '',
           source_of_funds: data.source_of_funds || {},
           pep_declaration: data.pep_declaration || {},
           sanctions_screening: data.sanctions_screening || {},
@@ -480,9 +485,22 @@ export default function KycCddForm({ recordId: propRecordId, onSave, onCancel })
         passport_number_plain: passportNumber || null,
         phone_plain:           phoneNumber || contactPhone || null,
         address_plain:         residentialAddress || registeredAddress || null,
-        beneficial_owners: formData.beneficial_owners || [],
+        // Insurance: write beneficiaries/beneficial_owners as encrypted plain columns;
+        // law-firm: write to the JSONB columns unchanged
+        ...(isInsurance ? {
+          beneficiaries_plain: formData.beneficiaries?.length
+            ? JSON.stringify(formData.beneficiaries)
+            : null,
+          beneficial_owners_plain: formData.beneficial_owners?.length
+            ? JSON.stringify(formData.beneficial_owners)
+            : null,
+          payer_name_plain:           formData.payer_name || null,
+          payer_identification_plain: formData.payer_identification || null,
+        } : {
+          beneficial_owners: formData.beneficial_owners || [],
+          beneficiaries: formData.beneficiaries || [],
+        }),
         policy_information: formData.policy_information || {},
-        beneficiaries: formData.beneficiaries || [],
         source_of_funds: formData.source_of_funds || {},
         pep_declaration: formData.pep_declaration || {},
         sanctions_screening: formData.sanctions_screening || {},
@@ -542,6 +560,17 @@ export default function KycCddForm({ recordId: propRecordId, onSave, onCancel })
         beneficiaries: formData.beneficiaries
       });
 
+      // Insurance-specific beneficiary/payer risk overlay
+      const insuranceRiskScore = isInsurance
+        ? calculateInsuranceRiskScore({
+            client: formData.customer_risk || {},
+            service: formData.insurance_service_risk || {},
+            geography: formData.insurance_geo_risk || {},
+            behaviour: formData.insurance_behaviour_risk || {},
+            delivery: formData.insurance_delivery_risk || {},
+          })
+        : null;
+
       const suspiciousAlerts = checkSuspiciousActivity({
         policy_information: formData.policy_information,
         source_of_funds: formData.source_of_funds,
@@ -596,9 +625,22 @@ export default function KycCddForm({ recordId: propRecordId, onSave, onCancel })
         passport_number_plain: passportNumber || null,
         phone_plain:           phoneNumber || contactPhone || null,
         address_plain:         residentialAddress || registeredAddress || null,
-        beneficial_owners: formData.beneficial_owners || [],
+        // Insurance: write beneficiaries/beneficial_owners as encrypted plain columns;
+        // law-firm: write to the JSONB columns unchanged
+        ...(isInsurance ? {
+          beneficiaries_plain: formData.beneficiaries?.length
+            ? JSON.stringify(formData.beneficiaries)
+            : null,
+          beneficial_owners_plain: formData.beneficial_owners?.length
+            ? JSON.stringify(formData.beneficial_owners)
+            : null,
+          payer_name_plain:           formData.payer_name || null,
+          payer_identification_plain: formData.payer_identification || null,
+        } : {
+          beneficial_owners: formData.beneficial_owners || [],
+          beneficiaries: formData.beneficiaries || [],
+        }),
         policy_information: formData.policy_information || {},
-        beneficiaries: formData.beneficiaries || [],
         source_of_funds: formData.source_of_funds || {},
         pep_declaration: formData.pep_declaration || {},
         sanctions_screening: formData.sanctions_screening || {},
@@ -609,7 +651,9 @@ export default function KycCddForm({ recordId: propRecordId, onSave, onCancel })
         compliance_approval: formData.compliance_approval || {},
         matter_id: matterId || null,
         risk_assessment: riskCalculation.riskAssessment,
-        total_risk_score: riskCalculation.totalScore,
+        total_risk_score: isInsurance && insuranceRiskScore != null
+          ? Math.round((riskCalculation.totalScore + insuranceRiskScore) / 2)
+          : riskCalculation.totalScore,
         risk_level: riskCalculation.riskLevel,
         enhanced_dd_required: riskCalculation.enhancedDdRequired,
         monitoring_frequency: MONITORING_FREQUENCY_MAP[riskCalculation.monitoringFrequency] ?? 'quarterly',
@@ -769,6 +813,100 @@ export default function KycCddForm({ recordId: propRecordId, onSave, onCancel })
             section.fields.map(field => renderField(field, section, sectionData))
           )}
         </div>
+
+        {/* Insurance-only: beneficiary array + payer identity fields */}
+        {isInsurance && section.id === KYC_SECTIONS.BENEFICIARY_INFO && (
+          <div style={{ marginTop: '30px', borderTop: '2px solid #e9ecef', paddingTop: '20px' }}>
+            <h3 style={{ color: '#2c3e50', marginBottom: '16px', fontSize: '18px' }}>
+              Beneficiary Details (Insurance)
+            </h3>
+            {(formData.beneficiaries?.length > 0 ? formData.beneficiaries : [{}]).map((ben, idx) => (
+              <div key={idx} style={{ border: '1px solid #ddd', padding: '15px', marginBottom: '12px', borderRadius: '6px' }}>
+                <h4 style={{ marginTop: 0 }}>Beneficiary {idx + 1}</h4>
+                {[
+                  { key: 'name', label: 'Full Name', type: 'text' },
+                  { key: 'identification', label: 'ID / Passport Number', type: 'text' },
+                  { key: 'relationship', label: 'Relationship to Policyholder', type: 'text' },
+                  { key: 'designation', label: 'Designation (e.g. Primary, Contingent)', type: 'text' },
+                  { key: 'is_pep', label: 'Is a PEP or associate?', type: 'select', options: ['No', 'Yes'] },
+                  { key: 'percentage', label: 'Benefit Share (%)', type: 'number' },
+                ].map(f => (
+                  <div key={f.key} style={{ marginBottom: '10px' }}>
+                    <label style={{ display: 'block', marginBottom: '4px', fontSize: '14px', fontWeight: '500' }}>{f.label}</label>
+                    {f.type === 'select' ? (
+                      <select
+                        value={ben[f.key] || ''}
+                        onChange={(e) => {
+                          const updated = [...(formData.beneficiaries?.length ? formData.beneficiaries : [{}])];
+                          updated[idx] = { ...updated[idx], [f.key]: e.target.value };
+                          setFormData(prev => ({ ...prev, beneficiaries: updated }));
+                        }}
+                        style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }}
+                      >
+                        <option value="">Select...</option>
+                        {f.options.map(o => <option key={o} value={o}>{o}</option>)}
+                      </select>
+                    ) : (
+                      <input
+                        type={f.type}
+                        value={ben[f.key] || ''}
+                        onChange={(e) => {
+                          const updated = [...(formData.beneficiaries?.length ? formData.beneficiaries : [{}])];
+                          updated[idx] = { ...updated[idx], [f.key]: e.target.value };
+                          setFormData(prev => ({ ...prev, beneficiaries: updated }));
+                        }}
+                        style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }}
+                      />
+                    )}
+                  </div>
+                ))}
+                {formData.beneficiaries?.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const updated = formData.beneficiaries.filter((_, i) => i !== idx);
+                      setFormData(prev => ({ ...prev, beneficiaries: updated }));
+                    }}
+                    style={{ padding: '5px 10px', backgroundColor: '#dc3545', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '12px' }}
+                  >
+                    Remove
+                  </button>
+                )}
+              </div>
+            ))}
+            <button
+              type="button"
+              onClick={() => {
+                const updated = [...(formData.beneficiaries || []), {}];
+                setFormData(prev => ({ ...prev, beneficiaries: updated }));
+              }}
+              style={{ padding: '8px 15px', backgroundColor: '#28a745', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', marginBottom: '20px' }}
+            >
+              Add Beneficiary
+            </button>
+
+            <h3 style={{ color: '#2c3e50', marginBottom: '16px', fontSize: '18px', borderTop: '1px solid #e9ecef', paddingTop: '20px' }}>
+              Third-Party Payer (Insurance)
+            </h3>
+            <p style={{ fontSize: '13px', color: '#666', marginBottom: '12px' }}>
+              Complete only if premiums are paid by a party other than the policyholder.
+            </p>
+            {[
+              { key: 'payer_name', label: 'Payer Full Name / Entity Name', type: 'text' },
+              { key: 'payer_identification', label: 'Payer ID / Passport / Registration Number', type: 'text' },
+            ].map(f => (
+              <div key={f.key} style={{ marginBottom: '12px' }}>
+                <label style={{ display: 'block', marginBottom: '4px', fontSize: '14px', fontWeight: '500' }}>{f.label}</label>
+                <input
+                  type="text"
+                  value={formData[f.key] || ''}
+                  onChange={(e) => setFormData(prev => ({ ...prev, [f.key]: e.target.value }))}
+                  style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }}
+                />
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       <div style={{ display: 'flex', gap: '10px', justifyContent: 'space-between', flexWrap: 'wrap' }}>
