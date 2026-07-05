@@ -32,7 +32,7 @@ export function resolveFrameworkType(sector) {
     case 'dnfbp':               return 'general_dnfbp';
     case 'law_firm':
     case 'legal_professionals': return 'legal_professionals';
-    default:                    return 'legal_professionals';
+    default:                    return null;
   }
 }
 
@@ -43,6 +43,9 @@ export function resolveFrameworkType(sector) {
 // the live tenant byte-for-byte identical to before.
 // ---------------------------------------------------------------------------
 export function getFrameworkData(frameworkType) {
+  if (frameworkType === null || frameworkType === undefined) {
+    return { type: null, notConfigured: true, label: 'Sector not configured' };
+  }
   switch (frameworkType) {
     case 'insurer':
       return {
@@ -123,6 +126,7 @@ function buildFilteredSections(modulesObj, tier, profileFirst = false) {
 }
 
 export function getFilteredSections(frameworkType, tier, profileFirst = false) {
+  if (!frameworkType) return [];
   switch (frameworkType) {
     case 'insurer':
       return buildFilteredSections(insurersModules, tier, profileFirst);
@@ -142,6 +146,7 @@ export function getFilteredSections(frameworkType, tier, profileFirst = false) {
 // Tier description
 // ---------------------------------------------------------------------------
 export function getTierDescription(frameworkType, tier) {
+  if (!frameworkType) return '';
   switch (frameworkType) {
     case 'insurer':    return insurersAssessmentData.tierProfiles[tier]?.description || '';
     case 'audit_firm': return accountantsAssessmentData.tierProfiles[tier]?.description || '';
@@ -175,6 +180,7 @@ export function getTotalQuestionCountForFramework(frameworkType) {
 // module4 is set to null for all sectors; the maturity path is unaffected.
 // ---------------------------------------------------------------------------
 export function calculateScores(frameworkType, responses, tier) {
+  if (!frameworkType) return null;
   switch (frameworkType) {
     case 'insurer': {
       const inherentResult      = calculateBankInherentRisk(responses, tier, insurersModules);
@@ -256,7 +262,9 @@ export function getFrameworkLabel(frameworkType) {
     case 'general_dnfbp':
     case 'dnfbp':                        return 'General DNFBP';
     case 'legal_professionals':          return 'Law Firm / Legal Professional';
-    case 'banks_financial_institutions':
+    case 'banks_financial_institutions': return 'Bank / Financial Institution';
+    case null:
+    case undefined:                      return 'Sector not configured';
     default:                             return 'Bank / Financial Institution';
   }
 }

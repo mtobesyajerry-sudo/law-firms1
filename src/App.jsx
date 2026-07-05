@@ -57,13 +57,9 @@ function ForcePasswordChange() {
       const hashBuffer = await crypto.subtle.digest('SHA-256', encoded);
       const pwHash = Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
       await supabase.from('password_history').insert({ user_id: user.id, password_hash: pwHash });
-      // Clear the forced-change flag — check error and row count explicitly
-      const { error: flagErr, count } = await supabase
-        .from('user_profiles')
-        .update({ password_change_required: false }, { count: 'exact' })
-        .eq('id', user.id);
-      if (flagErr) throw new Error(`Failed to clear password change flag: ${flagErr.message}`);
-      if (count === 0) throw new Error('Password changed but account record could not be updated. Please contact support.');
+      // Clear the forced-change flag via SECURITY DEFINER RPC (direct update is blocked by RLS)
+      const { error: flagErr } = await supabase.rpc('complete_password_change');
+      if (flagErr) throw new Error(`Password changed but your account could not be fully updated: ${flagErr.message}. Please contact support or try again.`);
       // Immediately clear the flag in local React state so the route guard unblocks right away,
       // regardless of any concurrent TOKEN_REFRESHED reload that might still carry the old value.
       patchProfile({ password_change_required: false });
