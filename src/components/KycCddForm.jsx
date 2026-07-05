@@ -668,6 +668,9 @@ export default function KycCddForm({ recordId: propRecordId, onSave, onCancel })
         risk_assessment: riskCalculation.riskAssessment,
         total_risk_score: effectiveScore,
         risk_level: effectiveRiskLevel,
+        // Derived from ddLevel (effectiveScore > 60), not riskCalculation.enhancedDdRequired.
+        // If calculateKycRiskScore ever adds non-score EDD triggers (PEP, sanctions hit,
+        // high-risk country), mirror them here so they aren't silently dropped.
         enhanced_dd_required: ddLevel === 'enhanced',
         monitoring_frequency: MONITORING_FREQUENCY_MAP[riskCalculation.monitoringFrequency] ?? 'quarterly',
         last_review_date: new Date().toISOString(),
