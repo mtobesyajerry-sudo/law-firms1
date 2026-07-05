@@ -463,11 +463,17 @@ export default function KycCddForm({ recordId: propRecordId, onSave, onCancel })
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
-      // Promote PII fields to *_plain columns for encryption; strip them from JSONB
+      // Promote PII fields to *_plain columns for encryption; strip them from JSONB.
+      // Form fields use snake_case (full_name, national_id, …); matter pre-population uses
+      // camelCase (fullName, legalName) — accept both so neither path is silently dropped.
       const {
-        fullName, legalName, nationalId, registrationNumber, tinNumber,
-        passportNumber, phoneNumber, contactPhone, residentialAddress,
-        registeredAddress, ...safeCustomerData
+        full_name, registered_name, fullName, legalName,
+        national_id, registration_number, nationalId, registrationNumber,
+        tin_number, tinNumber,
+        telephone, phoneNumber, contact_phone, contactPhone,
+        residential_address, registered_address, residentialAddress, registeredAddress,
+        passport_number, passportNumber,
+        ...safeCustomerData
       } = formData.customer_data || {};
 
       const customerDataWithRisk = {
@@ -479,12 +485,12 @@ export default function KycCddForm({ recordId: propRecordId, onSave, onCancel })
         customer_type: customerType,
         customer_data: customerDataWithRisk,
         // PII fields — trigger encrypts these and nulls them immediately
-        client_name_plain:     fullName || legalName || null,
-        national_id_plain:     nationalId || registrationNumber || null,
-        tax_id_plain:          tinNumber || null,
-        passport_number_plain: passportNumber || null,
-        phone_plain:           phoneNumber || contactPhone || null,
-        address_plain:         residentialAddress || registeredAddress || null,
+        client_name_plain:     full_name || registered_name || fullName || legalName || null,
+        national_id_plain:     national_id || registration_number || nationalId || registrationNumber || null,
+        tax_id_plain:          tin_number || tinNumber || null,
+        passport_number_plain: passport_number || passportNumber || null,
+        phone_plain:           telephone || phoneNumber || contact_phone || contactPhone || null,
+        address_plain:         residential_address || registered_address || residentialAddress || registeredAddress || null,
         // Insurance: write beneficiaries/beneficial_owners as encrypted plain columns;
         // law-firm: write to the JSONB columns unchanged
         ...(isInsurance ? {
@@ -522,6 +528,7 @@ export default function KycCddForm({ recordId: propRecordId, onSave, onCancel })
         if (error) throw error;
       } else {
         kycRecord.created_by = user.id;
+        kycRecord.relationship_manager_id = user.id;
         const { data, error } = await supabase
           .from('kyc_clients')
           .insert([kycRecord])
@@ -618,11 +625,17 @@ export default function KycCddForm({ recordId: propRecordId, onSave, onCancel })
         'Monthly': 'monthly'
       };
 
-      // Promote PII fields to *_plain columns for encryption; strip them from JSONB
+      // Promote PII fields to *_plain columns for encryption; strip them from JSONB.
+      // Form fields use snake_case (full_name, national_id, …); matter pre-population uses
+      // camelCase (fullName, legalName) — accept both so neither path is silently dropped.
       const {
-        fullName, legalName, nationalId, registrationNumber, tinNumber,
-        passportNumber, phoneNumber, contactPhone, residentialAddress,
-        registeredAddress, ...safeCustomerData
+        full_name, registered_name, fullName, legalName,
+        national_id, registration_number, nationalId, registrationNumber,
+        tin_number, tinNumber,
+        telephone, phoneNumber, contact_phone, contactPhone,
+        residential_address, registered_address, residentialAddress, registeredAddress,
+        passport_number, passportNumber,
+        ...safeCustomerData
       } = formData.customer_data || {};
 
       const customerDataWithRisk = {
@@ -634,12 +647,12 @@ export default function KycCddForm({ recordId: propRecordId, onSave, onCancel })
         customer_type: customerType,
         customer_data: customerDataWithRisk,
         // PII fields — trigger encrypts these and nulls them immediately
-        client_name_plain:     fullName || legalName || null,
-        national_id_plain:     nationalId || registrationNumber || null,
-        tax_id_plain:          tinNumber || null,
-        passport_number_plain: passportNumber || null,
-        phone_plain:           phoneNumber || contactPhone || null,
-        address_plain:         residentialAddress || registeredAddress || null,
+        client_name_plain:     full_name || registered_name || fullName || legalName || null,
+        national_id_plain:     national_id || registration_number || nationalId || registrationNumber || null,
+        tax_id_plain:          tin_number || tinNumber || null,
+        passport_number_plain: passport_number || passportNumber || null,
+        phone_plain:           telephone || phoneNumber || contact_phone || contactPhone || null,
+        address_plain:         residential_address || registered_address || residentialAddress || registeredAddress || null,
         // Insurance: write beneficiaries/beneficial_owners as encrypted plain columns;
         // law-firm: write to the JSONB columns unchanged
         ...(isInsurance ? {
@@ -696,6 +709,7 @@ export default function KycCddForm({ recordId: propRecordId, onSave, onCancel })
         if (error) throw error;
       } else {
         kycRecord.created_by = user.id;
+        kycRecord.relationship_manager_id = user.id;
         const { data, error } = await supabase
           .from('kyc_clients')
           .insert([kycRecord])
