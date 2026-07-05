@@ -1,3 +1,7 @@
+export function hidesMatters(sector) {
+  return sector === 'insurance' || sector === 'accounting';
+}
+
 export function getSectorLabels(sector) {
   if (sector === 'insurance' || sector === 'insurer') {
     return {

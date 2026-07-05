@@ -22,7 +22,8 @@ export function isKycComplete({
       : sourceOfFunds && typeof sourceOfFunds === 'object'
       ? JSON.stringify(sourceOfFunds)
       : '';
-  if (!sofStr || sofStr === '{}') missing.push('Source of funds not provided');
+  const isSofSubstantive = sofStr.length >= 3 && /[a-zA-Z]{3}/.test(sofStr);
+  if (!sofStr || sofStr === '{}' || !isSofSubstantive) missing.push('Source of funds not provided');
 
   if (!amlTriggers || amlTriggers.length === 0) {
     missing.push('AML trigger activities not assessed (select "None apply" if none)');

@@ -27,13 +27,14 @@ import { dashboardStyles } from '../utils/dashboardStyles';
 import DualApprovalInterface from './DualApprovalInterface';
 import NewUserRequestForm from './NewUserRequestForm';
 import MatterManagement from './MatterManagement';
+import { hidesMatters } from '../utils/sectorLabels';
 
 export default function ClientManagementDashboard() {
   const { profile, organization } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
-  const isInsurance = organization?.sector === 'insurance';
+  const isInsurance = hidesMatters(organization?.sector);
 
   const getBackRoute = () => {
     return '/client/dashboard';

@@ -4,6 +4,7 @@ import { supabase } from '../supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
 import { accountantKycSections } from '../data/accountantKycData';
 import { calculateAccountantKycRisk } from '../utils/accountantKycRiskCalculator';
+import { isKycComplete } from '../utils/kycCompleteness';
 
 export default function AccountantKycForm() {
   const [currentSection, setCurrentSection] = useState(0);
@@ -188,6 +189,18 @@ export default function AccountantKycForm() {
         return 'annual';
       };
 
+      // Determine completeness and DD level
+      const { complete: kycComplete } = isKycComplete({
+        riskFactors: { service: riskAssessment.riskBreakdown },
+        sourceOfFunds: formData.source_of_funds || '',
+        amlTriggers: ['none_apply'],
+        clientType,
+      });
+
+      const ddFloor = riskAssessment.riskLevel === 'Very High Risk' || riskAssessment.riskLevel === 'High Risk'
+        ? 'enhanced'
+        : 'standard';
+
       // Build metadata without PII fields — those go into *_plain columns for encryption
       const { full_name, legal_name, telephone_number, residential_address,
               registered_address, id_number, registration_number: _reg, ...safeMetadata } = formData;
@@ -201,8 +214,9 @@ export default function AccountantKycForm() {
         phone_plain: phone || null,
         address_plain: address || null,
         nationality: country,
-        client_status: 'prospect',
-        onboarding_status: 'draft',
+        client_status: kycComplete ? 'active' : 'prospect',
+        onboarding_status: kycComplete ? 'completed' : 'pending',
+        current_dd_level: ddFloor,
         base_risk_score: riskAssessment.totalScore,
         current_risk_rating: riskAssessment.riskLevel,
         edd_required: riskAssessment.riskLevel === 'High Risk' || riskAssessment.riskLevel === 'Very High Risk',

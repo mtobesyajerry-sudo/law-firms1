@@ -8,7 +8,7 @@ import { dashboardStyles, getBadgeStyle, getRiskBadgeStyle, getStatusBadgeStyle 
 import LoadingSpinner from './LoadingSpinner';
 import RoleUpgradeRequestForm from './RoleUpgradeRequestForm';
 import { resolveFrameworkType } from '../utils/frameworkUtils';
-import { getSectorLabels } from '../utils/sectorLabels';
+import { getSectorLabels, hidesMatters } from '../utils/sectorLabels';
 
 export default function StaffDashboard() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -32,7 +32,7 @@ export default function StaffDashboard() {
   const { user, profile } = useAuth();
   const navigate = useNavigate();
   const labels = getSectorLabels(org?.sector);
-  const isInsurance = org?.sector === 'insurance';
+  const isInsurance = hidesMatters(org?.sector);
 
   // Restore active view from URL on mount
   useEffect(() => {
