@@ -492,7 +492,7 @@ export default function KycCddForm({ recordId: propRecordId, onSave, onCancel })
         customer_declaration: formData.customer_declaration || {},
         compliance_approval: formData.compliance_approval || {},
         matter_id: matterId || null,
-        onboarding_status: 'draft'
+        onboarding_status: 'in_progress'
       };
 
       if (recordId) {
@@ -567,6 +567,13 @@ export default function KycCddForm({ recordId: propRecordId, onSave, onCancel })
         reviewFrequency = (riskCalculation.riskLevel === 'Very High') ? 'monthly' : 'quarterly';
       }
 
+      const MONITORING_FREQUENCY_MAP = {
+        'Annual': 'annual',
+        'Semi-Annual': 'semi_annual',
+        'Quarterly': 'quarterly',
+        'Monthly': 'monthly'
+      };
+
       // Promote PII fields to *_plain columns for encryption; strip them from JSONB
       const {
         fullName, legalName, nationalId, registrationNumber, tinNumber,
@@ -605,10 +612,10 @@ export default function KycCddForm({ recordId: propRecordId, onSave, onCancel })
         total_risk_score: riskCalculation.totalScore,
         risk_level: riskCalculation.riskLevel,
         enhanced_dd_required: riskCalculation.enhancedDdRequired,
-        monitoring_frequency: riskCalculation.monitoringFrequency,
+        monitoring_frequency: MONITORING_FREQUENCY_MAP[riskCalculation.monitoringFrequency] ?? 'quarterly',
         last_review_date: new Date().toISOString(),
         next_review_date: nextReview.toISOString(),
-        onboarding_status: 'pending_approval',
+        onboarding_status: 'pending',
         // Three-tier DD framework fields
         current_dd_level: ddLevel,
         review_frequency: reviewFrequency,
