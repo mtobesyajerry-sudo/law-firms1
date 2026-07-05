@@ -295,7 +295,7 @@ async function handleApproveRegistration(supabaseAdmin: any, registrationId: str
       success: true,
       message: "Registration approved successfully",
       organization_id: orgData.id,
-      user_id: authData.user.id,
+      user_id: createdAuthUserId,
       trial_tier: trialTier,
       requested_tier: requestedTier,
     }),
