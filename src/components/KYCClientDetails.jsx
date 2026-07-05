@@ -1024,7 +1024,7 @@ export default function KYCClientDetails() {
                         color: dueDiligenceLevelInfo[client.current_dd_level || 'standard']?.color,
                         borderColor: dueDiligenceLevelInfo[client.current_dd_level || 'standard']?.color + '40'
                       }}>
-                        {(client.current_dd_level || 'standard').toUpperCase()} DD
+                        {isPendingAssessment ? 'PROVISIONAL ' : ''}{(client.current_dd_level || 'standard').toUpperCase()} DD
                       </span>
                     </div>
                   </div>
@@ -1032,7 +1032,7 @@ export default function KYCClientDetails() {
                   <div style={styles.infoRows}>
                     <div style={styles.infoRow}>
                       <span style={styles.infoLabel}>DD Level:</span>
-                      {isReadOnly ? (
+                      {isReadOnly || isPendingAssessment ? (
                         <span style={styles.infoValue}>
                           {(client.current_dd_level || 'standard').toUpperCase()}
                         </span>
@@ -1055,7 +1055,9 @@ export default function KYCClientDetails() {
                       </span>
                     </div>
                     <div style={styles.ddDescription}>
-                      {dueDiligenceLevelInfo[client.current_dd_level || 'standard']?.description}
+                      {isPendingAssessment
+                        ? 'Provisional — DD level confirmed after KYC assessment is completed.'
+                        : dueDiligenceLevelInfo[client.current_dd_level || 'standard']?.description}
                     </div>
                   </div>
 
@@ -1073,7 +1075,7 @@ export default function KYCClientDetails() {
                   </div>
 
                   {/* Enhanced DD Status */}
-                  {client.current_dd_level === 'enhanced' && (
+                  {!isPendingAssessment && client.current_dd_level === 'enhanced' && (
                     <div style={styles.enhancedWorkflowSection}>
                       <h4 style={styles.ddFeatureTitle}>Enhanced DD Status:</h4>
                       <EnhancedDDStatusSection client={client} eddDocuments={eddDocuments} />
@@ -1081,10 +1083,19 @@ export default function KYCClientDetails() {
                   )}
 
                   {/* Standard DD Status */}
-                  {client.current_dd_level === 'standard' && (
+                  {!isPendingAssessment && client.current_dd_level === 'standard' && (
                     <div style={styles.enhancedWorkflowSection}>
                       <h4 style={styles.ddFeatureTitle}>Standard DD Status:</h4>
                       <StandardDDStatusSection client={client} />
+                    </div>
+                  )}
+
+                  {/* Pending assessment placeholder */}
+                  {isPendingAssessment && (
+                    <div style={styles.enhancedWorkflowSection}>
+                      <p style={{ margin: 0, fontSize: 13, color: '#6b7280', fontStyle: 'italic' }}>
+                        DD verification checklist available once KYC assessment is completed.
+                      </p>
                     </div>
                   )}
 
