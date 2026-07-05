@@ -74,7 +74,7 @@ export default function KycCddForm({ recordId: propRecordId, onSave, onCancel })
       if (error) throw error;
 
       if (data) {
-        setCustomerType(data.customer_type);
+        setCustomerType(data.customer_type || (data.client_type === 'legal_entity' ? 'legal_entity' : 'natural_person'));
         if (data.matter_id) {
           setMatterId(data.matter_id);
           loadMatter(data.matter_id);
