@@ -32,7 +32,7 @@ export default function AccountantKycForm() {
 
         if (orgError) throw orgError;
 
-        if (!orgData || orgData.dnfbp_category !== 'accountant') {
+        if (!orgData || orgData.sector !== 'accounting') {
           navigate('/client/dashboard');
           return;
         }
