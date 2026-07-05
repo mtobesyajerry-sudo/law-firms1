@@ -578,13 +578,28 @@ export default function KycCddForm({ recordId: propRecordId, onSave, onCancel })
         suspicious_indicators: formData.suspicious_indicators
       });
 
-      const nextReview = getNextReviewDate(riskCalculation.riskLevel);
+      // For insurance, take the higher of the two scores so a dangerous beneficiary/payer
+      // constellation cannot be diluted by a benign general profile.
+      const effectiveScore = isInsurance && insuranceRiskScore != null
+        ? Math.max(riskCalculation.totalScore, insuranceRiskScore)
+        : riskCalculation.totalScore;
 
-      // Determine DD level based on risk score
+      // Derive risk level from effective score (mirrors kycRiskCalculator thresholds)
+      let effectiveRiskLevel = riskCalculation.riskLevel;
+      if (isInsurance && insuranceRiskScore != null && insuranceRiskScore > riskCalculation.totalScore) {
+        if (effectiveScore <= 30) effectiveRiskLevel = 'Low';
+        else if (effectiveScore <= 50) effectiveRiskLevel = 'Medium';
+        else if (effectiveScore <= 70) effectiveRiskLevel = 'High';
+        else effectiveRiskLevel = 'Very High';
+      }
+
+      const nextReview = getNextReviewDate(effectiveRiskLevel);
+
+      // Determine DD level based on effective score
       let ddLevel = 'standard';
-      if (riskCalculation.totalScore <= 30) {
+      if (effectiveScore <= 30) {
         ddLevel = 'simplified';
-      } else if (riskCalculation.totalScore > 60) {
+      } else if (effectiveScore > 60) {
         ddLevel = 'enhanced';
       }
 
@@ -593,7 +608,7 @@ export default function KycCddForm({ recordId: propRecordId, onSave, onCancel })
       if (ddLevel === 'simplified') {
         reviewFrequency = 'annual';
       } else if (ddLevel === 'enhanced') {
-        reviewFrequency = (riskCalculation.riskLevel === 'Very High') ? 'monthly' : 'quarterly';
+        reviewFrequency = (effectiveRiskLevel === 'Very High') ? 'monthly' : 'quarterly';
       }
 
       const MONITORING_FREQUENCY_MAP = {
@@ -651,11 +666,9 @@ export default function KycCddForm({ recordId: propRecordId, onSave, onCancel })
         compliance_approval: formData.compliance_approval || {},
         matter_id: matterId || null,
         risk_assessment: riskCalculation.riskAssessment,
-        total_risk_score: isInsurance && insuranceRiskScore != null
-          ? Math.round((riskCalculation.totalScore + insuranceRiskScore) / 2)
-          : riskCalculation.totalScore,
-        risk_level: riskCalculation.riskLevel,
-        enhanced_dd_required: riskCalculation.enhancedDdRequired,
+        total_risk_score: effectiveScore,
+        risk_level: effectiveRiskLevel,
+        enhanced_dd_required: ddLevel === 'enhanced',
         monitoring_frequency: MONITORING_FREQUENCY_MAP[riskCalculation.monitoringFrequency] ?? 'quarterly',
         last_review_date: new Date().toISOString(),
         next_review_date: nextReview.toISOString(),
