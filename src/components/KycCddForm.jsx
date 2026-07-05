@@ -814,9 +814,15 @@ export default function KycCddForm({ recordId: propRecordId, onSave, onCancel })
   return (
     <div style={{ maxWidth: '900px', margin: '0 auto', padding: '20px' }}>
       <div style={{ marginBottom: '30px' }}>
-        <h1 style={{ marginBottom: '10px' }}>KYC / CDD Questionnaire for Insurers</h1>
+        <h1 style={{ marginBottom: '10px' }}>
+          {isInsurance
+            ? 'KYC / CDD Questionnaire for Insurers'
+            : 'KYC / CDD Questionnaire for Legal Professionals'}
+        </h1>
         <p style={{ color: '#666', marginBottom: '20px' }}>
-          Based on Tanzania AML Act, AML Regulations 2022, and FIU AML/CFT Guidelines to Insurers
+          {isInsurance
+            ? 'Based on Tanzania AML Act, AML Regulations 2022, and FIU AML/CFT Guidelines to Insurers'
+            : 'Based on Tanzania AML Act, AML Regulations 2022, and FIU AML/CFT Guidelines to Legal Professionals'}
         </p>
         {matterInfo && (
           <div style={{
