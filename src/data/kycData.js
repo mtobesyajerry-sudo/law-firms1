@@ -160,7 +160,7 @@ export const clientRiskFactors = {
 
 export const serviceRiskFactors = {
   serviceType: {
-    label: 'Law Firm Product/Service Type',
+    label: 'Product/Service Type',
     options: [
       { value: 'general_legal_advice', label: 'General legal advice and consultation', score: 1 },
       { value: 'family_law', label: 'Family law and personal matters', score: 1 },

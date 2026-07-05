@@ -31,6 +31,22 @@ export function getSectorLabels(sector) {
       pepClients:         'PEP Policyholders',
       tabAllClients:      'All Policyholders',
       noClientsFound:     'No policyholders found. Add your first policyholder to get started.',
+      // NewClientModal — Step 1
+      modalTitle:         'Add New Policyholder',
+      clientTypeLabel:    'Policyholder Type*',
+      clientNameLabel:    'Policyholder Name*',
+      pepCheckbox:        'Policyholder is a Politically Exposed Person (PEP)',
+      sowPlaceholder:     'Describe how the policyholder accumulated their overall wealth (e.g., career earnings, business ownership, inheritance, investments)',
+      sowHelper:          'How did the policyholder accumulate their total wealth over time? This is required for Enhanced DD.',
+      // NewClientModal — Step 3
+      reviewClientName:   'Policyholder Name',
+      reviewClientType:   'Policyholder Type',
+      // NewClientModal — actions
+      createButton:       'Create Policyholder',
+      creatingButton:     'Creating...',
+      // NewClientModal — alerts
+      alertNameRequired:  'Policyholder name is required.',
+      alertCreateError:   'Error creating policyholder: ',
     };
   }
   // Default — law firm and all other sectors
@@ -62,5 +78,21 @@ export function getSectorLabels(sector) {
     pepClients:         'PEP Clients',
     tabAllClients:      'All Clients',
     noClientsFound:     'No clients found. Add your first client to get started.',
+    // NewClientModal — Step 1
+    modalTitle:         'Add New Client',
+    clientTypeLabel:    'Client Type*',
+    clientNameLabel:    'Client Name*',
+    pepCheckbox:        'Client is a Politically Exposed Person (PEP)',
+    sowPlaceholder:     'Describe how the client accumulated their overall wealth (e.g., career earnings, business ownership, inheritance, investments)',
+    sowHelper:          'How did the client accumulate their total wealth over time? This is required for Enhanced DD.',
+    // NewClientModal — Step 3
+    reviewClientName:   'Client Name',
+    reviewClientType:   'Client Type',
+    // NewClientModal — actions
+    createButton:       'Create Client',
+    creatingButton:     'Creating...',
+    // NewClientModal — alerts
+    alertNameRequired:  'Client name is required.',
+    alertCreateError:   'Error creating client: ',
   };
 }

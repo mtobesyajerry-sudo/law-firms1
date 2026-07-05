@@ -20,6 +20,7 @@ import {
   riskLevels,
   dueDiligenceLevels
 } from '../data/kycData';
+import { serviceRiskFactors as insuranceServiceRiskFactors } from '../data/insuranceKycData';
 
 export default function KYCClientManagement({ initialFilter = 'all', sector }) {
   const [clients, setClients] = useState([]);
@@ -303,6 +304,7 @@ export default function KYCClientManagement({ initialFilter = 'all', sector }) {
             organizationId={profile.organization_id}
             userId={user.id}
             sector={sector}
+            labels={labels}
           />
         )}
       </div>
@@ -354,7 +356,7 @@ function StatusBadge({ status }) {
   );
 }
 
-function NewClientModal({ onClose, onSuccess, organizationId, userId, sector }) {
+function NewClientModal({ onClose, onSuccess, organizationId, userId, sector, labels }) {
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
     client_type: 'individual',
@@ -398,7 +400,7 @@ function NewClientModal({ onClose, onSuccess, organizationId, userId, sector }) 
 
   const handleSubmit = async () => {
     if (!formData.client_name?.trim()) {
-      alert('Client name is required.');
+      alert(labels.alertNameRequired);
       return;
     }
     if (!formData.national_id_plain?.trim()) {
@@ -458,7 +460,7 @@ function NewClientModal({ onClose, onSuccess, organizationId, userId, sector }) 
       onSuccess();
     } catch (error) {
       console.error('Error creating client:', error);
-      alert('Error creating client: ' + error.message);
+      alert(labels.alertCreateError + error.message);
     } finally {
       setSubmitting(false);
     }
@@ -468,7 +470,7 @@ function NewClientModal({ onClose, onSuccess, organizationId, userId, sector }) 
     <div style={styles.modalOverlay}>
       <div style={styles.modalContent}>
         <div style={styles.modalHeader}>
-          <h3 style={styles.modalTitle}>Add New Client - Step {step} of 3</h3>
+          <h3 style={styles.modalTitle}>{labels.modalTitle} - Step {step} of 3</h3>
           <button onClick={onClose} style={styles.closeButton}>&times;</button>
         </div>
 
@@ -479,6 +481,7 @@ function NewClientModal({ onClose, onSuccess, organizationId, userId, sector }) 
               onChange={setFormData}
               amlTriggerActivities={amlTriggerActivities}
               toggleAMLActivity={toggleAMLActivity}
+              labels={labels}
             />
           )}
 
@@ -486,6 +489,7 @@ function NewClientModal({ onClose, onSuccess, organizationId, userId, sector }) 
             <RiskAssessmentStep
               formData={formData}
               onChange={setFormData}
+              sector={sector}
             />
           )}
 
@@ -495,6 +499,7 @@ function NewClientModal({ onClose, onSuccess, organizationId, userId, sector }) 
               riskScore={calculateRiskScore(formData.riskFactors)}
               riskLevel={getRiskLevel(calculateRiskScore(formData.riskFactors))}
               dueDiligenceLevel={getDueDiligenceLevel(calculateRiskScore(formData.riskFactors))}
+              labels={labels}
             />
           )}
         </div>
@@ -522,7 +527,7 @@ function NewClientModal({ onClose, onSuccess, organizationId, userId, sector }) 
               style={styles.primaryButton}
               disabled={submitting}
             >
-              {submitting ? 'Creating...' : 'Create Client'}
+              {submitting ? labels.creatingButton : labels.createButton}
             </button>
           )}
         </div>
@@ -531,11 +536,11 @@ function NewClientModal({ onClose, onSuccess, organizationId, userId, sector }) 
   );
 }
 
-function BasicInformationStep({ formData, onChange, amlTriggerActivities, toggleAMLActivity }) {
+function BasicInformationStep({ formData, onChange, amlTriggerActivities, toggleAMLActivity, labels }) {
   return (
     <div style={styles.formSection}>
       <div style={styles.formGroup}>
-        <label style={styles.label}>Client Type*</label>
+        <label style={styles.label}>{labels.clientTypeLabel}</label>
         <select
           value={formData.client_type}
           onChange={(e) => onChange({...formData, client_type: e.target.value})}
@@ -548,7 +553,7 @@ function BasicInformationStep({ formData, onChange, amlTriggerActivities, toggle
       </div>
 
       <div style={styles.formGroup}>
-        <label style={styles.label}>Client Name*</label>
+        <label style={styles.label}>{labels.clientNameLabel}</label>
         <input
           type="text"
           value={formData.client_name}
@@ -622,7 +627,7 @@ function BasicInformationStep({ formData, onChange, amlTriggerActivities, toggle
           value={formData.purpose_of_relationship}
           onChange={(e) => onChange({...formData, purpose_of_relationship: e.target.value})}
           style={{...styles.input, minHeight: '80px'}}
-          placeholder="Describe the banking products/services required and the purpose of the relationship"
+          placeholder="Describe the products/services required and the purpose of the relationship."
         />
       </div>
 
@@ -645,10 +650,10 @@ function BasicInformationStep({ formData, onChange, amlTriggerActivities, toggle
           value={formData.source_of_wealth}
           onChange={(e) => onChange({...formData, source_of_wealth: e.target.value})}
           style={{...styles.input, minHeight: '80px'}}
-          placeholder="Describe how the client accumulated their overall wealth (e.g., career earnings, business ownership, inheritance, investments)"
+          placeholder={labels.sowPlaceholder}
         />
         <span style={styles.helpText}>
-          How did the client accumulate their total wealth over time? This is required for Enhanced DD.
+          {labels.sowHelper}
         </span>
       </div>
 
@@ -660,7 +665,7 @@ function BasicInformationStep({ formData, onChange, amlTriggerActivities, toggle
             onChange={(e) => onChange({...formData, is_pep: e.target.checked})}
             style={styles.checkbox}
           />
-          Client is a Politically Exposed Person (PEP)
+          {labels.pepCheckbox}
         </label>
       </div>
 
@@ -737,7 +742,9 @@ function BasicInformationStep({ formData, onChange, amlTriggerActivities, toggle
   );
 }
 
-function RiskAssessmentStep({ formData, onChange }) {
+function RiskAssessmentStep({ formData, onChange, sector }) {
+  const activeServiceRiskFactors = sector === 'insurance' ? insuranceServiceRiskFactors : serviceRiskFactors;
+
   const updateRiskFactor = (category, factor, value) => {
     const newRiskFactors = {
       ...formData.riskFactors,
@@ -769,7 +776,7 @@ function RiskAssessmentStep({ formData, onChange }) {
       ))}
 
       <h4 style={styles.sectionTitle}>Service Risk Factors (25%)</h4>
-      {Object.entries(serviceRiskFactors).map(([key, factor]) => (
+      {Object.entries(activeServiceRiskFactors).map(([key, factor]) => (
         <div key={key} style={styles.formGroup}>
           <label style={styles.label}>{factor.label}</label>
           <select
@@ -839,13 +846,13 @@ function RiskAssessmentStep({ formData, onChange }) {
   );
 }
 
-function ReviewStep({ formData, riskScore, riskLevel, dueDiligenceLevel }) {
+function ReviewStep({ formData, riskScore, riskLevel, dueDiligenceLevel, labels }) {
   return (
     <div style={styles.reviewSection}>
       <h4 style={styles.sectionTitle}>Client Information</h4>
       <div style={styles.reviewGrid}>
-        <ReviewItem label="Client Name" value={formData.client_name} />
-        <ReviewItem label="Client Type" value={clientTypes.find(t => t.value === formData.client_type)?.label} />
+        <ReviewItem label={labels.reviewClientName} value={formData.client_name} />
+        <ReviewItem label={labels.reviewClientType} value={clientTypes.find(t => t.value === formData.client_type)?.label} />
         <ReviewItem label="Nationality" value={formData.nationality || 'Not provided'} />
         <ReviewItem label="Country of Residence" value={formData.country_of_residence || 'Not provided'} />
         <ReviewItem label="PEP Status" value={formData.is_pep ? 'Yes' : 'No'} />
