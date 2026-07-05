@@ -492,7 +492,7 @@ export default function KycCddForm({ recordId: propRecordId, onSave, onCancel })
         customer_declaration: formData.customer_declaration || {},
         compliance_approval: formData.compliance_approval || {},
         matter_id: matterId || null,
-        status: 'draft'
+        onboarding_status: 'draft'
       };
 
       if (recordId) {
@@ -503,7 +503,7 @@ export default function KycCddForm({ recordId: propRecordId, onSave, onCancel })
 
         if (error) throw error;
       } else {
-        kycRecord.user_id = user.id;
+        kycRecord.created_by = user.id;
         const { data, error } = await supabase
           .from('kyc_clients')
           .insert([kycRecord])
@@ -608,7 +608,7 @@ export default function KycCddForm({ recordId: propRecordId, onSave, onCancel })
         monitoring_frequency: riskCalculation.monitoringFrequency,
         last_review_date: new Date().toISOString(),
         next_review_date: nextReview.toISOString(),
-        status: 'pending_approval',
+        onboarding_status: 'pending_approval',
         // Three-tier DD framework fields
         current_dd_level: ddLevel,
         review_frequency: reviewFrequency,
@@ -628,7 +628,7 @@ export default function KycCddForm({ recordId: propRecordId, onSave, onCancel })
 
         if (error) throw error;
       } else {
-        kycRecord.user_id = user.id;
+        kycRecord.created_by = user.id;
         const { data, error } = await supabase
           .from('kyc_clients')
           .insert([kycRecord])
