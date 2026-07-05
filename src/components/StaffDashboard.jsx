@@ -9,6 +9,7 @@ import LoadingSpinner from './LoadingSpinner';
 import RoleUpgradeRequestForm from './RoleUpgradeRequestForm';
 import { resolveFrameworkType } from '../utils/frameworkUtils';
 import { getSectorLabels, hidesMatters } from '../utils/sectorLabels';
+import { getKycFormRoute } from '../utils/kycRouting';
 
 export default function StaffDashboard() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -642,28 +643,16 @@ export default function StaffDashboard() {
             </h3>
             <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
               {(() => {
-                const frameworkType = resolveFrameworkType(org?.sector);
-                if (frameworkType === 'insurer') {
-                  return (
-                    <button
-                      onClick={() => navigate('/kyc-form')}
-                      style={{ ...styles.viewAllButton, background: '#d4af37', color: '#0a1929', fontWeight: '600' }}
-                    >
-                      + New KYC
-                    </button>
-                  );
-                }
-                if (frameworkType === 'audit_firm') {
-                  return (
-                    <button
-                      onClick={() => navigate('/accountant-kyc-form')}
-                      style={{ ...styles.viewAllButton, background: '#d4af37', color: '#0a1929', fontWeight: '600' }}
-                    >
-                      + New KYC
-                    </button>
-                  );
-                }
-                return null;
+                const route = getKycFormRoute(org?.sector);
+                if (!route) return null;
+                return (
+                  <button
+                    onClick={() => navigate(route)}
+                    style={{ ...styles.viewAllButton, background: '#d4af37', color: '#0a1929', fontWeight: '600' }}
+                  >
+                    + New KYC
+                  </button>
+                );
               })()}
               <button
                 onClick={() => changeView('clients')}

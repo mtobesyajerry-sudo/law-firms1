@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
+import { getKycFormRoute } from '../utils/kycRouting';
 import LoadingSpinner from './LoadingSpinner';
 import { getSectorLabels } from '../utils/sectorLabels';
 import { getAMLTriggersForSector } from '../utils/amlTriggerLabels';
@@ -95,14 +96,29 @@ export default function KYCClientManagement({ initialFilter = 'all', sector }) {
             <h2 style={styles.title}>{labels.kycMgmtTitle}</h2>
             <p style={styles.subtitle}>{labels.kycMgmtSubtitle}</p>
           </div>
-          {!isReadOnly && (
-            <button
-              onClick={() => setShowNewClientModal(true)}
-              style={styles.primaryButton}
-            >
-              {labels.addClient}
-            </button>
-          )}
+          {!isReadOnly && (() => {
+            const newRoute = getKycFormRoute(sector);
+            // Sectors with a dedicated form (e.g. accounting) navigate directly;
+            // others use the quick-create modal.
+            if (newRoute && newRoute !== '/kyc-form') {
+              return (
+                <button
+                  onClick={() => navigate(newRoute)}
+                  style={styles.primaryButton}
+                >
+                  {labels.addClient}
+                </button>
+              );
+            }
+            return (
+              <button
+                onClick={() => setShowNewClientModal(true)}
+                style={styles.primaryButton}
+              >
+                {labels.addClient}
+              </button>
+            );
+          })()}
         </div>
 
         <div style={styles.statsGrid}>
@@ -293,14 +309,18 @@ export default function KYCClientManagement({ initialFilter = 'all', sector }) {
                         >
                           View Details
                         </button>
-                        {client.client_status === 'prospect' && client.onboarding_status === 'pending' && (
-                          <button
-                            onClick={() => navigate(`/kyc-form/${client.id}`)}
-                            style={{ ...styles.actionButton, background: '#2563eb', color: 'white', border: '1px solid #2563eb' }}
-                          >
-                            Complete KYC
-                          </button>
-                        )}
+                        {client.client_status === 'prospect' && client.onboarding_status === 'pending' && (() => {
+                          const route = getKycFormRoute(sector, client.id);
+                          if (!route) return null;
+                          return (
+                            <button
+                              onClick={() => navigate(route)}
+                              style={{ ...styles.actionButton, background: '#2563eb', color: 'white', border: '1px solid #2563eb' }}
+                            >
+                              Complete KYC
+                            </button>
+                          );
+                        })()}
                       </div>
                     </td>
                   </tr>
