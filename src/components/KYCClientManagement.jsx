@@ -417,6 +417,14 @@ function NewClientModal({ onClose, onSuccess, organizationId, userId }) {
   };
 
   const handleSubmit = async () => {
+    if (!formData.client_name?.trim()) {
+      alert('Client name is required.');
+      return;
+    }
+    if (!formData.national_id_plain?.trim()) {
+      alert('An ID or registration number is required.');
+      return;
+    }
     try {
       setSubmitting(true);
 
@@ -570,29 +578,32 @@ function BasicInformationStep({ formData, onChange, amlTriggerActivities, toggle
         />
       </div>
 
-      {formData.client_type === 'individual' && (
-        <>
-          <div style={styles.formGroup}>
-            <label style={styles.label}>ID Number</label>
-            <input
-              type="text"
-              value={formData.national_id_plain}
-              onChange={(e) => onChange({...formData, national_id_plain: e.target.value})}
-              style={styles.input}
-              placeholder="National ID, Passport, etc."
-            />
-          </div>
+      <div style={styles.formGroup}>
+        <label style={styles.label}>
+          {formData.client_type === 'individual' ? 'ID / Passport Number*' : 'Registration / ID Number*'}
+        </label>
+        <input
+          type="text"
+          value={formData.national_id_plain}
+          onChange={(e) => onChange({...formData, national_id_plain: e.target.value})}
+          style={styles.input}
+          placeholder={formData.client_type === 'individual' ? 'National ID, Passport, etc.' : 'Company registration or ID number'}
+        />
+        {!formData.national_id_plain?.trim() && (
+          <p style={{ color: '#dc3545', fontSize: '12px', margin: '4px 0 0' }}>Required to advance</p>
+        )}
+      </div>
 
-          <div style={styles.formGroup}>
-            <label style={styles.label}>Date of Birth</label>
-            <input
-              type="date"
-              value={formData.date_of_birth}
-              onChange={(e) => onChange({...formData, date_of_birth: e.target.value})}
-              style={styles.input}
-            />
-          </div>
-        </>
+      {formData.client_type === 'individual' && (
+        <div style={styles.formGroup}>
+          <label style={styles.label}>Date of Birth</label>
+          <input
+            type="date"
+            value={formData.date_of_birth}
+            onChange={(e) => onChange({...formData, date_of_birth: e.target.value})}
+            style={styles.input}
+          />
+        </div>
       )}
 
       <div style={styles.formGroup}>
@@ -923,7 +934,9 @@ function ReviewItem({ label, value }) {
 
 function isStepValid(step, formData) {
   if (step === 1) {
-    return formData.client_name && formData.client_type && formData.purpose_of_relationship;
+    const hasName = !!formData.client_name?.trim();
+    const hasIdentifier = !!formData.national_id_plain?.trim();
+    return hasName && hasIdentifier && !!formData.client_type && !!formData.purpose_of_relationship;
   }
   return true;
 }

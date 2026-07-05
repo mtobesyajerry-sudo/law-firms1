@@ -252,6 +252,11 @@ export default function KycCddForm({ recordId: propRecordId, onSave, onCancel })
               No
             </button>
           </div>
+          {errors[field.name] && (
+            <p style={{ color: '#dc3545', fontSize: '13px', margin: '4px 0 0' }}>
+              {errors[field.name]}
+            </p>
+          )}
         </div>
       );
     }
@@ -343,6 +348,11 @@ export default function KycCddForm({ recordId: propRecordId, onSave, onCancel })
           </div>
         )}
         {renderInputField(field, value, (newValue) => updateSectionData(section, field.name, newValue))}
+        {errors[field.name] && (
+          <p style={{ color: '#dc3545', fontSize: '13px', margin: '4px 0 0' }}>
+            {errors[field.name]}
+          </p>
+        )}
       </div>
     );
   };
@@ -442,6 +452,12 @@ export default function KycCddForm({ recordId: propRecordId, onSave, onCancel })
 
   const handleNext = () => {
     const availableSections = kycSections.filter(s => s.customerTypes.includes(customerType));
+    const sectionErrors = validateKycSection(availableSections[currentSection], getSectionData(availableSections[currentSection]));
+    if (Object.keys(sectionErrors).length > 0) {
+      setErrors(sectionErrors);
+      return;
+    }
+    setErrors({});
     if (currentSection < availableSections.length - 1) {
       setCurrentSection(currentSection + 1);
       window.scrollTo(0, 0);
@@ -550,6 +566,19 @@ export default function KycCddForm({ recordId: propRecordId, onSave, onCancel })
   };
 
   const handleSubmit = async () => {
+    const cd = formData.customer_data || {};
+    const name = cd.full_name || cd.registered_name || cd.fullName || cd.legalName || '';
+    const identifier = cd.national_id || cd.registration_number || cd.nationalId ||
+                       cd.registrationNumber || cd.passport_number || cd.passportNumber || '';
+    if (!name.trim()) {
+      setSaveMessage('Client/policyholder name is required before submitting.');
+      return;
+    }
+    if (!identifier.trim()) {
+      setSaveMessage('A national ID, passport, or registration number is required before submitting.');
+      return;
+    }
+
     try {
       setLoading(true);
 
