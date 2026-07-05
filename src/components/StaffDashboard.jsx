@@ -32,6 +32,7 @@ export default function StaffDashboard() {
   const { user, profile } = useAuth();
   const navigate = useNavigate();
   const labels = getSectorLabels(org?.sector);
+  const isInsurance = org?.sector === 'insurance';
 
   // Restore active view from URL on mount
   useEffect(() => {
@@ -193,6 +194,10 @@ export default function StaffDashboard() {
   }
 
   if (activeView === 'matters') {
+    if (isInsurance) {
+      changeView('overview');
+      return null;
+    }
     return (
       <div style={dashboardStyles.pageContainer}>
         <button
@@ -497,13 +502,15 @@ export default function StaffDashboard() {
           gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
           gap: '12px'
         }}>
-        <StatCard
-          title={labels.myMatters}
-          value={stats.myMatters}
-          icon={<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>}
-          color="#3b82f6"
-          onClick={() => changeView('matters')}
-        />
+        {!isInsurance && (
+          <StatCard
+            title={labels.myMatters}
+            value={stats.myMatters}
+            icon={<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>}
+            color="#3b82f6"
+            onClick={() => changeView('matters')}
+          />
+        )}
         <StatCard
           title={labels.myClients}
           value={stats.myClients}
@@ -544,10 +551,11 @@ export default function StaffDashboard() {
 
       <div style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(2, 1fr)',
+        gridTemplateColumns: isInsurance ? '1fr' : 'repeat(2, 1fr)',
         gap: '24px',
         marginBottom: '32px'
       }}>
+        {!isInsurance && (
         <div style={{
           background: 'white',
           borderRadius: '12px',
@@ -618,6 +626,7 @@ export default function StaffDashboard() {
             </div>
           )}
         </div>
+        )}
 
         <div style={{
           background: 'white',
@@ -746,6 +755,7 @@ export default function StaffDashboard() {
           Quick Actions
         </h3>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px' }}>
+          {!isInsurance && (
           <button
             onClick={() => changeView('matters')}
             style={styles.actionButton}
@@ -770,6 +780,7 @@ export default function StaffDashboard() {
               </div>
             </div>
           </button>
+          )}
           <button
             onClick={() => changeView('clients')}
             style={styles.actionButton}

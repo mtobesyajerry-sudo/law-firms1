@@ -6,6 +6,7 @@ import MatterMilestones from './MatterMilestones';
 import MatterBillingMilestones from './MatterBillingMilestones';
 import DocumentUploadManager from './DocumentUploadManager';
 import LoadingSpinner from './LoadingSpinner';
+import { AML_TRIGGER_LABELS } from '../utils/amlTriggerLabels';
 
 export default function MatterDetailView({ matter, onClose, onUpdate, activeTab: propActiveTab, onTabChange }) {
   const { profile } = useAuth();
@@ -122,18 +123,6 @@ export default function MatterDetailView({ matter, onClose, onUpdate, activeTab:
 
   const getAMLTriggerBadge = (triggers) => {
     if (!triggers || triggers.length === 0) return null;
-
-    const triggerLabels = {
-      real_estate: 'Real Estate',
-      high_value: 'High Value',
-      cash_transaction: 'Cash Transaction',
-      cross_border: 'Cross Border',
-      trust_formation: 'Trust/Company Formation',
-      high_risk_jurisdiction: 'High Risk Jurisdiction',
-      pep_involvement: 'PEP Involvement',
-      complex_structure: 'Complex Structure'
-    };
-
     return (
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '12px' }}>
         {triggers.map((trigger, idx) => (
@@ -149,7 +138,7 @@ export default function MatterDetailView({ matter, onClose, onUpdate, activeTab:
               border: '1px solid #fca5a5'
             }}
           >
-            {triggerLabels[trigger] || trigger.replace(/_/g, ' ')}
+            {AML_TRIGGER_LABELS[trigger] || trigger.replace(/_/g, ' ')}
           </span>
         ))}
       </div>

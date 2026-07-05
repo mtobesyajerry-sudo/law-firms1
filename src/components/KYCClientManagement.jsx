@@ -4,6 +4,7 @@ import { supabase } from '../supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
 import LoadingSpinner from './LoadingSpinner';
 import { getSectorLabels } from '../utils/sectorLabels';
+import { getAMLTriggersForSector } from '../utils/amlTriggerLabels';
 import {
   clientTypes,
   calculateRiskScore,
@@ -29,18 +30,6 @@ export default function KYCClientManagement({ initialFilter = 'all', sector }) {
   const navigate = useNavigate();
   const isReadOnly = profile?.role === 'management';
   const labels = getSectorLabels(sector);
-
-  const amlTriggerActivities = [
-    { value: 'real_property_transaction', label: 'Purchase/Sale of Real Property' },
-    { value: 'commercial_enterprise_transaction', label: 'Purchase/Sale of Commercial Enterprises' },
-    { value: 'client_funds_management', label: 'Management of Client Funds/Securities/Assets' },
-    { value: 'bank_account_management', label: 'Opening/Management of Bank/Savings Accounts' },
-    { value: 'corporation_capital_organization', label: 'Organizing Capital for Corporations/Legal Entities' },
-    { value: 'entity_creation_management', label: 'Creation/Management/Direction of Corporations/Legal Entities' },
-    { value: 'business_entity_transaction', label: 'Buying/Selling of Business Entities' },
-    { value: 'financial_transaction_representation', label: 'Acting on Behalf of Client in Financial Transactions' },
-    { value: 'real_estate_transaction_representation', label: 'Acting on Behalf of Client in Real Estate Transactions' }
-  ];
 
   useEffect(() => {
     if (profile?.organization_id) {
@@ -313,6 +302,7 @@ export default function KYCClientManagement({ initialFilter = 'all', sector }) {
             }}
             organizationId={profile.organization_id}
             userId={user.id}
+            sector={sector}
           />
         )}
       </div>
@@ -364,7 +354,7 @@ function StatusBadge({ status }) {
   );
 }
 
-function NewClientModal({ onClose, onSuccess, organizationId, userId }) {
+function NewClientModal({ onClose, onSuccess, organizationId, userId, sector }) {
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
     client_type: 'individual',
@@ -389,17 +379,7 @@ function NewClientModal({ onClose, onSuccess, organizationId, userId }) {
   });
   const [submitting, setSubmitting] = useState(false);
 
-  const amlTriggerActivities = [
-    { value: 'real_property_transaction', label: 'Purchase/Sale of Real Property' },
-    { value: 'commercial_enterprise_transaction', label: 'Purchase/Sale of Commercial Enterprises' },
-    { value: 'client_funds_management', label: 'Management of Client Funds/Securities/Assets' },
-    { value: 'bank_account_management', label: 'Opening/Management of Bank/Savings Accounts' },
-    { value: 'corporation_capital_organization', label: 'Organizing Capital for Corporations/Legal Entities' },
-    { value: 'entity_creation_management', label: 'Creation/Management/Direction of Corporations/Legal Entities' },
-    { value: 'business_entity_transaction', label: 'Buying/Selling of Business Entities' },
-    { value: 'financial_transaction_representation', label: 'Acting on Behalf of Client in Financial Transactions' },
-    { value: 'real_estate_transaction_representation', label: 'Acting on Behalf of Client in Real Estate Transactions' }
-  ];
+  const amlTriggerActivities = getAMLTriggersForSector(sector);
 
   const toggleAMLActivity = (activity) => {
     const currentActivities = formData.aml_trigger_activities || [];

@@ -33,6 +33,7 @@ export default function ClientManagementDashboard() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
+  const isInsurance = organization?.sector === 'insurance';
 
   const getBackRoute = () => {
     return '/client/dashboard';
@@ -656,13 +657,15 @@ export default function ClientManagementDashboard() {
           color="#9333ea"
           onClick={() => setActiveTab('clients')}
         />
-        <StatCard
-          title="Matter AML Alerts"
-          value={statistics.matterAlerts}
-          icon="🚨"
-          color="#dc2626"
-          onClick={() => setActiveTab('matters')}
-        />
+        {!isInsurance && (
+          <StatCard
+            title="Matter AML Alerts"
+            value={statistics.matterAlerts}
+            icon="🚨"
+            color="#dc2626"
+            onClick={() => setActiveTab('matters')}
+          />
+        )}
         <StatCard
           title="Transaction Alerts"
           value={statistics.openAlerts}
@@ -693,7 +696,7 @@ export default function ClientManagementDashboard() {
               badge: statistics.pendingRoleRequests + statistics.pendingAccessRequests
             },
             { id: 'clients', label: 'Clients', icon: '👥' },
-            { id: 'matters', label: 'Matters', icon: '📋' },
+            ...(!isInsurance ? [{ id: 'matters', label: 'Matters', icon: '📋' }] : []),
             { id: 'assessments', label: 'Assessments', icon: '📝' },
             { id: 'alerts', label: 'Alerts', icon: '🚨' }
           ].map(tab => (
@@ -1369,6 +1372,7 @@ export default function ClientManagementDashboard() {
                   </div>
                 </div>
 
+                {!isInsurance && (
                 <div style={{ padding: '20px', background: '#f8f9fa', borderRadius: '12px', border: '1px solid #e5e7eb' }}>
                   <div style={{ fontSize: '14px', color: '#64748b', marginBottom: '8px', fontWeight: '600' }}>Matter Status</div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -1392,6 +1396,7 @@ export default function ClientManagementDashboard() {
                     </div>
                   </div>
                 </div>
+                )}
 
                 <div style={{ padding: '20px', background: '#f8f9fa', borderRadius: '12px', border: '1px solid #e5e7eb' }}>
                   <div style={{ fontSize: '14px', color: '#64748b', marginBottom: '8px', fontWeight: '600' }}>Recent Activity</div>
@@ -1506,7 +1511,9 @@ export default function ClientManagementDashboard() {
           )}
 
           {activeTab === 'matters' && (
-            <MatterManagement sector={organization?.sector} />
+            isInsurance
+              ? (setActiveTab('overview'), null)
+              : <MatterManagement sector={organization?.sector} />
           )}
 
           {activeTab === 'assessments' && (
