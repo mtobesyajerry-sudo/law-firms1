@@ -19,6 +19,22 @@ import {
  * This simplified form is only for frameworks that don't require comprehensive KYC/CDD assessments.
  */
 export default function CreateClientForm({ onClose, onSuccess, frameworkType }) {
+  return (
+    <div style={{ padding: '32px', textAlign: 'center', color: '#64748b' }}>
+      <h3 style={{ marginBottom: '12px', color: '#0f172a' }}>This form is deprecated</h3>
+      <p>Use the KYC/CDD form for your sector instead.</p>
+      {onClose && (
+        <button
+          onClick={onClose}
+          style={{ marginTop: '16px', padding: '8px 16px', cursor: 'pointer' }}
+        >
+          Close
+        </button>
+      )}
+    </div>
+  );
+
+  // eslint-disable-next-line no-unreachable
   const { profile } = useAuth();
   const [loading, setLoading] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);

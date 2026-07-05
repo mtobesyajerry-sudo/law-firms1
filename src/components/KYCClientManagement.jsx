@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import LoadingSpinner from './LoadingSpinner';
 import { getSectorLabels } from '../utils/sectorLabels';
 import { getAMLTriggersForSector } from '../utils/amlTriggerLabels';
+import { isKycComplete } from '../utils/kycCompleteness';
 import {
   clientTypes,
   calculateRiskScore,
@@ -74,6 +75,7 @@ export default function KYCClientManagement({ initialFilter = 'all', sector }) {
   const filteredClients = clients.filter(client => {
     if (activeTab === 'all') return true;
     if (activeTab === 'active') return client.client_status === 'active';
+    if (activeTab === 'pending_assessment') return client.onboarding_status === 'pending' && client.client_status === 'prospect';
     if (activeTab === 'high_risk') return client.current_risk_rating === riskLevels.HIGH || client.current_risk_rating === riskLevels.VERY_HIGH;
     if (activeTab === 'pep') return client.pep_status === true;
     if (activeTab === 'enhanced_dd') return client.current_dd_level === 'enhanced';
@@ -136,6 +138,11 @@ export default function KYCClientManagement({ initialFilter = 'all', sector }) {
             label={`Active (${clients.filter(c => c.client_status === 'active').length})`}
             active={activeTab === 'active'}
             onClick={() => setActiveTab('active')}
+          />
+          <TabButton
+            label={`Pending Assessment (${clients.filter(c => c.onboarding_status === 'pending' && c.client_status === 'prospect').length})`}
+            active={activeTab === 'pending_assessment'}
+            onClick={() => setActiveTab('pending_assessment')}
           />
           <TabButton
             label={`Enhanced DD (${clients.filter(c => c.current_dd_level === 'enhanced').length})`}
@@ -297,9 +304,15 @@ export default function KYCClientManagement({ initialFilter = 'all', sector }) {
         {showNewClientModal && (
           <NewClientModal
             onClose={() => setShowNewClientModal(false)}
-            onSuccess={() => {
+            onSuccess={(missingFields) => {
               setShowNewClientModal(false);
               loadClients();
+              if (missingFields && missingFields.length > 0) {
+                alert(
+                  'Client saved as Pending Assessment. Complete the following to activate:\n\n' +
+                  missingFields.map(m => '• ' + m).join('\n')
+                );
+              }
             }}
             organizationId={profile.organization_id}
             userId={user.id}
@@ -337,13 +350,14 @@ function TabButton({ label, active, onClick }) {
 
 function StatusBadge({ status }) {
   const statusConfig = {
+    prospect: { label: 'Pending Assessment', bg: '#fef3c7', color: '#d97706' },
     active: { label: 'Active', bg: '#d1fae5', color: '#065f46' },
     inactive: { label: 'Inactive', bg: '#fee2e2', color: '#991b1b' },
     suspended: { label: 'Suspended', bg: '#fef3c7', color: '#92400e' },
     rejected: { label: 'Rejected', bg: '#fecaca', color: '#7f1d1d' }
   };
 
-  const config = statusConfig[status] || statusConfig.active;
+  const config = statusConfig[status] || { label: status || 'Unknown', bg: '#f1f5f9', color: '#64748b' };
 
   return (
     <span style={{
@@ -381,20 +395,20 @@ function NewClientModal({ onClose, onSuccess, organizationId, userId, sector, la
   });
   const [submitting, setSubmitting] = useState(false);
 
+  const NONE_APPLY_SENTINEL = 'none_apply';
   const amlTriggerActivities = getAMLTriggersForSector(sector);
 
   const toggleAMLActivity = (activity) => {
     const currentActivities = formData.aml_trigger_activities || [];
-    if (currentActivities.includes(activity)) {
-      setFormData({
-        ...formData,
-        aml_trigger_activities: currentActivities.filter(a => a !== activity)
-      });
+    if (activity === NONE_APPLY_SENTINEL) {
+      // Selecting "none apply" clears all real triggers and toggles the sentinel
+      const hasSentinel = currentActivities.includes(NONE_APPLY_SENTINEL);
+      setFormData({ ...formData, aml_trigger_activities: hasSentinel ? [] : [NONE_APPLY_SENTINEL] });
     } else {
-      setFormData({
-        ...formData,
-        aml_trigger_activities: [...currentActivities, activity]
-      });
+      // Selecting a real trigger removes the sentinel and toggles the trigger
+      const without = currentActivities.filter(a => a !== NONE_APPLY_SENTINEL && a !== activity);
+      const updated = currentActivities.includes(activity) ? without : [...without, activity];
+      setFormData({ ...formData, aml_trigger_activities: updated });
     }
   };
 
@@ -421,6 +435,27 @@ function NewClientModal({ onClose, onSuccess, organizationId, userId, sector, la
       // Convert risk score from 0-100 scale to 1-5 scale for database (numeric(3,2))
       const normalizedRiskScore = Math.min(5.0, Math.max(1.0, (riskScore / 100) * 4 + 1));
 
+      // Completeness check — corporate/trust/partnership always land as prospect
+      // because the quick modal has no beneficial owner step
+      const corporateTypes = ['company', 'corporate', 'trust', 'partnership', 'llp'];
+      const isCorporate = corporateTypes.some(t => formData.client_type.toLowerCase().includes(t));
+
+      const { complete, missing } = isKycComplete({
+        riskFactors:   formData.riskFactors,
+        sourceOfFunds: formData.source_of_funds,
+        amlTriggers:   formData.aml_trigger_activities,
+        clientType:    formData.client_type,
+        // checkBeneficialOwners: false — no BO step in this modal
+      });
+
+      const effectiveComplete = complete && !isCorporate;
+      const effectiveMissing = isCorporate
+        ? [...missing, 'Beneficial owner information must be completed in the full KYC form']
+        : missing;
+
+      // Never allow Simplified DD when completeness is in doubt
+      const finalDdLevel = (!effectiveComplete && dueDiligenceLevel === 'simplified') ? 'standard' : dueDiligenceLevel;
+
       const clientData = {
         organization_id: organizationId,
         client_type: formData.client_type,
@@ -438,26 +473,24 @@ function NewClientModal({ onClose, onSuccess, organizationId, userId, sector, la
         pep_details: formData.is_pep ? 'PEP details to be verified during enhanced due diligence' : null,
         base_risk_score: normalizedRiskScore.toFixed(2),
         current_risk_rating: riskLevel,
-        current_dd_level: dueDiligenceLevel,
-        client_status: 'active',
-        onboarding_status: 'completed',
+        current_dd_level: finalDdLevel,
+        client_status: effectiveComplete ? 'active' : 'prospect',
+        onboarding_status: effectiveComplete ? 'completed' : 'pending',
         next_review_date: nextReviewDate.toISOString().split('T')[0],
         monitoring_frequency: monitoringFreq.value,
-        edd_required: dueDiligenceLevel === dueDiligenceLevels.ENHANCED,
-        senior_approval_status: dueDiligenceLevel === dueDiligenceLevels.ENHANCED ? 'pending' : 'not_required',
+        edd_required: finalDdLevel === dueDiligenceLevels.ENHANCED,
+        senior_approval_status: finalDdLevel === dueDiligenceLevels.ENHANCED ? 'pending' : 'not_required',
         created_by: userId,
         relationship_manager_id: userId
       };
 
-      const { data: client, error: clientError } = await supabase
+      const { error: clientError } = await supabase
         .from('kyc_clients')
-        .insert([clientData])
-        .select()
-        .single();
+        .insert([clientData]);
 
       if (clientError) throw clientError;
 
-      onSuccess();
+      onSuccess(effectiveComplete ? null : effectiveMissing);
     } catch (error) {
       console.error('Error creating client:', error);
       alert(labels.alertCreateError + error.message);
@@ -723,8 +756,32 @@ function BasicInformationStep({ formData, onChange, amlTriggerActivities, toggle
               </span>
             </label>
           ))}
+          <label
+            style={{
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: '8px',
+              cursor: 'pointer',
+              padding: '8px',
+              background: (formData.aml_trigger_activities || []).includes('none_apply') ? '#f0fdf4' : 'white',
+              borderRadius: '6px',
+              border: '1px solid ' + ((formData.aml_trigger_activities || []).includes('none_apply') ? '#16a34a' : '#e5e7eb'),
+              transition: 'all 0.2s ease',
+              gridColumn: '1 / -1'
+            }}
+          >
+            <input
+              type="checkbox"
+              checked={(formData.aml_trigger_activities || []).includes('none_apply')}
+              onChange={() => toggleAMLActivity('none_apply')}
+              style={{ width: '16px', height: '16px', marginTop: '2px', flexShrink: 0 }}
+            />
+            <span style={{ fontSize: '13px', color: '#166534', fontWeight: '500', lineHeight: '1.4' }}>
+              None of the above apply to this client
+            </span>
+          </label>
         </div>
-        {(formData.aml_trigger_activities || []).length > 0 && (
+        {(formData.aml_trigger_activities || []).filter(a => a !== 'none_apply').length > 0 && (
           <div style={{
             marginTop: '12px',
             padding: '8px 12px',

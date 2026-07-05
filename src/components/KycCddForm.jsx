@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { kycSections, KYC_SECTIONS } from '../data/kycCddData';
 import { calculateKycRiskScore, validateKycSection, getNextReviewDate, checkSuspiciousActivity } from '../utils/kycRiskCalculator';
 import { calculateRiskScore as calculateInsuranceRiskScore, beneficiaryRiskFactors } from '../data/insuranceKycData';
+import { isKycComplete } from '../utils/kycCompleteness';
 
 export default function KycCddForm({ recordId: propRecordId, onSave, onCancel }) {
   const { id: paramId } = useParams();
@@ -532,7 +533,8 @@ export default function KycCddForm({ recordId: propRecordId, onSave, onCancel })
         customer_declaration: formData.customer_declaration || {},
         compliance_approval: formData.compliance_approval || {},
         matter_id: matterId || null,
-        onboarding_status: 'in_progress'
+        onboarding_status: 'in_progress',
+        client_status: 'prospect'
       };
 
       if (recordId) {
@@ -639,6 +641,19 @@ export default function KycCddForm({ recordId: propRecordId, onSave, onCancel })
         ddLevel = 'enhanced';
       }
 
+      // Completeness check — incomplete records land as prospect/pending
+      const { complete: kycComplete } = isKycComplete({
+        riskFactors:           formData.customer_risk,
+        sourceOfFunds:         formData.source_of_funds,
+        amlTriggers:           formData.suspicious_indicators,
+        clientType:            customerType,
+        beneficialOwners:      formData.beneficial_owners,
+        checkBeneficialOwners: true,
+      });
+
+      // Never allow Simplified DD when completeness is in doubt
+      const finalDdLevel = (!kycComplete && ddLevel === 'simplified') ? 'standard' : ddLevel;
+
       // Determine review frequency based on DD level
       let reviewFrequency = 'quarterly';
       if (ddLevel === 'simplified') {
@@ -710,20 +725,21 @@ export default function KycCddForm({ recordId: propRecordId, onSave, onCancel })
         risk_assessment: riskCalculation.riskAssessment,
         total_risk_score: effectiveScore,
         risk_level: effectiveRiskLevel,
-        // Derived from ddLevel (effectiveScore > 60), not riskCalculation.enhancedDdRequired.
+        // Derived from finalDdLevel (effectiveScore > 60), not riskCalculation.enhancedDdRequired.
         // If calculateKycRiskScore ever adds non-score EDD triggers (PEP, sanctions hit,
         // high-risk country), mirror them here so they aren't silently dropped.
-        enhanced_dd_required: ddLevel === 'enhanced',
+        enhanced_dd_required: finalDdLevel === 'enhanced',
         monitoring_frequency: MONITORING_FREQUENCY_MAP[riskCalculation.monitoringFrequency] ?? 'quarterly',
         last_review_date: new Date().toISOString(),
         next_review_date: nextReview.toISOString(),
         onboarding_status: 'pending',
         // Three-tier DD framework fields
-        current_dd_level: ddLevel,
+        current_dd_level: finalDdLevel,
         review_frequency: reviewFrequency,
         monitoring_status: 'active',
-        customer_status: 'active',
-        senior_approval_status: ddLevel === 'enhanced' ? 'pending' : 'not_required',
+        customer_status: kycComplete ? 'active' : 'prospect',
+        client_status: kycComplete ? 'active' : 'prospect',
+        senior_approval_status: finalDdLevel === 'enhanced' ? 'pending' : 'not_required',
         source_of_funds_verified: false,
         source_of_wealth_verified: false,
         first_payment_verified: false

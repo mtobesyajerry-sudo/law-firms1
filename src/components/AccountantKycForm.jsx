@@ -201,6 +201,7 @@ export default function AccountantKycForm() {
         phone_plain: phone || null,
         address_plain: address || null,
         nationality: country,
+        client_status: 'prospect',
         onboarding_status: 'draft',
         base_risk_score: riskAssessment.totalScore,
         current_risk_rating: riskAssessment.riskLevel,
