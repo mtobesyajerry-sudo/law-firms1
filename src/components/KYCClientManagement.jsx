@@ -286,12 +286,22 @@ export default function KYCClientManagement({ initialFilter = 'all', sector }) {
                       )}
                     </td>
                     <td style={styles.td}>
-                      <button
-                        onClick={() => navigate(`/kyc-client/${client.id}`)}
-                        style={styles.actionButton}
-                      >
-                        View Details
-                      </button>
+                      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                        <button
+                          onClick={() => navigate(`/kyc-client/${client.id}`)}
+                          style={styles.actionButton}
+                        >
+                          View Details
+                        </button>
+                        {client.client_status === 'prospect' && client.onboarding_status === 'pending' && (
+                          <button
+                            onClick={() => navigate(`/kyc-form/${client.id}`)}
+                            style={{ ...styles.actionButton, background: '#2563eb', color: 'white', border: '1px solid #2563eb' }}
+                          >
+                            Complete KYC
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                   );

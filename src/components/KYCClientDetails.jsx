@@ -24,6 +24,7 @@ import {
   isReviewOverdue
 } from '../data/kycData';
 import { checkEnhancedDDTriggers } from '../utils/documentUtils';
+import { isKycComplete } from '../utils/kycCompleteness';
 
 function StandardDDStatusSection({ client }) {
   const getStatusColor = (isCompleted) => {
@@ -373,7 +374,7 @@ const unifiedStyles = {
 export default function KYCClientDetails() {
   const { clientId } = useParams();
   const navigate = useNavigate();
-  const { profile } = useAuth();
+  const { profile, organization } = useAuth();
   const [client, setClient] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
@@ -387,6 +388,18 @@ export default function KYCClientDetails() {
   const [clientReviews, setClientReviews] = useState([]);
   // Read-only access for management and compliance_officer roles
   const isReadOnly = profile?.role === 'management' || profile?.role === 'compliance_officer';
+  const isPendingAssessment = client?.client_status === 'prospect' && client?.onboarding_status === 'pending';
+  const isAccountantOrg = organization?.dnfbp_category === 'accountant';
+  const completenessResult = client && isPendingAssessment
+    ? isKycComplete({
+        riskFactors:           client.customer_data?.customer_risk_factors,
+        sourceOfFunds:         client.source_of_funds,
+        amlTriggers:           client.suspicious_indicators || client.aml_trigger_activities,
+        clientType:            client.customer_type || client.client_type,
+        beneficialOwners:      client.beneficial_owners || [],
+        checkBeneficialOwners: true,
+      })
+    : null;
 
   const getDashboardRoute = () => {
     if (!profile?.role) return '/client/dashboard';
@@ -563,20 +576,96 @@ export default function KYCClientDetails() {
             </div>
           </div>
           <div style={styles.headerBadges}>
+            {isPendingAssessment && (
+              <span style={{
+                ...styles.badge,
+                background: '#fef3c725',
+                color: '#92400e',
+                borderColor: '#fbbf24'
+              }}>
+                PENDING ASSESSMENT
+              </span>
+            )}
             <span style={{
               ...styles.badge,
               background: getRiskColor(client.current_risk_rating) + '25',
               color: getRiskColor(client.current_risk_rating),
               borderColor: getRiskColor(client.current_risk_rating)
             }}>
-              {client.current_risk_rating?.toUpperCase()} RISK
+              {isPendingAssessment ? 'PROVISIONAL' : ''} {client.current_risk_rating?.toUpperCase()} RISK
             </span>
+            {isPendingAssessment && !isReadOnly && !isAccountantOrg && (
+              <button
+                onClick={() => navigate(`/kyc-form/${clientId}`)}
+                style={{
+                  padding: '8px 16px',
+                  background: '#2563eb',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  fontSize: '13px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                }}
+              >
+                Complete KYC Assessment
+              </button>
+            )}
           </div>
         </div>
       </header>
 
       {/* Content Area */}
       <div style={styles.content}>
+        {/* Pending Assessment Banner */}
+        {isPendingAssessment && (
+          <div style={{
+            background: '#fffbeb',
+            border: '1px solid #fbbf24',
+            borderRadius: '8px',
+            padding: '16px 20px',
+            marginBottom: '16px',
+            display: 'flex',
+            alignItems: 'flex-start',
+            gap: '12px',
+          }}>
+            <span style={{ fontSize: '20px', lineHeight: 1 }}>⚠</span>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontWeight: '600', color: '#92400e', fontSize: '14px', marginBottom: '6px' }}>
+                KYC Assessment Incomplete
+              </div>
+              {completenessResult && completenessResult.missing.length > 0 && (
+                <ul style={{ margin: '0 0 10px', paddingLeft: '18px' }}>
+                  {completenessResult.missing.map((item, i) => (
+                    <li key={i} style={{ color: '#78350f', fontSize: '13px', marginBottom: '2px' }}>{item}</li>
+                  ))}
+                </ul>
+              )}
+              {isAccountantOrg ? (
+                <div style={{ color: '#78350f', fontSize: '13px' }}>
+                  To complete this record, use the Accountant KYC form from the dashboard.
+                </div>
+              ) : !isReadOnly && (
+                <button
+                  onClick={() => navigate(`/kyc-form/${clientId}`)}
+                  style={{
+                    padding: '7px 14px',
+                    background: '#2563eb',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '6px',
+                    fontSize: '13px',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Complete KYC Assessment
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* DD Triggers Alert */}
         {ddTriggers && ddTriggers.isTriggered && (
           <div style={styles.alertCard}>
