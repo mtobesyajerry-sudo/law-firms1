@@ -510,11 +510,11 @@ export default function AssessmentForm() {
         overall_risk_rating: typeof overallRisk === 'string' ? overallRisk : overallRisk?.level || 'MODERATE',
         overall_risk_score: typeof overallRisk === 'object' ? overallRisk.score : scores.residualRisk?.score || 0,
         completed_at: new Date().toISOString(),
-        module_1_score: scores.module1?.score || 0,
-        module_2_score: scores.module2?.score || 0,
-        module_3_score: scores.module3?.score || 0,
-        module_4_score: scores.module4?.score || 0,
-        module_4_rating: scores.module4?.rating || null
+        module_1_score: scores.module1?.score ?? null,
+        module_2_score: scores.module2?.score ?? null,
+        module_3_score: scores.module3?.score ?? null,
+        module_4_score: scores.module4?.score ?? null,
+        module_4_rating: scores.module4?.rating ?? null
       };
 
       console.log('Update Payload:', updatePayload);
