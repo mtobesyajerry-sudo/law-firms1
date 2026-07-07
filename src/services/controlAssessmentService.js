@@ -218,6 +218,14 @@ export class ControlAssessmentService {
    */
   static async calculateAndUpdateDomainScores(assessmentId) {
     try {
+      const { data: assessment, error: assessmentError } = await supabase
+        .from('assessments')
+        .select('organization_id')
+        .eq('id', assessmentId)
+        .single();
+
+      if (assessmentError) throw assessmentError;
+
       // Get all control assessments with their controls and domains
       const { data: controlAssessments, error: caError } = await supabase
         .from('control_assessments')
@@ -265,6 +273,7 @@ export class ControlAssessmentService {
         domainScoreUpdates.push({
           assessment_id: assessmentId,
           domain_id: domainId,
+          organization_id: assessment.organization_id,
           average_maturity: scores.averageMaturity,
           weighted_score: scores.weightedScore,
           controls_assessed: scores.controlsAssessed,
