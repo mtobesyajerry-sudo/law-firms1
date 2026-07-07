@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
+import PageHeader from './PageHeader';
 
 export default function SecurityDashboard() {
   const navigate = useNavigate();
@@ -246,15 +247,11 @@ export default function SecurityDashboard() {
 
   return (
     <div style={styles.container}>
-      <div style={styles.header}>
-        <div>
-          <h1 style={styles.title}>Security Dashboard</h1>
-          <p style={styles.subtitle}>Security monitoring, session activity, and audit logs</p>
-        </div>
-        <button onClick={() => navigate('/admin/dashboard')} style={styles.backButton}>
-          Back
-        </button>
-      </div>
+      <PageHeader
+        title="Security Dashboard"
+        subtitle="Security monitoring, session activity, and audit logs"
+        onBack={() => navigate('/admin/dashboard')}
+      />
 
       <div style={styles.statsGrid}>
         <div style={styles.statCard}>

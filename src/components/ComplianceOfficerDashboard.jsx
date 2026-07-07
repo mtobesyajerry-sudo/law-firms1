@@ -7,6 +7,7 @@ import STRAlertDashboard from './STRAlertDashboard';
 import ScreeningDashboard from './ScreeningDashboard';
 import DataDeletionRequestsPanel from './DataDeletionRequestsPanel';
 import { dashboardStyles, getBadgeStyle, getRiskBadgeStyle, getStatusBadgeStyle } from '../utils/dashboardStyles';
+import PageHeader from './PageHeader';
 import LoadingSpinner from './LoadingSpinner';
 import RoleUpgradeRequestForm from './RoleUpgradeRequestForm';
 
@@ -489,49 +490,36 @@ export default function ComplianceOfficerDashboard() {
 
   return (
     <div style={dashboardStyles.pageContainer}>
-      <div style={dashboardStyles.headerCard}>
-        <div style={dashboardStyles.headerContent}>
-          <div>
-            <div style={dashboardStyles.headerTitle}>
-              AML/CFT Compliance System
-            </div>
-            <h1 style={dashboardStyles.headerSubtitle}>
-              Compliance Dashboard
-            </h1>
-            {profile?.first_name && (
-              <p style={{ color: '#d4af37', fontSize: '16px', margin: '8px 0 0 0', fontWeight: '600' }}>
-                Welcome, {profile.first_name}
-              </p>
-            )}
-            <p style={{ color: 'rgba(255,255,255,0.8)', fontSize: '14px', margin: '8px 0 0 0' }}>
-              Risk assessment, STR alerts, and compliance monitoring
+      <PageHeader
+        eyebrow="AML/CFT Compliance System"
+        title="Compliance Dashboard"
+        subtitle={<>
+          {profile?.first_name && (
+            <p style={{ color: '#d4af37', fontSize: '16px', margin: '0 0 4px 0', fontWeight: '600' }}>
+              Welcome, {profile.first_name}
             </p>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'flex-end' }}>
-            <button
-              onClick={() => navigate('/security/settings')}
-              style={{
-                padding: '6px 14px', background: 'transparent',
-                border: '1.5px solid rgba(255,255,255,0.3)', borderRadius: '8px',
-                color: 'rgba(255,255,255,0.8)', fontSize: '12px', fontWeight: '600',
-                cursor: 'pointer', transition: 'all 0.2s',
-              }}
-              onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#d4af37'; e.currentTarget.style.color = '#d4af37'; }}
-              onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.3)'; e.currentTarget.style.color = 'rgba(255,255,255,0.8)'; }}
-            >
-              Security Settings
-            </button>
-            <button
-              onClick={() => navigate(getBackRoute())}
-              style={dashboardStyles.backButton}
-              onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(212, 175, 55, 0.1)'; }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
-            >
-              ← Back
-            </button>
-          </div>
-        </div>
-      </div>
+          )}
+          <p style={{ color: 'rgba(255,255,255,0.8)', fontSize: '14px', margin: 0 }}>
+            Risk assessment, STR alerts, and compliance monitoring
+          </p>
+        </>}
+        onBack={() => navigate(getBackRoute())}
+        actions={
+          <button
+            onClick={() => navigate('/security/settings')}
+            style={{
+              padding: '6px 14px', background: 'transparent',
+              border: '1.5px solid rgba(255,255,255,0.3)', borderRadius: '8px',
+              color: 'rgba(255,255,255,0.8)', fontSize: '12px', fontWeight: '600',
+              cursor: 'pointer', transition: 'all 0.2s',
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#d4af37'; e.currentTarget.style.color = '#d4af37'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.3)'; e.currentTarget.style.color = 'rgba(255,255,255,0.8)'; }}
+          >
+            Security Settings
+          </button>
+        }
+      />
 
       <div style={dashboardStyles.contentCard}>
         <h2 style={dashboardStyles.sectionTitle}>Compliance Metrics</h2>

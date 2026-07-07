@@ -9,6 +9,7 @@ import NewScreeningModal from './NewScreeningModal';
 import ReviewMatchesPanel from './ReviewMatchesPanel';
 import ManageListsPanel from './ManageListsPanel';
 import { getDashboardCounters, getScreeningHistory } from '../services/screeningService';
+import PageHeader from './PageHeader';
 
 export default function ScreeningDashboard({ onBack }) {
   const [loading, setLoading] = useState(true);
@@ -278,20 +279,12 @@ export default function ScreeningDashboard({ onBack }) {
       )}
 
       {/* Header */}
-      <div style={dashboardStyles.headerCard}>
-        <div style={{ ...dashboardStyles.headerContent, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div>
-            <div style={dashboardStyles.headerTitle}>SANCTIONS & SCREENING</div>
-            <h1 style={dashboardStyles.headerSubtitle}>Compliance Screening Dashboard</h1>
-            <p style={{ color: 'rgba(255,255,255,0.8)', fontSize: '14px', marginTop: '8px', maxWidth: '600px' }}>
-              Screen clients against sanctions, PEP, and adverse media lists to ensure compliance
-            </p>
-          </div>
-          {onBack && (
-            <button onClick={onBack} style={{ ...dashboardStyles.buttonSecondary, color: '#ffffff' }}>← Back</button>
-          )}
-        </div>
-      </div>
+      <PageHeader
+        eyebrow="SANCTIONS & SCREENING"
+        title="Compliance Screening Dashboard"
+        subtitle="Screen clients against sanctions, PEP, and adverse media lists to ensure compliance"
+        onBack={onBack}
+      />
 
       {/* Workflow Explanation Card */}
       <div style={{
