@@ -279,7 +279,7 @@ export default function ScreeningDashboard({ onBack }) {
 
       {/* Header */}
       <div style={dashboardStyles.headerCard}>
-        <div style={{ ...dashboardStyles.headerContent, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <div style={{ ...dashboardStyles.headerContent, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
             <div style={dashboardStyles.headerTitle}>SANCTIONS & SCREENING</div>
             <h1 style={dashboardStyles.headerSubtitle}>Compliance Screening Dashboard</h1>
