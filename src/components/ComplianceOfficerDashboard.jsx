@@ -27,6 +27,7 @@ export default function ComplianceOfficerDashboard() {
   const [recentActivity, setRecentActivity] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeView, setActiveView] = useState('overview');
+  const [clientInitialFilter, setClientInitialFilter] = useState(null);
   const [assessments, setAssessments] = useState([]);
   const [organizationUsers, setOrganizationUsers] = useState([]);
   const [kycClients, setKycClients] = useState([]);
@@ -217,17 +218,30 @@ export default function ComplianceOfficerDashboard() {
     return (
       <div style={dashboardStyles.pageContainer}>
         <button
-          onClick={() => setActiveView('overview')}
+          onClick={() => { setClientInitialFilter(null); setActiveView('overview'); }}
           style={dashboardStyles.buttonSecondary}
         >
           ← Back
         </button>
 
         <div style={dashboardStyles.contentCard}>
-          <div style={{ marginBottom: '24px' }}>
+          <div style={{ marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '12px' }}>
             <h3 style={{ margin: 0, fontSize: '20px', fontWeight: '600', color: '#0a1929' }}>
               Client Management
             </h3>
+            {clientInitialFilter && (
+              <span style={{
+                padding: '3px 10px',
+                borderRadius: '12px',
+                fontSize: '12px',
+                fontWeight: '600',
+                background: '#fef3c7',
+                color: '#92400e',
+                border: '1px solid #fcd34d'
+              }}>
+                {clientInitialFilter === 'high_risk' ? 'High Risk' : clientInitialFilter === 'pep' ? 'PEP' : 'Overdue Review'}
+              </span>
+            )}
           </div>
 
           {stats.totalClients === 0 ? (
@@ -237,7 +251,7 @@ export default function ComplianceOfficerDashboard() {
               <div style={{ fontSize: '14px' }}>Clients will appear here once they are added to the system</div>
             </div>
           ) : (
-            <ClientsList organizationId={profile.organization_id} navigate={navigate} />
+            <ClientsList organizationId={profile.organization_id} navigate={navigate} initialFilter={clientInitialFilter} />
           )}
         </div>
       </div>
@@ -533,13 +547,14 @@ export default function ComplianceOfficerDashboard() {
           value={stats.highRiskClients}
           icon="⚠️"
           color="#ef4444"
-          onClick={() => setActiveView('clients')}
+          onClick={() => { setClientInitialFilter('high_risk'); setActiveView('clients'); }}
         />
         <StatCard
           title="PEP Clients"
           value={stats.pepClients}
           icon="👔"
           color="#f59e0b"
+          onClick={() => { setClientInitialFilter('pep'); setActiveView('clients'); }}
         />
         <StatCard
           title="Pending Alerts"
@@ -553,18 +568,21 @@ export default function ComplianceOfficerDashboard() {
           value={stats.overdueReviews}
           icon="📅"
           color="#f59e0b"
+          onClick={() => { setClientInitialFilter('overdue'); setActiveView('clients'); }}
         />
         <StatCard
           title="Active STRs"
           value={stats.activeSTRs}
           icon="📝"
           color="#6366f1"
+          onClick={() => setActiveView('alerts')}
         />
         <StatCard
           title="Red Flag Incidents"
           value={stats.redFlagIncidents}
           icon="🚩"
           color="#ef4444"
+          onClick={() => setActiveView('alerts')}
         />
         </div>
       </div>
@@ -750,20 +768,29 @@ function StatCard({ title, value, icon, color, onClick }) {
   );
 }
 
-function ClientsList({ organizationId, navigate }) {
+function ClientsList({ organizationId, navigate, initialFilter }) {
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const loadClients = async () => {
       try {
-        const { data } = await supabase
+        let query = supabase
           .from('kyc_clients')
           .select('*')
           .eq('organization_id', organizationId)
           .order('created_at', { ascending: false })
-          .limit(10);
+          .limit(50);
 
+        if (initialFilter === 'high_risk') {
+          query = query.eq('risk_level', 'high');
+        } else if (initialFilter === 'pep') {
+          query = query.eq('is_pep', true);
+        } else if (initialFilter === 'overdue') {
+          query = query.lt('next_review_date', new Date().toISOString().split('T')[0]);
+        }
+
+        const { data } = await query;
         setClients(data || []);
       } catch (error) {
         console.error('Error loading clients:', error);
@@ -775,7 +802,7 @@ function ClientsList({ organizationId, navigate }) {
     if (organizationId) {
       loadClients();
     }
-  }, [organizationId]);
+  }, [organizationId, initialFilter]);
 
   if (loading) {
     return <LoadingSpinner minHeight="300px" />;

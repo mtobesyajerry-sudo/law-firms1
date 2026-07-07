@@ -288,31 +288,37 @@ export default function STRAlertDashboard() {
               title="Total Alerts"
               value={statistics.total}
               color="#0a1929"
+              onClick={() => setFilters({ status: 'all', severity: 'all', assigned: 'all' })}
             />
             <StatCard
               title="New Alerts"
               value={statistics.new}
               color="#3b82f6"
+              onClick={() => setFilters(f => ({ ...f, status: 'New', severity: 'all' }))}
             />
             <StatCard
               title="Under Review"
               value={statistics.underReview}
               color="#f59e0b"
+              onClick={() => setFilters(f => ({ ...f, status: 'In Progress', severity: 'all' }))}
             />
             <StatCard
               title="Escalated"
               value={statistics.escalated}
               color="#ef4444"
+              onClick={() => setFilters(f => ({ ...f, status: 'Escalated', severity: 'all' }))}
             />
             <StatCard
               title="High Priority"
               value={statistics.high}
               color="#ef4444"
+              onClick={() => setFilters(f => ({ ...f, severity: 'High', status: 'all' }))}
             />
             <StatCard
               title="Critical"
               value={statistics.critical}
               color="#dc2626"
+              onClick={() => setFilters(f => ({ ...f, severity: 'Critical', status: 'all' }))}
             />
           </div>
         )}
@@ -498,9 +504,28 @@ export default function STRAlertDashboard() {
   );
 }
 
-function StatCard({ title, value, color }) {
+function StatCard({ title, value, color, onClick }) {
   return (
-    <div style={styles.statCard}>
+    <div
+      onClick={onClick}
+      style={{
+        ...styles.statCard,
+        cursor: onClick ? 'pointer' : 'default',
+        transition: 'all 0.2s ease',
+      }}
+      onMouseEnter={(e) => {
+        if (onClick) {
+          e.currentTarget.style.transform = 'translateY(-3px)';
+          e.currentTarget.style.boxShadow = '0 6px 20px rgba(0,0,0,0.12)';
+        }
+      }}
+      onMouseLeave={(e) => {
+        if (onClick) {
+          e.currentTarget.style.transform = 'translateY(0)';
+          e.currentTarget.style.boxShadow = '';
+        }
+      }}
+    >
       <div style={styles.statTitle}>{title}</div>
       <div style={{...styles.statValue, color}}>{value}</div>
     </div>
