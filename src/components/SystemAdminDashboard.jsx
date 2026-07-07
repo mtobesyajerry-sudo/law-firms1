@@ -28,6 +28,7 @@ import { getFilteredSections, resolveFrameworkType } from '../utils/frameworkUti
 import { SECTOR_NAMES } from '../data/sectorConfig';
 import MarkdownRenderer from './MarkdownRenderer';
 import { dashboardStyles, getBadgeStyle, getRiskBadgeStyle, getStatusBadgeStyle } from '../utils/dashboardStyles';
+import PageHeader from './PageHeader';
 import LoadingSpinner from './LoadingSpinner';
 
 export default function SystemAdminDashboard() {
@@ -780,25 +781,20 @@ export default function SystemAdminDashboard() {
 
   return (
     <div style={dashboardStyles.pageContainer}>
-      <div style={dashboardStyles.headerCard}>
-        <div style={dashboardStyles.headerContent}>
-          <div>
-            <div style={dashboardStyles.headerTitle}>
-              AML/CFT Compliance System
-            </div>
-            <h1 style={dashboardStyles.headerSubtitle}>
-              System Administrator Dashboard
-            </h1>
-            {profile?.first_name && (
-              <p style={{ color: '#d4af37', fontSize: '16px', margin: '8px 0 0 0', fontWeight: '600' }}>
-                Welcome, {profile.first_name}
-              </p>
-            )}
-            <p style={{ color: 'rgba(255,255,255,0.8)', fontSize: '14px', margin: '8px 0 0 0' }}>
-              Global system administration - Manage all organizations, users, and subscriptions
+      <PageHeader
+        eyebrow="AML/CFT Compliance System"
+        title="System Administrator Dashboard"
+        subtitle={<>
+          {profile?.first_name && (
+            <p style={{ color: '#d4af37', fontSize: '16px', margin: '0 0 4px 0', fontWeight: '600' }}>
+              Welcome, {profile.first_name}
             </p>
-          </div>
-          <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+          )}
+          <p style={{ color: 'rgba(255,255,255,0.8)', fontSize: '14px', margin: 0 }}>
+            Global system administration - Manage all organizations, users, and subscriptions
+          </p>
+        </>}
+        actions={<>
             <button
               onClick={() => navigate('/admin/security')}
               style={{
@@ -905,9 +901,8 @@ export default function SystemAdminDashboard() {
             >
               Sign Out
             </button>
-          </div>
-        </div>
-      </div>
+        </>}
+      />
 
       <div style={dashboardStyles.contentCard}>
         <div style={dashboardStyles.tabContainer}>
