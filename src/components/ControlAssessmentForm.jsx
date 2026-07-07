@@ -126,7 +126,7 @@ export default function ControlAssessmentForm() {
       navigate(`/assessment/${id}`);
     } catch (error) {
       console.error('Error calculating scores:', error);
-      alert('Error calculating scores');
+      alert(`Error calculating scores: ${error?.message || error}`);
     } finally {
       setSaving(false);
     }

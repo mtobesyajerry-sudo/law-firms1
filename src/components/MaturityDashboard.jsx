@@ -651,7 +651,7 @@ function TrendingTab({ snapshots }) {
       <div className="bg-gray-50 rounded-lg p-6">
         <div className="flex items-end justify-between h-64">
           {sortedSnapshots.map((snapshot, index) => {
-            const maturity = snapshot.overall_maturity || 0;
+            const maturity = snapshot.overall_maturity_score || 0;
             const height = (maturity / 5) * 100;
 
             return (
@@ -692,7 +692,7 @@ function TrendingTab({ snapshots }) {
             </div>
             <div className="flex justify-between">
               <span className="text-gray-600">Overall Maturity:</span>
-              <span className="font-medium">{snapshots[0].overall_maturity?.toFixed(2)}</span>
+              <span className="font-medium">{snapshots[0].overall_maturity_score?.toFixed(2)}</span>
             </div>
           </div>
         </div>
@@ -702,8 +702,8 @@ function TrendingTab({ snapshots }) {
             <h4 className="font-medium mb-3">Change Since Previous</h4>
             <div className="border rounded-lg p-4 space-y-2 text-sm">
               {(() => {
-                const latest = snapshots[0].overall_maturity || 0;
-                const previous = snapshots[1].overall_maturity || 0;
+                const latest = snapshots[0].overall_maturity_score || 0;
+                const previous = snapshots[1].overall_maturity_score || 0;
                 const change = latest - previous;
                 const isPositive = change > 0;
 

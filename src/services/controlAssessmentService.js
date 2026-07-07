@@ -10,6 +10,7 @@ import {
   calculateMaturityScore,
   calculateDomainScore,
   calculateOverallMaturity,
+  calculateCompliancePercentage,
   identifyControlGaps,
   classifyGapSeverity,
   generateRemediationPlan,
@@ -353,16 +354,19 @@ export class ControlAssessmentService {
           allGaps.push({
             assessment_id: assessmentId,
             control_assessment_id: ca.id,
+            status: 'identified',
             ...gap
           });
         });
       });
 
-      // Delete existing gaps for this assessment
-      await supabase
+      // Delete existing gaps for this assessment (cascades to remediation_plans)
+      const { error: deleteError } = await supabase
         .from('gap_analysis')
         .delete()
         .eq('assessment_id', assessmentId);
+
+      if (deleteError) throw deleteError;
 
       // Insert new gaps
       if (allGaps.length > 0) {
@@ -473,7 +477,13 @@ export class ControlAssessmentService {
           organization_id: organizationId,
           assessment_id: assessmentId,
           snapshot_type: snapshotType,
-          ...snapshotData
+          overall_maturity_score: snapshotData.overall_maturity,
+          compliance_percentage: calculateCompliancePercentage(controlAssessments),
+          domain_scores: snapshotData.domain_scores,
+          control_assessments: {
+            count_by_level: snapshotData.control_count_by_level,
+            gap_count_by_severity: snapshotData.gap_count_by_severity
+          }
         })
         .select()
         .single();
