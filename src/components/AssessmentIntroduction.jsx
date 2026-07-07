@@ -6,6 +6,7 @@ import { resolveFrameworkType } from '../utils/frameworkUtils';
 import { lawFirmsFramework } from '../data/lawFirmAssessmentData';
 import { accountantsFramework, accountantsCategories } from '../data/accountantAssessmentData';
 import { insurersFramework, insurersCategories } from '../data/insuranceAssessmentData';
+import PageHeader from './PageHeader';
 
 // Sector content map — titles pulled from framework.name (single source of truth).
 // Only label/placeholder/copy that framework.name doesn't cover is defined here.
@@ -181,19 +182,20 @@ export default function AssessmentIntroduction({ assessment, organization, onCom
       </style>
       <div style={styles.container}>
         <div style={styles.content}>
-          <div style={styles.header}>
-            <div>
-              <h1 style={styles.title}>{content.title}</h1>
-              <h2 style={styles.subtitle}>{organization?.name}</h2>
-              <p style={styles.description}>{content.description}</p>
-            </div>
-            <button onClick={navigateToDashboard} style={styles.backButtonHeader} className="back-button-hover">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{marginRight: '8px'}}>
-                <path d="M19 12H5M12 19l-7-7 7-7"/>
-              </svg>
-              Back
-            </button>
-          </div>
+          <PageHeader
+            title={content.title}
+            subtitle={
+              <div>
+                <div style={{ color: '#d4af37', fontSize: '20px', fontWeight: '700', marginBottom: '8px' }}>
+                  {organization?.name}
+                </div>
+                <div style={{ color: 'rgba(255,255,255,0.8)', fontSize: '14px' }}>
+                  {content.description}
+                </div>
+              </div>
+            }
+            onBack={navigateToDashboard}
+          />
 
         <form onSubmit={handleSubmit} style={styles.form}>
           <div style={styles.section}>
