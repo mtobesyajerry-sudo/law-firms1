@@ -124,8 +124,29 @@ export default function STRAlertDashboard() {
         throw error;
       }
 
-      console.log('Loaded alerts:', data);
-      setAlerts(data || []);
+      // Batch-fetch decrypted client names from kyc_clients_decrypted view.
+      // Wrapped in its own try/catch so a failed name lookup never blocks alert rendering.
+      let clientMap = {};
+      try {
+        const clientIds = [...new Set((data || []).map(a => a.client_id).filter(Boolean))];
+        if (clientIds.length > 0) {
+          const { data: clients } = await supabase
+            .from('kyc_clients_decrypted')
+            .select('id, client_name, client_type')
+            .in('id', clientIds);
+          clientMap = Object.fromEntries((clients || []).map(c => [c.id, c]));
+        }
+      } catch (nameError) {
+        console.error('Client name lookup failed — alerts will still render:', nameError);
+      }
+
+      const alertsWithNames = (data || []).map(alert => ({
+        ...alert,
+        _clientDecrypted: clientMap[alert.client_id] || null,
+      }));
+
+      console.log('Loaded alerts:', alertsWithNames);
+      setAlerts(alertsWithNames);
     } catch (error) {
       console.error('Error loading alerts:', error);
       setAlerts([]);
@@ -387,10 +408,10 @@ export default function STRAlertDashboard() {
                       </td>
                       <td style={styles.td}>
                         <div style={styles.clientName}>
-                          {alert.kyc_clients?.client_type || '—'}
+                          {alert._clientDecrypted?.client_name || '—'}
                         </div>
                         <div style={styles.clientId}>
-                          {alert.kyc_clients?.client_type}
+                          {alert._clientDecrypted?.client_type || alert.kyc_clients?.client_type || ''}
                         </div>
                       </td>
                       <td style={styles.td}>
