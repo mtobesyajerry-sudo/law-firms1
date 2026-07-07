@@ -267,17 +267,6 @@ export default function ScreeningDashboard({ onBack }) {
 
   return (
     <div style={dashboardStyles.pageContainer}>
-      {onBack && (
-        <button
-          onClick={onBack}
-          style={dashboardStyles.backButton}
-          onMouseEnter={(e) => { e.target.style.background = 'rgba(212, 175, 55, 0.1)'; }}
-          onMouseLeave={(e) => { e.target.style.background = 'transparent'; }}
-        >
-          ← Back
-        </button>
-      )}
-
       {showNewScreening && (
         <NewScreeningModal
           onClose={() => setShowNewScreening(false)}
@@ -290,7 +279,7 @@ export default function ScreeningDashboard({ onBack }) {
 
       {/* Header */}
       <div style={dashboardStyles.headerCard}>
-        <div style={dashboardStyles.headerContent}>
+        <div style={{ ...dashboardStyles.headerContent, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <div>
             <div style={dashboardStyles.headerTitle}>SANCTIONS & SCREENING</div>
             <h1 style={dashboardStyles.headerSubtitle}>Compliance Screening Dashboard</h1>
@@ -298,6 +287,9 @@ export default function ScreeningDashboard({ onBack }) {
               Screen clients against sanctions, PEP, and adverse media lists to ensure compliance
             </p>
           </div>
+          {onBack && (
+            <button onClick={onBack} style={dashboardStyles.buttonSecondary}>← Back</button>
+          )}
         </div>
       </div>
 
