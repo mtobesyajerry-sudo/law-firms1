@@ -3,11 +3,67 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { institutionCategories, employeeRanges, turnoverRanges } from '../data/assessmentData';
 import { resolveFrameworkType } from '../utils/frameworkUtils';
+import { lawFirmsFramework } from '../data/lawFirmAssessmentData';
+import { accountantsFramework, accountantsCategories } from '../data/accountantAssessmentData';
+import { insurersFramework, insurersCategories } from '../data/insuranceAssessmentData';
+
+// Sector content map — titles pulled from framework.name (single source of truth).
+// Only label/placeholder/copy that framework.name doesn't cover is defined here.
+const SECTOR_CONTENT = {
+  legal_professionals: {
+    title: lawFirmsFramework.name,
+    description: 'Please provide the following information to begin your law firm risk assessment. This information helps us categorize your firm and provide an accurate AML/CFT/CPF risk assessment.',
+    classificationHeading: 'Firm Classification',
+    institutionTypeLabel: 'Firm Type',
+    businessDescLabel: 'Overview of Legal Services',
+    businessDescPlaceholder: 'Briefly describe your main legal services, practice areas, customer segments, and areas of operation. This will appear in the report\'s Introduction section.',
+    businessDescError: 'Overview of legal services is required',
+    profileHeading: 'Firm Profile',
+    categories: institutionCategories,
+  },
+  insurer: {
+    title: insurersFramework.name,
+    description: 'Please provide the following information to begin your insurance company risk assessment. This information helps us categorize your company and provide an accurate AML/CFT/CPF risk assessment.',
+    classificationHeading: 'Company Classification',
+    institutionTypeLabel: 'Company Type',
+    businessDescLabel: 'Overview of Insurance Services',
+    businessDescPlaceholder: 'Briefly describe your main insurance products, policyholder segments, lines of business, and areas of operation. This will appear in the report\'s Introduction section.',
+    businessDescError: 'Overview of insurance services is required',
+    profileHeading: 'Company Profile',
+    categories: insurersCategories,
+  },
+  audit_firm: {
+    title: accountantsFramework.name,
+    description: 'Please provide the following information to begin your accounting firm risk assessment. This information helps us categorize your firm and provide an accurate AML/CFT/CPF risk assessment.',
+    classificationHeading: 'Firm Classification',
+    institutionTypeLabel: 'Firm Type',
+    businessDescLabel: 'Overview of Accounting Services',
+    businessDescPlaceholder: 'Briefly describe your main accounting services, client segments, specializations, and areas of operation. This will appear in the report\'s Introduction section.',
+    businessDescError: 'Overview of accounting services is required',
+    profileHeading: 'Firm Profile',
+    categories: accountantsCategories,
+  },
+  _generic: {
+    title: 'AML/CFT Risk Assessment',
+    description: 'Please provide the following information to begin your risk assessment. This information helps us categorize your organisation and provide an accurate AML/CFT/CPF risk assessment.',
+    classificationHeading: 'Organisation Classification',
+    institutionTypeLabel: 'Organisation Type',
+    businessDescLabel: 'Overview of Business Activities',
+    businessDescPlaceholder: 'Briefly describe your main business activities, client segments, and areas of operation. This will appear in the report\'s Introduction section.',
+    businessDescError: 'Overview of business activities is required',
+    profileHeading: 'Organisation Profile',
+    categories: institutionCategories,
+  },
+};
 
 export default function AssessmentIntroduction({ assessment, organization, onComplete }) {
   const navigate = useNavigate();
   const { profile } = useAuth();
   const isEntityCategoryLocked = assessment?.entity_category ? true : false;
+
+  // Same resolver as assessment questions — single source of truth
+  const frameworkType = resolveFrameworkType(organization?.sector);
+  const content = SECTOR_CONTENT[frameworkType] ?? SECTOR_CONTENT['_generic'];
 
   const navigateToDashboard = () => {
     if (!profile?.role) {
@@ -38,7 +94,7 @@ export default function AssessmentIntroduction({ assessment, organization, onCom
   const initialEntityCategory = assessment?.entity_category || '';
 
   const [formData, setFormData] = useState({
-    framework_type: resolveFrameworkType(organization?.sector),
+    framework_type: frameworkType,
     entity_category: initialEntityCategory,
     contact_person: assessment?.contact_person || '',
     contact_position: assessment?.contact_position || '',
@@ -77,7 +133,7 @@ export default function AssessmentIntroduction({ assessment, organization, onCom
       newErrors.contact_email = 'Please enter a valid email address';
     }
     if (!formData.business_description) {
-      newErrors.business_description = 'Overview of legal services is required';
+      newErrors.business_description = content.businessDescError;
     }
     if (!formData.number_of_employees) {
       newErrors.number_of_employees = 'Please select number of employees';
@@ -127,12 +183,9 @@ export default function AssessmentIntroduction({ assessment, organization, onCom
         <div style={styles.content}>
           <div style={styles.header}>
             <div>
-              <h1 style={styles.title}>Financial Institution Risk Assessment</h1>
+              <h1 style={styles.title}>{content.title}</h1>
               <h2 style={styles.subtitle}>{organization?.name}</h2>
-              <p style={styles.description}>
-                Please provide the following information to begin your financial institution risk assessment.
-                This information helps us categorize your institution and provide an accurate AML/CFT/CPF risk assessment.
-              </p>
+              <p style={styles.description}>{content.description}</p>
             </div>
             <button onClick={navigateToDashboard} style={styles.backButtonHeader} className="back-button-hover">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{marginRight: '8px'}}>
@@ -144,15 +197,15 @@ export default function AssessmentIntroduction({ assessment, organization, onCom
 
         <form onSubmit={handleSubmit} style={styles.form}>
           <div style={styles.section}>
-            <h3 style={styles.sectionTitle}>Institution Classification</h3>
+            <h3 style={styles.sectionTitle}>{content.classificationHeading}</h3>
 
             <div style={styles.formGroup}>
               <label style={styles.label}>
-                Institution Type <span style={styles.required}>*</span>
+                {content.institutionTypeLabel} <span style={styles.required}>*</span>
               </label>
               {isEntityCategoryLocked ? (
                 <div style={styles.categoryBadge}>
-                  {institutionCategories.find(cat => cat.value === formData.entity_category)?.label || formData.entity_category}
+                  {content.categories.find(cat => cat.value === formData.entity_category)?.label || formData.entity_category}
                 </div>
               ) : (
                 <>
@@ -165,8 +218,8 @@ export default function AssessmentIntroduction({ assessment, organization, onCom
                       ...(errors.entity_category ? styles.inputError : {})
                     }}
                   >
-                    <option value="">Select Institution Type</option>
-                    {institutionCategories.map(cat => (
+                    <option value="">Select {content.institutionTypeLabel}</option>
+                    {content.categories.map(cat => (
                       <option key={cat.value} value={cat.value}>
                         {cat.label}
                       </option>
@@ -181,12 +234,12 @@ export default function AssessmentIntroduction({ assessment, organization, onCom
 
             <div style={styles.formGroup}>
               <label style={styles.label}>
-                Overview of Legal Services <span style={styles.required}>*</span>
+                {content.businessDescLabel} <span style={styles.required}>*</span>
               </label>
               <textarea
                 value={formData.business_description}
                 onChange={(e) => handleChange('business_description', e.target.value)}
-                placeholder="Briefly describe your main legal services, practice areas, customer segments, and areas of operation. This will appear in the report's Introduction section."
+                placeholder={content.businessDescPlaceholder}
                 className="input-field"
                 style={{
                   ...styles.textarea,
@@ -281,7 +334,7 @@ export default function AssessmentIntroduction({ assessment, organization, onCom
           </div>
 
           <div style={styles.section}>
-            <h3 style={styles.sectionTitle}>Institution Profile</h3>
+            <h3 style={styles.sectionTitle}>{content.profileHeading}</h3>
 
             <div style={styles.formRow}>
               <div style={styles.formGroup}>
