@@ -389,7 +389,7 @@ export default function KYCClientDetails() {
   // Read-only access for management and compliance_officer roles
   const isReadOnly = profile?.role === 'management' || profile?.role === 'compliance_officer';
   const isPendingAssessment = client?.client_status === 'prospect' && client?.onboarding_status === 'pending';
-  const isAccountantOrg = organization?.dnfbp_category === 'accountant';
+  const isAccountantOrg = organization?.sector === 'accounting';
   const completenessResult = client && isPendingAssessment
     ? isKycComplete({
         riskFactors:           client.customer_data?.customer_risk_factors,
@@ -576,7 +576,7 @@ export default function KYCClientDetails() {
             </div>
           </div>
           <div style={styles.headerBadges}>
-            {isPendingAssessment && (
+            {isPendingAssessment && !isAccountantOrg && (
               <span style={{
                 ...styles.badge,
                 background: '#fef3c725',
@@ -592,7 +592,7 @@ export default function KYCClientDetails() {
               color: getRiskColor(client.current_risk_rating),
               borderColor: getRiskColor(client.current_risk_rating)
             }}>
-              {isPendingAssessment ? 'PROVISIONAL' : ''} {client.current_risk_rating?.toUpperCase()} RISK
+              {isPendingAssessment && !isAccountantOrg ? 'PROVISIONAL' : ''} {client.current_risk_rating?.toUpperCase()} RISK
             </span>
             {isPendingAssessment && !isReadOnly && !isAccountantOrg && (
               <button
@@ -618,7 +618,7 @@ export default function KYCClientDetails() {
       {/* Content Area */}
       <div style={styles.content}>
         {/* Pending Assessment Banner */}
-        {isPendingAssessment && (
+        {isPendingAssessment && !isAccountantOrg && (
           <div style={{
             background: '#fffbeb',
             border: '1px solid #fbbf24',

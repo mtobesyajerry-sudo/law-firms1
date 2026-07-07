@@ -50,20 +50,44 @@ function ForcePasswordChange() {
     try {
       const { error: updateErr } = await supabase.auth.updateUser({ password: pw });
       if (updateErr) throw updateErr;
+
+      // Commit the new JWT synchronously before any authenticated RPC call.
+      // updateUser issues a new token asynchronously; without this the RPC lands
+      // with the old token and can fail with a 401, leaving the flag stuck true.
+      const { error: refreshErr } = await supabase.auth.refreshSession();
+      if (refreshErr) throw new Error(`Password changed but session could not be refreshed: ${refreshErr.message}. Please sign out and sign back in.`);
+
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Session lost after password update — please log in again.');
-      // Record new password hash in history to enable reuse prevention
+
+      // Record new password hash for reuse prevention (failure is non-fatal)
       const encoded = new TextEncoder().encode(pw);
       const hashBuffer = await crypto.subtle.digest('SHA-256', encoded);
       const pwHash = Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
       await supabase.from('password_history').insert({ user_id: user.id, password_hash: pwHash });
-      // Clear the forced-change flag via SECURITY DEFINER RPC (direct update is blocked by RLS)
-      const { error: flagErr } = await supabase.rpc('complete_password_change');
-      if (flagErr) throw new Error(`Password changed but your account could not be fully updated: ${flagErr.message}. Please contact support or try again.`);
-      // Immediately clear the flag in local React state so the route guard unblocks right away,
-      // regardless of any concurrent TOKEN_REFRESHED reload that might still carry the old value.
+
+      // Clear the forced-change flag via SECURITY DEFINER RPC.
+      // Retry once if it fails — re-refresh first in case token rotation raced again.
+      const clearFlag = async () => supabase.rpc('complete_password_change');
+      let { error: flagErr } = await clearFlag();
+      if (flagErr) {
+        await supabase.auth.refreshSession();
+        const retry = await clearFlag();
+        flagErr = retry.error;
+      }
+      // If both attempts failed, surface the error and stay on this page.
+      // The user's password IS changed but the account flag is still set —
+      // they must retry rather than be forwarded into the app in a half-state.
+      if (flagErr) {
+        throw new Error(
+          `Your password was changed, but we could not fully update your account (${flagErr.message}). ` +
+          `Please try submitting again, or sign out and contact support if the problem persists.`
+        );
+      }
+
+      // Flag cleared — unblock the route guard immediately in local state,
+      // then fetch the full profile to sync any other fields.
       patchProfile({ password_change_required: false });
-      // Also await a full refresh to ensure all other profile fields are up to date.
       await refreshProfile();
     } catch (err) {
       setError(err.message);
