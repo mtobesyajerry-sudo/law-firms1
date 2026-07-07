@@ -318,7 +318,32 @@ export async function triggerListSync(listSource) {
   const { data, error } = await supabase.functions.invoke(fnName, {
     body: { list_source: listSource },
   });
-  if (error) throw error;
+
+  if (error) {
+    // Extract the real error message from the response body when available
+    let msg = error.message;
+    try {
+      const body = await error.context?.json?.();
+      if (body?.error) msg = body.error;
+    } catch (_) { /* ignore parse failure */ }
+    throw new Error(msg);
+  }
+
+  // Per-list errors are returned as HTTP 200 with embedded result objects.
+  // Surface them so the UI shows the real cause instead of silent success.
+  if (data?.results) {
+    const keyMap = {
+      OFAC_SDN: 'ofac_sdn',
+      OFAC_CONSOLIDATED: 'ofac_sdn',
+      UN_CONSOLIDATED: 'un',
+      EU_CONSOLIDATED: 'eu',
+      UK_HMT_OFSI: 'uk',
+    };
+    const resultKey = keyMap[listSource];
+    const result = resultKey ? data.results[resultKey] : null;
+    if (result?.error) throw new Error(result.error);
+  }
+
   return data;
 }
 
