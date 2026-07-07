@@ -13,7 +13,7 @@ export default function PageHeader({ eyebrow, title, subtitle, onBack, actions }
           {eyebrow && <div style={dashboardStyles.headerTitle}>{eyebrow}</div>}
           <h1 style={dashboardStyles.headerSubtitle}>{title}</h1>
           {subtitle && (
-            <div style={{ color: 'rgba(255,255,255,0.8)', fontSize: '14px', marginTop: '8px', maxWidth: '600px' }}>
+            <div style={{ color: 'rgba(255,255,255,0.8)', fontSize: '14px', marginTop: '8px' }}>
               {subtitle}
             </div>
           )}
