@@ -9,7 +9,7 @@ export default function PageHeader({ eyebrow, title, subtitle, onBack, actions }
         justifyContent: 'space-between',
         alignItems: 'center'
       }}>
-        <div>
+        <div style={{ flex: 1, minWidth: 0 }}>
           {eyebrow && <div style={dashboardStyles.headerTitle}>{eyebrow}</div>}
           <h1 style={dashboardStyles.headerSubtitle}>{title}</h1>
           {subtitle && (
@@ -18,7 +18,7 @@ export default function PageHeader({ eyebrow, title, subtitle, onBack, actions }
             </div>
           )}
         </div>
-        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexShrink: 0 }}>
           {actions}
           {onBack && (
             <button
