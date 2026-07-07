@@ -189,7 +189,7 @@ export default function AssessmentIntroduction({ assessment, organization, onCom
                 <div style={{ color: '#d4af37', fontSize: '20px', fontWeight: '700', marginBottom: '8px' }}>
                   {organization?.name}
                 </div>
-                <div style={{ color: 'rgba(255,255,255,0.8)', fontSize: '14px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                <div style={{ color: 'rgba(255,255,255,0.8)', fontSize: '14px' }}>
                   {content.description}
                 </div>
               </div>
