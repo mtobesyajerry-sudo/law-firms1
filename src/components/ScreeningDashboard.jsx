@@ -288,7 +288,7 @@ export default function ScreeningDashboard({ onBack }) {
             </p>
           </div>
           {onBack && (
-            <button onClick={onBack} style={dashboardStyles.buttonSecondary}>← Back</button>
+            <button onClick={onBack} style={{ ...dashboardStyles.buttonSecondary, color: '#ffffff' }}>← Back</button>
           )}
         </div>
       </div>
