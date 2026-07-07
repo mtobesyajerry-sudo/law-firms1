@@ -10,7 +10,7 @@ import ReviewMatchesPanel from './ReviewMatchesPanel';
 import ManageListsPanel from './ManageListsPanel';
 import { getDashboardCounters, getScreeningHistory } from '../services/screeningService';
 
-export default function ScreeningDashboard() {
+export default function ScreeningDashboard({ onBack }) {
   const [loading, setLoading] = useState(true);
   const [activeView, setActiveView] = useState('overview');
   const [activeTab, setActiveTab] = useState('all');
@@ -267,6 +267,17 @@ export default function ScreeningDashboard() {
 
   return (
     <div style={dashboardStyles.pageContainer}>
+      {onBack && (
+        <button
+          onClick={onBack}
+          style={dashboardStyles.backButton}
+          onMouseEnter={(e) => { e.target.style.background = 'rgba(212, 175, 55, 0.1)'; }}
+          onMouseLeave={(e) => { e.target.style.background = 'transparent'; }}
+        >
+          ← Back
+        </button>
+      )}
+
       {showNewScreening && (
         <NewScreeningModal
           onClose={() => setShowNewScreening(false)}

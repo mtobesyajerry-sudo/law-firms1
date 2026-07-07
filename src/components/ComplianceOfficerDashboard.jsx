@@ -277,14 +277,8 @@ export default function ComplianceOfficerDashboard() {
   if (activeView === 'screening') {
     return (
       <div style={dashboardStyles.pageContainer}>
-        <button
-          onClick={() => setActiveView('overview')}
-          style={dashboardStyles.buttonSecondary}
-        >
-          ← Back
-        </button>
         <div style={{ marginTop: '20px' }}>
-          <ScreeningDashboard />
+          <ScreeningDashboard onBack={() => setActiveView('overview')} />
         </div>
       </div>
     );
