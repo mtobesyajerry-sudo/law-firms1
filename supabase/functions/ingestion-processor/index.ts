@@ -221,16 +221,13 @@ const xmlParser = new XMLParser({
 });
 
 // ---------------------------------------------------------------------------
-// OFAC SDN ingestion — uses the SDN CSV (smaller than XML, ~2MB vs ~20MB)
+// OFAC SDN ingestion — sourced via OpenSanctions bulk data (dataset: us_ofac_sdn)
+// OpenSanctions aggregates the full OFAC SDN list and publishes it as NDJSON.
+// Bulk files are public; the API key is used as a courtesy header only.
 // ---------------------------------------------------------------------------
-const OFAC_SDN_URL = "https://www.treasury.gov/ofac/downloads/sdn.csv";
-const SDN_TYPE_MAP: Record<string, ListEntry["entry_type"]> = {
-  Individual: "individual", Entity: "entity", Vessel: "vessel", Aircraft: "aircraft",
-};
+const OFAC_SDN_NDJSON = "https://data.opensanctions.org/datasets/us_ofac_sdn/entities.ftm.json";
 
-// OFAC SDN CSV columns (0-indexed):
-// 0: ent_num, 1: SDN_Name, 2: SDN_Type, 3: Program, 4: Title, 5: Call_Sign,
-// 6: Vess_type, 7: Tonnage, 8: GRT, 9: Vess_flag, 10: Vess_owner, 11: Remarks
+// CSV parser kept for UK OFSI ingestion below
 function parseOfacCsvLine(line: string): string[] {
   const cols: string[] = [];
   let cur = "", inQ = false;
@@ -247,52 +244,41 @@ function parseOfacCsvLine(line: string): string[] {
 async function ingestOfacSdn(supabase: SupabaseClient): Promise<{ added: number; updated: number; removed: number; total: number }> {
   const listId = await getListId(supabase, "OFAC_SDN");
   const started = Date.now();
-  const logId = await startIngestion(supabase, listId, OFAC_SDN_URL);
+  const apiKey = Deno.env.get("OPENSANCTIONS_API_KEY")?.trim();
+
+  const logId = await startIngestion(supabase, listId, OFAC_SDN_NDJSON);
   try {
-    console.log("Fetching OFAC SDN CSV...");
-    const res = await fetch(OFAC_SDN_URL);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const csv = await res.text();
-    const lines = csv.split("\n").filter((l) => l.trim());
-    console.log(`Parsed ${lines.length} OFAC SDN lines`);
+    const headers: Record<string, string> = { Accept: "application/x-ndjson,application/json,*/*" };
+    if (apiKey) headers["Authorization"] = `ApiKey ${apiKey}`;
+
+    console.log("Fetching OFAC SDN NDJSON from OpenSanctions...");
+    const res = await fetch(OFAC_SDN_NDJSON, { headers });
+    if (!res.ok) throw new Error(`OpenSanctions OFAC SDN bulk download HTTP ${res.status}`);
+
+    const text = await res.text();
+    const lines = text.split("\n").filter((l) => l.trim());
+    console.log(`Parsing ${lines.length} OFAC SDN entities from NDJSON`);
+
     let total = 0;
     const keepIds = new Set<string>();
     const BATCH = 50;
     let batch: ListEntry[] = [];
+
     for (const line of lines) {
-      const cols = parseOfacCsvLine(line);
-      const uid = cols[0]?.replace(/"/g, "").trim();
-      if (!uid || isNaN(Number(uid))) continue; // skip header/non-numeric IDs
-      const name = cols[1]?.replace(/"/g, "").trim() || `OFAC-${uid}`;
-      const sdnType = cols[2]?.replace(/"/g, "").trim() || "Entity";
-      const program = cols[3]?.replace(/"/g, "").trim() || null;
-      const remarks = cols[11]?.replace(/"/g, "").trim() || null;
-      const entry: ListEntry = {
-        external_id: `OFAC-SDN-${uid}`,
-        primary_name: name,
-        entry_type: SDN_TYPE_MAP[sdnType] ?? "entity",
-        aliases_jsonb: [],
-        date_of_birth: null,
-        dob_text: null,
-        place_of_birth: null,
-        nationalities: null,
-        identifications: [],
-        addresses: [],
-        program,
-        remarks,
-        raw_data: null,
-        is_pep: false,
-        pep_position: null,
-        pep_country: null,
-        source_updated_at: null,
-      };
-      keepIds.add(entry.external_id);
-      batch.push(entry);
+      let e: any;
+      try { e = JSON.parse(line); } catch { continue; }
+      const ext = extractOpenSanctionsEntity(e);
+      if (!ext) continue;
+      // Override prefix to OFAC-SDN for clarity
+      ext.external_id = `OFAC-SDN-${e.id}`;
+      keepIds.add(ext.external_id);
+      batch.push(ext);
       if (batch.length >= BATCH) {
         total += await upsertBatch(supabase, listId, batch);
         batch = [];
       }
     }
+
     if (batch.length > 0) total += await upsertBatch(supabase, listId, batch);
     const removed = await removeStaleEntries(supabase, listId, keepIds);
     await updateListMeta(supabase, listId, total, "success");
