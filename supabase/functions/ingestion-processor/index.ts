@@ -775,7 +775,7 @@ Deno.serve(async (req) => {
         });
       }
       const { data: profile } = await anonClient.from("user_profiles").select("role").eq("id", user.id).maybeSingle();
-      if (profile?.role !== "admin") {
+      if (!["admin", "compliance_officer"].includes(profile?.role)) {
         return new Response(JSON.stringify({ error: "Admin only" }), {
           status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
