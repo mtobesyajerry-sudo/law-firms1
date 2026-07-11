@@ -293,6 +293,61 @@ async function ingestOfacSdn(supabase: SupabaseClient): Promise<{ added: number;
 }
 
 // ---------------------------------------------------------------------------
+// OFAC Consolidated (non-SDN) ingestion — sourced via OpenSanctions (us_ofac_cons)
+// ---------------------------------------------------------------------------
+const OFAC_CONS_NDJSON = "https://data.opensanctions.org/datasets/us_ofac_cons/entities.ftm.json";
+
+async function ingestOfacConsolidated(supabase: SupabaseClient): Promise<{ added: number; updated: number; removed: number; total: number }> {
+  const listId = await getListId(supabase, "OFAC_CONSOLIDATED");
+  const started = Date.now();
+  const apiKey = Deno.env.get("OPENSANCTIONS_API_KEY")?.trim();
+
+  const logId = await startIngestion(supabase, listId, OFAC_CONS_NDJSON);
+  try {
+    const headers: Record<string, string> = { Accept: "application/x-ndjson,application/json,*/*" };
+    if (apiKey) headers["Authorization"] = `ApiKey ${apiKey}`;
+
+    console.log("Fetching OFAC Consolidated NDJSON from OpenSanctions...");
+    const res = await fetch(OFAC_CONS_NDJSON, { headers });
+    if (!res.ok) throw new Error(`OpenSanctions OFAC Consolidated bulk download HTTP ${res.status}`);
+
+    const text = await res.text();
+    const lines = text.split("\n").filter((l) => l.trim());
+    console.log(`Parsing ${lines.length} OFAC Consolidated entities from NDJSON`);
+
+    let total = 0;
+    const keepIds = new Set<string>();
+    const BATCH = 50;
+    let batch: ListEntry[] = [];
+
+    for (const line of lines) {
+      let e: any;
+      try { e = JSON.parse(line); } catch { continue; }
+      const ext = extractOpenSanctionsEntity(e);
+      if (!ext) continue;
+      ext.external_id = `OFAC-CONS-${e.id}`;
+      keepIds.add(ext.external_id);
+      batch.push(ext);
+      if (batch.length >= BATCH) {
+        total += await upsertBatch(supabase, listId, batch);
+        batch = [];
+      }
+    }
+
+    if (batch.length > 0) total += await upsertBatch(supabase, listId, batch);
+    const removed = await removeStaleEntries(supabase, listId, keepIds);
+    await updateListMeta(supabase, listId, total, "success");
+    await finishIngestion(supabase, logId, { status: "success", added: total, updated: 0, removed, total, started_at: started });
+    return { added: total, updated: 0, removed, total };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    await updateListMeta(supabase, listId, 0, "failed", msg);
+    await finishIngestion(supabase, logId, { status: "failed", error: msg, started_at: started });
+    throw err;
+  }
+}
+
+// ---------------------------------------------------------------------------
 // UN Consolidated ingestion
 // ---------------------------------------------------------------------------
 const UN_URL = "https://scsanctions.un.org/resources/xml/en/consolidated.xml";
@@ -800,9 +855,14 @@ Deno.serve(async (req) => {
 
     const results: Record<string, unknown> = {};
 
-    if (listSource === "OFAC_SDN" || listSource === "OFAC_CONSOLIDATED" || listSource === "ALL") {
+    if (listSource === "OFAC_SDN" || listSource === "ALL") {
       console.log("--- OFAC SDN ---");
       results.ofac_sdn = await ingestOfacSdn(supabase).catch((e) => ({ error: e.message }));
+    }
+
+    if (listSource === "OFAC_CONSOLIDATED" || listSource === "ALL") {
+      console.log("--- OFAC Consolidated ---");
+      results.ofac_consolidated = await ingestOfacConsolidated(supabase).catch((e) => ({ error: e.message }));
     }
 
     if (listSource === "UN_CONSOLIDATED" || listSource === "ALL") {
