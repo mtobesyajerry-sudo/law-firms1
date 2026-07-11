@@ -433,9 +433,11 @@ async function ingestUn(supabase: SupabaseClient): Promise<{ added: number; upda
 // ---------------------------------------------------------------------------
 // EU Consolidated ingestion
 // ---------------------------------------------------------------------------
-// EU FSF consolidated list. Token passed as Authorization header (preferred) or query param.
+// EU FSF consolidated list. Token passed as ?token= query param (EU FSF API spec).
 const EU_URL = "https://webgate.ec.europa.eu/fsd/fsf/public/files/xmlFullSanctionsList_1_1/content";
 const EU_URL_V2 = "https://webgate.ec.europa.eu/fsd/fsf/public/files/xmlFullSanctionsList/content";
+// OpenSanctions EU dataset (uses OPENSANCTIONS_API_KEY) — reliable public fallback
+const EU_OPENSANCTIONS_URL = "https://data.opensanctions.org/datasets/eu_fsf/targets.simple.csv";
 
 function parseEuDob(birth: any): { dob: string | null; dobText: string | null } {
   if (!birth) return { dob: null, dobText: null };
@@ -495,23 +497,36 @@ function extractEuEntity(entity: any): ListEntry | null {
 async function ingestEu(supabase: SupabaseClient): Promise<{ added: number; updated: number; removed: number; total: number }> {
   const listId = await getListId(supabase, "EU_CONSOLIDATED");
   const started = Date.now();
-  const token = Deno.env.get("EU_FSF_TOKEN");
-  const logId = await startIngestion(supabase, listId, EU_URL);
+  const token = Deno.env.get("EU_FSF_TOKEN")?.trim();
+  const accept = { Accept: "application/xml,text/xml,*/*" };
+
+  // EU FSF API requires token as ?token= query param (not Bearer header)
+  const urlsToTry: string[] = [];
+  if (token) {
+    urlsToTry.push(`${EU_URL}?token=${encodeURIComponent(token)}`);
+    urlsToTry.push(`${EU_URL_V2}?token=${encodeURIComponent(token)}`);
+  }
+  // Public fallback (works without token on some EU mirror configurations)
+  urlsToTry.push(EU_URL);
+
+  const logId = await startIngestion(supabase, listId, urlsToTry[0] ?? EU_URL);
   try {
     console.log("Fetching EU consolidated XML...");
-    const headers: Record<string, string> = { Accept: "application/xml,text/xml,*/*" };
-    if (token) headers["Authorization"] = `Bearer ${token}`;
-    // Try primary URL first; fall back to alternate path if it fails
-    let res = await fetch(EU_URL, { headers });
-    if (!res.ok && token) {
-      // Some versions expect token as query param
-      res = await fetch(`${EU_URL}?token=${token}`, { headers: { Accept: "application/xml,text/xml,*/*" } });
+    let res: Response | null = null;
+    let lastStatus = 0;
+    for (const url of urlsToTry) {
+      console.log(`Trying EU URL: ${url.replace(/token=[^&]+/, "token=***")}`);
+      res = await fetch(url, { headers: accept });
+      lastStatus = res.status;
+      if (res.ok) break;
+      console.log(`EU fetch returned ${res.status} for this URL`);
     }
-    if (!res.ok) {
-      // Try alternate v2 endpoint
-      res = await fetch(EU_URL_V2, { headers });
+    if (!res || !res.ok) {
+      const hint = token
+        ? `EU_FSF_TOKEN is set but the API returned ${lastStatus} — verify the token is valid at webgate.ec.europa.eu`
+        : `EU_FSF_TOKEN secret is missing — register at webgate.ec.europa.eu to get an API key`;
+      throw new Error(`HTTP ${lastStatus} — ${hint}`);
     }
-    if (!res.ok) throw new Error(`HTTP ${res.status} — EU FSF endpoint unavailable`);
     const xml = await res.text();
     const parsed = xmlParser.parse(xml);
     const root = parsed?.export ?? parsed?.SANCTIONS ?? parsed;
