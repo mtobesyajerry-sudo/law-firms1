@@ -433,63 +433,80 @@ async function ingestUn(supabase: SupabaseClient): Promise<{ added: number; upda
 // ---------------------------------------------------------------------------
 // EU Consolidated ingestion
 // ---------------------------------------------------------------------------
-// EU FSF consolidated list. Token passed as ?token= query param (EU FSF API spec).
-const EU_URL = "https://webgate.ec.europa.eu/fsd/fsf/public/files/xmlFullSanctionsList_1_1/content";
-const EU_URL_V2 = "https://webgate.ec.europa.eu/fsd/fsf/public/files/xmlFullSanctionsList/content";
-// OpenSanctions EU dataset (uses OPENSANCTIONS_API_KEY) — reliable public fallback
-const EU_OPENSANCTIONS_URL = "https://data.opensanctions.org/datasets/eu_fsf/targets.simple.csv";
+// EU Consolidated — sourced via OpenSanctions API (dataset: eu_fsf)
+// OpenSanctions aggregates the EU FSF list and exposes it via a stable API.
+// Auth: Authorization: ApiKey <OPENSANCTIONS_API_KEY>
+// ---------------------------------------------------------------------------
+const OPENSANCTIONS_BASE = "https://api.opensanctions.org";
+const EU_FSF_DATASET = "eu_fsf";
 
-function parseEuDob(birth: any): { dob: string | null; dobText: string | null } {
-  if (!birth) return { dob: null, dobText: null };
-  const date = birth["@_birthdate"] ?? birth.birthdate ?? null;
-  if (date) return { dob: String(date), dobText: String(date) };
-  const year = birth["@_year"] ?? birth.year;
-  return { dob: null, dobText: year ? `c. ${year}` : null };
-}
+const OS_SCHEMA_MAP: Record<string, ListEntry["entry_type"]> = {
+  Person: "individual",
+  LegalEntity: "entity",
+  Organization: "entity",
+  Company: "entity",
+  Vessel: "vessel",
+  Airplane: "aircraft",
+  Aircraft: "aircraft",
+};
 
-function extractEuEntity(entity: any): ListEntry | null {
-  const logicalId = entity["@_logicalId"] ?? entity.logicalId;
-  if (!logicalId) return null;
-  const subjectType = entity.subjectType?.["@_code"] ?? entity.subjectType?.code;
-  const entryType: ListEntry["entry_type"] = subjectType === "P" ? "individual" : "entity";
-  const nameAliases = arr(entity.nameAlias);
-  if (nameAliases.length === 0) return null;
-  const primaryAlias = nameAliases[0] as any;
-  const primaryName = (primaryAlias["@_wholeName"] ?? primaryAlias.wholeName ??
-    buildName([primaryAlias["@_firstName"], primaryAlias["@_middleName"], primaryAlias["@_lastName"]])) ||
-    `EU Entry ${logicalId}`;
-  const aliases_jsonb = (nameAliases.slice(1) as any[])
-    .map((a: any) => {
-      const aname = a["@_wholeName"] ?? a.wholeName ?? buildName([a["@_firstName"], a["@_middleName"], a["@_lastName"]]);
-      if (!aname) return null;
-      return { name: String(aname), normalized_name: normalizeName(String(aname)) };
-    })
-    .filter((x: any) => x !== null);
-  const births = arr(entity.birthdate);
-  const { dob, dobText } = parseEuDob((births as any[])[0]);
-  const pobs = (births as any[]).map((b: any) => b["@_city"] ?? b["@_place"]).filter(Boolean).join("; ");
-  const nats = arr(entity.citizenship).map((c: any) => c["@_country"] ?? c.country).filter(Boolean) as string[];
-  const docs = arr(entity.identification).map((d: any) => ({ type: d["@_identificationTypeCode"] ?? "unknown", number: d["@_number"] ?? "", country: d["@_countryDescription"] ?? null }));
-  const addresses = arr(entity.address).map((a: any) => ({ street: a["@_street"] ?? null, city: a["@_city"] ?? null, country: a["@_countryDescription"] ?? null }));
-  const regulations = arr(entity.regulation);
-  const program = (regulations as any[]).map((r: any) => r["@_programme"] ?? r["@_regulationType"]).filter(Boolean).join(", ");
+function extractOpenSanctionsEntity(e: any): ListEntry | null {
+  const id: string = e.id;
+  if (!id) return null;
+  const schema: string = e.schema ?? "Organization";
+  const entryType: ListEntry["entry_type"] = OS_SCHEMA_MAP[schema] ?? "entity";
+  const props = e.properties ?? {};
+
+  const names: string[] = arr(props.name);
+  const aliases: string[] = arr(props.alias);
+  const primaryName = names[0] ?? e.caption ?? `OS-${id}`;
+  const allAliases = [...names.slice(1), ...aliases];
+  const aliases_jsonb = allAliases
+    .filter(Boolean)
+    .map((n: string) => ({ name: n, normalized_name: normalizeName(n) }));
+
+  const birthDates: string[] = arr(props.birthDate);
+  const dob = birthDates[0] ? sanitizeTimestamp(birthDates[0]) : null;
+
+  const pobArr: string[] = arr(props.birthPlace);
+  const placeOfBirth = pobArr[0] ?? null;
+
+  const nats: string[] = arr(props.nationality ?? props.country);
+  const nationalities = nats.length ? nats : null;
+
+  const passports: string[] = arr(props.passportNumber);
+  const natIds: string[] = arr(props.idNumber);
+  const identifications: ListEntry["identifications"] = [
+    ...passports.map((n) => ({ type: "passport", number: n, country: null })),
+    ...natIds.map((n) => ({ type: "national_id", number: n, country: null })),
+  ];
+
+  const addrArr: string[] = arr(props.address);
+  const addresses = addrArr.map((a) => ({ street: a, city: null, country: null }));
+
+  const programs: string[] = arr(props.program ?? props.sanction);
+  const program = programs.join(", ") || null;
+
+  const remarks: string[] = arr(props.notes ?? props.summary);
+  const remarksText = remarks.join(" ") || null;
+
   return {
-    external_id: `EU-${logicalId}`,
+    external_id: `EU-OS-${id}`,
     primary_name: primaryName,
     entry_type: entryType,
     aliases_jsonb,
     date_of_birth: dob,
-    dob_text: dobText,
-    place_of_birth: pobs || null,
-    nationalities: nats.length ? nats : null,
-    identifications: docs,
+    dob_text: dob ?? (birthDates[0] ?? null),
+    place_of_birth: placeOfBirth,
+    nationalities,
+    identifications,
     addresses,
-    program: program || null,
-    remarks: entity.remark ?? null,
-    raw_data: entity,
+    program,
+    remarks: remarksText,
+    raw_data: null,
     is_pep: false,
     pep_position: null,
-    pep_country: null,
+    pep_country: nats[0] ?? null,
     source_updated_at: null,
   };
 }
@@ -497,55 +514,50 @@ function extractEuEntity(entity: any): ListEntry | null {
 async function ingestEu(supabase: SupabaseClient): Promise<{ added: number; updated: number; removed: number; total: number }> {
   const listId = await getListId(supabase, "EU_CONSOLIDATED");
   const started = Date.now();
-  const token = Deno.env.get("EU_FSF_TOKEN")?.trim();
-  const accept = { Accept: "application/xml,text/xml,*/*" };
+  const apiKey = Deno.env.get("OPENSANCTIONS_API_KEY")?.trim();
+  if (!apiKey) throw new Error("OPENSANCTIONS_API_KEY secret is not configured");
 
-  // EU FSF API requires token as ?token= query param (not Bearer header)
-  const urlsToTry: string[] = [];
-  if (token) {
-    urlsToTry.push(`${EU_URL}?token=${encodeURIComponent(token)}`);
-    urlsToTry.push(`${EU_URL_V2}?token=${encodeURIComponent(token)}`);
-  }
-  // Public fallback (works without token on some EU mirror configurations)
-  urlsToTry.push(EU_URL);
-
-  const logId = await startIngestion(supabase, listId, urlsToTry[0] ?? EU_URL);
+  const sourceUrl = `${OPENSANCTIONS_BASE}/entities/?dataset=${EU_FSF_DATASET}&limit=1000`;
+  const logId = await startIngestion(supabase, listId, sourceUrl);
   try {
-    console.log("Fetching EU consolidated XML...");
-    let res: Response | null = null;
-    let lastStatus = 0;
-    for (const url of urlsToTry) {
-      console.log(`Trying EU URL: ${url.replace(/token=[^&]+/, "token=***")}`);
-      res = await fetch(url, { headers: accept });
-      lastStatus = res.status;
-      if (res.ok) break;
-      console.log(`EU fetch returned ${res.status} for this URL`);
-    }
-    if (!res || !res.ok) {
-      const hint = token
-        ? `EU_FSF_TOKEN is set but the API returned ${lastStatus} — verify the token is valid at webgate.ec.europa.eu`
-        : `EU_FSF_TOKEN secret is missing — register at webgate.ec.europa.eu to get an API key`;
-      throw new Error(`HTTP ${lastStatus} — ${hint}`);
-    }
-    const xml = await res.text();
-    const parsed = xmlParser.parse(xml);
-    const root = parsed?.export ?? parsed?.SANCTIONS ?? parsed;
-    const entities = arr(root?.sanctionEntity ?? root?.entity);
-    console.log(`Parsed ${entities.length} EU entities`);
+    const headers: Record<string, string> = {
+      Authorization: `ApiKey ${apiKey}`,
+      Accept: "application/json",
+    };
+
     let total = 0;
+    let offset = 0;
+    const PAGE = 1000;
     const keepIds = new Set<string>();
     const BATCH = 50;
     let batch: ListEntry[] = [];
-    for (const e of entities) {
-      const ext = extractEuEntity(e);
-      if (!ext) continue;
-      keepIds.add(ext.external_id);
-      batch.push(ext);
-      if (batch.length >= BATCH) {
-        total += await upsertBatch(supabase, listId, batch);
-        batch = [];
-      }
+
+    console.log("Fetching EU FSF via OpenSanctions API...");
+    while (true) {
+      const url = `${OPENSANCTIONS_BASE}/entities/?dataset=${EU_FSF_DATASET}&limit=${PAGE}&offset=${offset}`;
+      const res = await fetch(url, { headers });
+      if (!res.ok) throw new Error(`OpenSanctions API HTTP ${res.status} at offset ${offset}`);
+      const json = await res.json();
+      const results: any[] = json.results ?? [];
+      console.log(`OpenSanctions page offset=${offset}: ${results.length} entities`);
+      if (results.length === 0) break;
+
+      for (const e of results) {
+          const ext = extractOpenSanctionsEntity(e);
+          if (!ext) continue;
+          keepIds.add(ext.external_id);
+          batch.push(ext);
+          if (batch.length >= BATCH) {
+            total += await upsertBatch(supabase, listId, batch);
+            batch = [];
+          }
+        }
+
+      offset += results.length;
+      // Stop if we've received fewer than a full page (last page)
+      if (results.length < PAGE) break;
     }
+
     if (batch.length > 0) total += await upsertBatch(supabase, listId, batch);
     const removed = await removeStaleEntries(supabase, listId, keepIds);
     await updateListMeta(supabase, listId, total, "success");
