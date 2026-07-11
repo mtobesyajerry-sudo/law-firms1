@@ -433,12 +433,11 @@ async function ingestUn(supabase: SupabaseClient): Promise<{ added: number; upda
 // ---------------------------------------------------------------------------
 // EU Consolidated ingestion
 // ---------------------------------------------------------------------------
-// EU Consolidated — sourced via OpenSanctions API (dataset: eu_fsf)
-// OpenSanctions aggregates the EU FSF list and exposes it via a stable API.
-// Auth: Authorization: ApiKey <OPENSANCTIONS_API_KEY>
+// EU Consolidated — sourced via OpenSanctions bulk data (dataset: eu_fsf)
+// OpenSanctions aggregates the EU FSF list and publishes it as NDJSON.
+// Bulk files are public; the API key is used as a courtesy header only.
 // ---------------------------------------------------------------------------
-const OPENSANCTIONS_BASE = "https://api.opensanctions.org";
-const EU_FSF_DATASET = "eu_fsf";
+const EU_FSF_NDJSON = "https://data.opensanctions.org/datasets/eu_fsf/entities.ftm.json";
 
 const OS_SCHEMA_MAP: Record<string, ListEntry["entry_type"]> = {
   Person: "individual",
@@ -515,47 +514,36 @@ async function ingestEu(supabase: SupabaseClient): Promise<{ added: number; upda
   const listId = await getListId(supabase, "EU_CONSOLIDATED");
   const started = Date.now();
   const apiKey = Deno.env.get("OPENSANCTIONS_API_KEY")?.trim();
-  if (!apiKey) throw new Error("OPENSANCTIONS_API_KEY secret is not configured");
 
-  const sourceUrl = `${OPENSANCTIONS_BASE}/entities/?dataset=${EU_FSF_DATASET}&limit=1000`;
-  const logId = await startIngestion(supabase, listId, sourceUrl);
+  const logId = await startIngestion(supabase, listId, EU_FSF_NDJSON);
   try {
-    const headers: Record<string, string> = {
-      Authorization: `ApiKey ${apiKey}`,
-      Accept: "application/json",
-    };
+    const headers: Record<string, string> = { Accept: "application/x-ndjson,application/json,*/*" };
+    if (apiKey) headers["Authorization"] = `ApiKey ${apiKey}`;
+
+    console.log("Fetching EU FSF NDJSON from OpenSanctions...");
+    const res = await fetch(EU_FSF_NDJSON, { headers });
+    if (!res.ok) throw new Error(`OpenSanctions bulk download HTTP ${res.status}`);
+
+    const text = await res.text();
+    const lines = text.split("\n").filter((l) => l.trim());
+    console.log(`Parsing ${lines.length} EU FSF entities from NDJSON`);
 
     let total = 0;
-    let offset = 0;
-    const PAGE = 1000;
     const keepIds = new Set<string>();
     const BATCH = 50;
     let batch: ListEntry[] = [];
 
-    console.log("Fetching EU FSF via OpenSanctions API...");
-    while (true) {
-      const url = `${OPENSANCTIONS_BASE}/entities/?dataset=${EU_FSF_DATASET}&limit=${PAGE}&offset=${offset}`;
-      const res = await fetch(url, { headers });
-      if (!res.ok) throw new Error(`OpenSanctions API HTTP ${res.status} at offset ${offset}`);
-      const json = await res.json();
-      const results: any[] = json.results ?? [];
-      console.log(`OpenSanctions page offset=${offset}: ${results.length} entities`);
-      if (results.length === 0) break;
-
-      for (const e of results) {
-          const ext = extractOpenSanctionsEntity(e);
-          if (!ext) continue;
-          keepIds.add(ext.external_id);
-          batch.push(ext);
-          if (batch.length >= BATCH) {
-            total += await upsertBatch(supabase, listId, batch);
-            batch = [];
-          }
-        }
-
-      offset += results.length;
-      // Stop if we've received fewer than a full page (last page)
-      if (results.length < PAGE) break;
+    for (const line of lines) {
+      let e: any;
+      try { e = JSON.parse(line); } catch { continue; }
+      const ext = extractOpenSanctionsEntity(e);
+      if (!ext) continue;
+      keepIds.add(ext.external_id);
+      batch.push(ext);
+      if (batch.length >= BATCH) {
+        total += await upsertBatch(supabase, listId, batch);
+        batch = [];
+      }
     }
 
     if (batch.length > 0) total += await upsertBatch(supabase, listId, batch);
