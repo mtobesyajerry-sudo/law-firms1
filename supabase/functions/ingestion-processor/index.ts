@@ -433,9 +433,9 @@ async function ingestUn(supabase: SupabaseClient): Promise<{ added: number; upda
 // ---------------------------------------------------------------------------
 // EU Consolidated ingestion
 // ---------------------------------------------------------------------------
-// EU FSF requires a registration token. Use EU_FSF_TOKEN env var or this falls back to the public endpoint.
-// Alternative public mirror: https://data.europa.eu/api/hub/search/datasets/consolidated-list-of-persons-groups-and-entities-subject-to-eu-financial-sanctions
+// EU FSF consolidated list. Token passed as Authorization header (preferred) or query param.
 const EU_URL = "https://webgate.ec.europa.eu/fsd/fsf/public/files/xmlFullSanctionsList_1_1/content";
+const EU_URL_V2 = "https://webgate.ec.europa.eu/fsd/fsf/public/files/xmlFullSanctionsList/content";
 
 function parseEuDob(birth: any): { dob: string | null; dobText: string | null } {
   if (!birth) return { dob: null, dobText: null };
@@ -496,12 +496,22 @@ async function ingestEu(supabase: SupabaseClient): Promise<{ added: number; upda
   const listId = await getListId(supabase, "EU_CONSOLIDATED");
   const started = Date.now();
   const token = Deno.env.get("EU_FSF_TOKEN");
-  const url = token ? `${EU_URL}?token=${token}` : EU_URL;
-  const logId = await startIngestion(supabase, listId, url);
+  const logId = await startIngestion(supabase, listId, EU_URL);
   try {
     console.log("Fetching EU consolidated XML...");
-    const res = await fetch(url);
-    if (!res.ok) throw new Error(`HTTP ${res.status} — EU list may require EU_FSF_TOKEN`);
+    const headers: Record<string, string> = { Accept: "application/xml,text/xml,*/*" };
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+    // Try primary URL first; fall back to alternate path if it fails
+    let res = await fetch(EU_URL, { headers });
+    if (!res.ok && token) {
+      // Some versions expect token as query param
+      res = await fetch(`${EU_URL}?token=${token}`, { headers: { Accept: "application/xml,text/xml,*/*" } });
+    }
+    if (!res.ok) {
+      // Try alternate v2 endpoint
+      res = await fetch(EU_URL_V2, { headers });
+    }
+    if (!res.ok) throw new Error(`HTTP ${res.status} — EU FSF endpoint unavailable`);
     const xml = await res.text();
     const parsed = xmlParser.parse(xml);
     const root = parsed?.export ?? parsed?.SANCTIONS ?? parsed;
