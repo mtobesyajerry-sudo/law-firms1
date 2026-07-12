@@ -184,7 +184,6 @@ const DomesticDesignationsAdmin = ({ organizationId }) => {
   if (loading) return <LoadingSpinner />;
 
   const containerStyle = {
-    ...dashboardStyles.container,
     padding: '24px',
     backgroundColor: '#0f1419',
     minHeight: '100vh',

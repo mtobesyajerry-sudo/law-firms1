@@ -133,23 +133,22 @@ const PEPReviewPanel = () => {
   };
 
   const containerStyle = {
-    backgroundColor: dashboardStyles.colors.darkBackground,
+    backgroundColor: '#0a1929',
     borderRadius: '8px',
     padding: '24px',
     marginBottom: '24px',
   };
 
   const headerStyle = {
-    color: dashboardStyles.colors.gold,
+    color: '#d4af37',
     fontSize: '24px',
     fontWeight: 'bold',
     marginBottom: '24px',
-    fontFamily: dashboardStyles.fonts.primary,
   };
 
   const cardStyle = {
-    backgroundColor: dashboardStyles.colors.navyBlue,
-    border: `1px solid ${dashboardStyles.colors.gold}`,
+    backgroundColor: '#1a2f45',
+    border: '1px solid #d4af37',
     borderRadius: '6px',
     padding: '16px',
     marginBottom: '16px',
@@ -160,21 +159,20 @@ const PEPReviewPanel = () => {
   const cardHoverStyle = {
     ...cardStyle,
     backgroundColor: '#2a3d5c',
-    boxShadow: `0 0 10px ${dashboardStyles.colors.gold}40`,
+    boxShadow: '0 0 10px rgba(212,175,55,0.25)',
   };
 
   const cardHeaderStyle = {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    color: dashboardStyles.colors.lightText,
-    fontFamily: dashboardStyles.fonts.primary,
+    color: '#e2e8f0',
   };
 
   const clientNameStyle = {
     fontSize: '18px',
     fontWeight: 'bold',
-    color: dashboardStyles.colors.gold,
+    color: '#d4af37',
   };
 
   const detailsStyle = {
@@ -183,7 +181,7 @@ const PEPReviewPanel = () => {
     gap: '16px',
     marginTop: '12px',
     fontSize: '14px',
-    color: dashboardStyles.colors.lightText,
+    color: '#e2e8f0',
   };
 
   const detailItemStyle = {
@@ -193,13 +191,13 @@ const PEPReviewPanel = () => {
 
   const labelStyle = {
     fontWeight: '600',
-    color: dashboardStyles.colors.gold,
+    color: '#d4af37',
   };
 
   const formSectionStyle = {
     marginTop: '24px',
     paddingTop: '24px',
-    borderTop: `1px solid ${dashboardStyles.colors.gold}40`,
+    borderTop: '1px solid rgba(212,175,55,0.25)',
   };
 
   const formGroupStyle = {
@@ -208,7 +206,7 @@ const PEPReviewPanel = () => {
 
   const formLabelStyle = {
     display: 'block',
-    color: dashboardStyles.colors.gold,
+    color: '#d4af37',
     fontWeight: '600',
     marginBottom: '6px',
     fontSize: '14px',
@@ -217,11 +215,10 @@ const PEPReviewPanel = () => {
   const formInputStyle = {
     width: '100%',
     padding: '10px',
-    backgroundColor: dashboardStyles.colors.darkBackground,
-    border: `1px solid ${dashboardStyles.colors.gold}`,
+    backgroundColor: '#0a1929',
+    border: '1px solid #d4af37',
     borderRadius: '4px',
-    color: dashboardStyles.colors.lightText,
-    fontFamily: dashboardStyles.fonts.primary,
+    color: '#e2e8f0',
     fontSize: '14px',
     boxSizing: 'border-box',
   };
@@ -242,7 +239,7 @@ const PEPReviewPanel = () => {
     width: '18px',
     height: '18px',
     cursor: 'pointer',
-    accentColor: dashboardStyles.colors.gold,
+    accentColor: '#d4af37',
   };
 
   const buttonContainerStyle = {
@@ -254,14 +251,13 @@ const PEPReviewPanel = () => {
 
   const submitButtonStyle = {
     padding: '10px 24px',
-    backgroundColor: dashboardStyles.colors.gold,
-    color: dashboardStyles.colors.darkBackground,
+    backgroundColor: '#d4af37',
+    color: '#0a1929',
     border: 'none',
     borderRadius: '4px',
     fontWeight: 'bold',
     cursor: 'pointer',
     fontSize: '14px',
-    fontFamily: dashboardStyles.fonts.primary,
     transition: 'opacity 0.2s ease',
   };
 
@@ -273,27 +269,25 @@ const PEPReviewPanel = () => {
   const cancelButtonStyle = {
     padding: '10px 24px',
     backgroundColor: 'transparent',
-    color: dashboardStyles.colors.lightText,
-    border: `1px solid ${dashboardStyles.colors.lightText}`,
+    color: '#e2e8f0',
+    border: '1px solid #e2e8f0',
     borderRadius: '4px',
     fontWeight: '600',
     cursor: 'pointer',
     fontSize: '14px',
-    fontFamily: dashboardStyles.fonts.primary,
     transition: 'all 0.2s ease',
   };
 
   const emptyStateStyle = {
     textAlign: 'center',
     padding: '48px 24px',
-    color: dashboardStyles.colors.lightText,
-    fontFamily: dashboardStyles.fonts.primary,
+    color: '#e2e8f0',
   };
 
   const emptyStateTitleStyle = {
     fontSize: '20px',
     fontWeight: 'bold',
-    color: dashboardStyles.colors.gold,
+    color: '#d4af37',
     marginBottom: '8px',
   };
 
@@ -304,7 +298,6 @@ const PEPReviewPanel = () => {
     padding: '12px 16px',
     borderRadius: '4px',
     marginBottom: '16px',
-    fontFamily: dashboardStyles.fonts.primary,
   };
 
   const successStyle = {
@@ -314,7 +307,6 @@ const PEPReviewPanel = () => {
     padding: '12px 16px',
     borderRadius: '4px',
     marginBottom: '16px',
-    fontFamily: dashboardStyles.fonts.primary,
   };
 
   const [hoveredCardId, setHoveredCardId] = useState(null);
@@ -342,7 +334,7 @@ const PEPReviewPanel = () => {
         </div>
       ) : (
         <div>
-          <div style={{ fontSize: '14px', color: dashboardStyles.colors.lightText, marginBottom: '16px' }}>
+          <div style={{ fontSize: '14px', color: '#e2e8f0', marginBottom: '16px' }}>
             {pepMatches.length} match{pepMatches.length !== 1 ? 'es' : ''} pending review
           </div>
 
@@ -378,14 +370,14 @@ const PEPReviewPanel = () => {
                     </div>
                   </div>
                 </div>
-                <div style={{ fontSize: '20px', color: dashboardStyles.colors.gold }}>
+                <div style={{ fontSize: '20px', color: '#d4af37' }}>
                   {expandedId === match.id ? '▼' : '▶'}
                 </div>
               </div>
 
               {expandedId === match.id && (
                 <div style={formSectionStyle}>
-                  <div style={{ fontSize: '16px', fontWeight: 'bold', color: dashboardStyles.colors.gold, marginBottom: '16px' }}>
+                  <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#d4af37', marginBottom: '16px' }}>
                     Enhanced Due Diligence Review
                   </div>
 
@@ -456,7 +448,7 @@ const PEPReviewPanel = () => {
                         onChange={(e) => handleFormChange('enhancedMonitoring', e.target.checked)}
                         style={checkboxStyle}
                       />
-                      <label htmlFor={`enhanced-${match.id}`} style={{ color: dashboardStyles.colors.lightText, cursor: 'pointer' }}>
+                      <label htmlFor={`enhanced-${match.id}`} style={{ color: '#e2e8f0', cursor: 'pointer' }}>
                         Require Enhanced Monitoring
                       </label>
                     </div>
