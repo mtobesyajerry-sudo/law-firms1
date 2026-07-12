@@ -1,0 +1,15 @@
+**Schema confirmed (live DB):**
+
+`screening_matches` PEP columns: `is_pep` (boolean), `pep_category` (text)
+
+`kyc_clients` PEP columns: `pep_category`, `pep_confirmed_at`, `pep_confirmed_by`, `pep_declaration`, `pep_details`, `pep_enhanced_monitoring` (boolean), `pep_family_associates` (jsonb), `pep_senior_approval_notes`, `pep_senior_approved_at`, `pep_senior_approver_name`, `pep_sow_sof_reference`, `pep_status` (boolean)
+
+No migration needed — all required fields exist on `kyc_clients`.
+
+`domestic_designations`: 2 rows, AL-SHABAAB present, AL-QAEDA present.
+
+**File sizes on disk (from filesystem):**
+- `PEPReviewPanel.jsx`: 488 lines
+- `DomesticDesignationsAdmin.jsx`: 470 lines
+
+Both files exist and have content. Now let me read ScreeningDashboard.jsx to verify the wiring is actually there, then produce the verbatim excerpts required by the spec.

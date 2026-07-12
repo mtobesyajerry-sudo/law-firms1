@@ -1,554 +1,778 @@
-// ReviewMatchesPanel.jsx
-// Shows pending matches for review with side-by-side client vs list-entry
-// comparison and Clear / Escalate / Confirm actions.
-// FIX 2: Actions route through review-matches edge function (role-enforced server-side).
-// FIX 3: Escalate requires a separate escalation_justification field.
-// FIX 4: Confirmed matches show STR filing deadline countdown + filing form.
-// Every decision writes to screening_audit_log via the edge function.
-
-import { useEffect, useState } from "react";
+import React, { useState, useEffect } from 'react';
+import supabase from '../supabaseClient';
 import {
-  clearMatch, confirmMatch, escalateMatch, getScreeningDetail, fileSTR,
-} from "../services/screeningService";
-import { supabase } from "../supabaseClient";
+  clearMatch,
+  confirmMatch,
+  escalateMatch,
+  fileSTR,
+  recordFreezeAction,
+  notifyCommittee,
+} from '../services/screeningService';
+import { dashboardStyles } from '../utils/dashboardStyles';
+import LoadingSpinner from './LoadingSpinner';
 
-const COLORS = {
-  gold: "#d4af37",
-  goldSoft: "#f4e8b8",
-  navy: "#0a1929",
-  navyLight: "#1a2a3a",
-  bg: "#fafaf7",
-  white: "#ffffff",
-  red: "#c0392b",
-  amber: "#e67e22",
-  green: "#27ae60",
-  border: "#e2e2dc",
-  text: "#1a1a1a",
-  textMuted: "#6b6b6b",
-};
+const ReviewMatchesPanel = ({ organizationId }) => {
+  const [matches, setMatches] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [expandedMatchId, setExpandedMatchId] = useState(null);
+  const [actionInProgress, setActionInProgress] = useState(null);
+  const [notes, setNotes] = useState({});
+  const [escalationJustification, setEscalationJustification] = useState({});
+  const [strReference, setStrReference] = useState({});
+  const [committeeReference, setCommitteeReference] = useState({});
+  const [freezeActionInProgress, setFreezeActionInProgress] = useState(null);
+  const [notifyActionInProgress, setNotifyActionInProgress] = useState(null);
+  const [strActionInProgress, setStrActionInProgress] = useState(null);
 
-const styles = {
-  panel: {
-    background: COLORS.white, border: `1px solid ${COLORS.border}`,
-    borderRadius: 6, overflow: "hidden",
-  },
-  header: {
-    padding: "16px 20px", background: COLORS.navy, color: COLORS.gold,
-    borderBottom: `2px solid ${COLORS.gold}`,
-    display: "flex", justifyContent: "space-between", alignItems: "center",
-  },
-  title: { fontSize: 16, fontWeight: 700, letterSpacing: 0.5, margin: 0 },
-  queue: {
-    display: "grid", gridTemplateColumns: "320px 1fr",
-    minHeight: 500,
-  },
-  list: {
-    borderRight: `1px solid ${COLORS.border}`,
-    background: COLORS.bg, overflow: "auto", maxHeight: 700,
-  },
-  listItem: (active) => ({
-    padding: "14px 16px", borderBottom: `1px solid ${COLORS.border}`,
-    cursor: "pointer",
-    background: active ? COLORS.goldSoft : "transparent",
-    borderLeft: active ? `4px solid ${COLORS.gold}` : "4px solid transparent",
-  }),
-  listName: { fontSize: 13, fontWeight: 600, color: COLORS.navy, marginBottom: 2 },
-  listMeta: { fontSize: 11, color: COLORS.textMuted, letterSpacing: 0.3 },
-  scoreTag: (score) => ({
-    display: "inline-block", padding: "2px 8px", borderRadius: 10,
-    fontSize: 11, fontWeight: 700, marginRight: 6,
-    color: COLORS.white,
-    background: score >= 0.9 ? COLORS.red : score >= 0.8 ? COLORS.amber : COLORS.navy,
-  }),
-  detail: { padding: 24, overflow: "auto", maxHeight: 700 },
-  compareGrid: {
-    display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 24,
-  },
-  card: {
-    border: `1px solid ${COLORS.border}`, borderRadius: 4, overflow: "hidden",
-  },
-  cardHead: {
-    padding: "8px 12px", background: COLORS.navy, color: COLORS.gold,
-    fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase",
-  },
-  cardBody: { padding: 12, fontSize: 13 },
-  row: { display: "flex", justifyContent: "space-between", padding: "4px 0" },
-  rowKey: { color: COLORS.textMuted, fontSize: 11, textTransform: "uppercase", letterSpacing: 0.3 },
-  rowVal: { color: COLORS.text, fontWeight: 500, textAlign: "right", maxWidth: "60%", wordBreak: "break-word" },
-  scoreBox: {
-    background: COLORS.goldSoft, padding: 12, borderRadius: 4,
-    marginBottom: 16, fontSize: 13,
-  },
-  notes: {
-    width: "100%", minHeight: 80, padding: 10,
-    border: `1px solid ${COLORS.border}`, borderRadius: 4,
-    fontSize: 13, fontFamily: "inherit", boxSizing: "border-box",
-    resize: "vertical",
-  },
-  label: {
-    display: "block", fontSize: 11, fontWeight: 700, color: COLORS.textMuted,
-    textTransform: "uppercase", letterSpacing: 0.3, marginBottom: 6,
-  },
-  actions: { display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap" },
-  btn: (variant) => ({
-    padding: "10px 16px", borderRadius: 4,
-    fontSize: 12, fontWeight: 700, letterSpacing: 0.5,
-    textTransform: "uppercase", cursor: "pointer",
-    border: "1px solid",
-    ...(variant === "clear" && {
-      background: COLORS.green, color: COLORS.white, borderColor: COLORS.green,
-    }),
-    ...(variant === "confirm" && {
-      background: COLORS.red, color: COLORS.white, borderColor: COLORS.red,
-    }),
-    ...(variant === "escalate" && {
-      background: COLORS.amber, color: COLORS.white, borderColor: COLORS.amber,
-    }),
-    ...(variant === "str" && {
-      background: COLORS.navy, color: COLORS.gold, borderColor: COLORS.gold,
-    }),
-    ...(variant === "ghost" && {
-      background: "transparent", color: COLORS.textMuted, borderColor: COLORS.border,
-    }),
-  }),
-  emptyState: {
-    padding: 60, textAlign: "center", color: COLORS.textMuted,
-  },
-  error: {
-    background: "#fdecec", color: COLORS.red,
-    padding: 10, borderRadius: 4, marginBottom: 12,
-    fontSize: 12, border: `1px solid ${COLORS.red}`,
-  },
-};
-
-function fmtName(s) { return s || "—"; }
-function fmtList(arr) { return arr?.length ? arr.join(", ") : "—"; }
-
-function useCountdown(deadline) {
-  const [remaining, setRemaining] = useState(null);
   useEffect(() => {
-    if (!deadline) return;
-    const tick = () => setRemaining(new Date(deadline).getTime() - Date.now());
-    tick();
-    const id = setInterval(tick, 10000);
-    return () => clearInterval(id);
-  }, [deadline]);
-  return remaining;
-}
+    fetchMatches();
+  }, [organizationId]);
 
-// FIX 4 — STR deadline banner + filing form
-function STRDeadlineBanner({ screening, onFiled }) {
-  const remaining = useCountdown(screening?.str_deadline);
-  const [strRef, setStrRef] = useState("");
-  const [filing, setFiling] = useState(false);
-  const [err, setErr] = useState(null);
+  const fetchMatches = async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('screening_matches')
+        .select(`
+          *,
+          screening_results (
+            id,
+            screened_name,
+            pep_category,
+            overall_risk
+          )
+        `)
+        .in('status', ['pending_review', 'pending_second_review'])
+        .eq('organization_id', organizationId)
+        .order('created_at', { ascending: false });
 
-  if (!screening?.str_deadline) return null;
+      if (error) throw error;
 
-  if (screening.str_reference_number) {
+      setMatches(data || []);
+    } catch (error) {
+      console.error('Error fetching matches:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleClear = async (matchId) => {
+    try {
+      setActionInProgress(matchId);
+      await clearMatch(matchId, notes[matchId] || '');
+      await fetchMatches();
+      setNotes({ ...notes, [matchId]: '' });
+      setExpandedMatchId(null);
+    } catch (error) {
+      console.error('Error clearing match:', error);
+    } finally {
+      setActionInProgress(null);
+    }
+  };
+
+  const handleConfirm = async (matchId) => {
+    try {
+      setActionInProgress(matchId);
+      await confirmMatch(matchId, notes[matchId] || '');
+      await fetchMatches();
+      setNotes({ ...notes, [matchId]: '' });
+    } catch (error) {
+      console.error('Error confirming match:', error);
+    } finally {
+      setActionInProgress(null);
+    }
+  };
+
+  const handleEscalate = async (matchId) => {
+    try {
+      setActionInProgress(matchId);
+      await escalateMatch(
+        matchId,
+        null,
+        notes[matchId] || '',
+        escalationJustification[matchId] || ''
+      );
+      await fetchMatches();
+      setNotes({ ...notes, [matchId]: '' });
+      setEscalationJustification({ ...escalationJustification, [matchId]: '' });
+      setExpandedMatchId(null);
+    } catch (error) {
+      console.error('Error escalating match:', error);
+    } finally {
+      setActionInProgress(null);
+    }
+  };
+
+  const handleRecordFreeze = async (matchId) => {
+    try {
+      setFreezeActionInProgress(matchId);
+      await recordFreezeAction(matchId);
+      await fetchMatches();
+    } catch (error) {
+      console.error('Error recording freeze action:', error);
+    } finally {
+      setFreezeActionInProgress(null);
+    }
+  };
+
+  const handleNotifyCommittee = async (matchId) => {
+    try {
+      setNotifyActionInProgress(matchId);
+      await notifyCommittee(matchId, committeeReference[matchId] || '');
+      await fetchMatches();
+      setCommitteeReference({ ...committeeReference, [matchId]: '' });
+    } catch (error) {
+      console.error('Error notifying committee:', error);
+    } finally {
+      setNotifyActionInProgress(null);
+    }
+  };
+
+  const handleFileSTR = async (matchId, screeningResultId) => {
+    try {
+      setStrActionInProgress(matchId);
+      await fileSTR(screeningResultId, strReference[matchId] || '');
+      await fetchMatches();
+      setStrReference({ ...strReference, [matchId]: '' });
+    } catch (error) {
+      console.error('Error filing STR:', error);
+    } finally {
+      setStrActionInProgress(null);
+    }
+  };
+
+  const getScoreBadgeColor = (score) => {
+    if (score < 70) return '#10b981';
+    if (score < 85) return '#f59e0b';
+    return '#ef4444';
+  };
+
+  const getRiskBadgeStyle = (riskLevel) => {
+    const baseStyle = {
+      padding: '4px 12px',
+      borderRadius: '4px',
+      fontSize: '12px',
+      fontWeight: '600',
+      textTransform: 'uppercase',
+      display: 'inline-block',
+    };
+
+    switch (riskLevel) {
+      case 'critical':
+        return { ...baseStyle, backgroundColor: '#ef4444', color: '#fff' };
+      case 'high':
+        return { ...baseStyle, backgroundColor: '#f97316', color: '#fff' };
+      case 'medium':
+        return { ...baseStyle, backgroundColor: '#f59e0b', color: '#fff' };
+      case 'low':
+        return { ...baseStyle, backgroundColor: '#6b7280', color: '#fff' };
+      default:
+        return { ...baseStyle, backgroundColor: '#d1d5db', color: '#fff' };
+    }
+  };
+
+  const isHighRisk = (riskLevel) => {
+    return riskLevel === 'critical' || riskLevel === 'high';
+  };
+
+  if (loading) {
+    return <LoadingSpinner />;
+  }
+
+  if (matches.length === 0) {
     return (
-      <div style={{
-        background: "#d1fae5", border: `1px solid ${COLORS.green}`,
-        borderRadius: 4, padding: "10px 14px", marginBottom: 16, fontSize: 13,
-        display: "flex", alignItems: "center", gap: 10,
-      }}>
-        <span style={{ color: COLORS.green, fontWeight: 700 }}>STR Filed with FIU</span>
-        <span style={{ color: COLORS.text }}>
-          Reference: <strong>{screening.str_reference_number}</strong>
-          {screening.time_to_file_minutes != null
-            ? ` — Filed in ${screening.time_to_file_minutes} min`
-            : ""}
-        </span>
+      <div
+        style={{
+          padding: '40px 20px',
+          textAlign: 'center',
+          backgroundColor: '#0f172a',
+          borderRadius: '8px',
+          border: '1px solid #1e293b',
+          color: '#94a3b8',
+        }}
+      >
+        <h3 style={{ margin: '0 0 10px 0', color: '#cbd5e1' }}>
+          No Pending Matches
+        </h3>
+        <p style={{ margin: 0 }}>All screening matches have been reviewed.</p>
       </div>
     );
   }
 
-  const overdue = remaining !== null && remaining <= 0;
-  const hrs = remaining !== null ? Math.max(0, Math.floor(remaining / 3600000)) : null;
-  const mins = remaining !== null ? Math.floor((Math.max(0, remaining) % 3600000) / 60000) : null;
-
-  async function handleFile() {
-    if (!strRef.trim() || strRef.trim().length < 3) {
-      setErr("Enter a valid FIU STR reference number (min 3 characters).");
-      return;
-    }
-    setFiling(true);
-    setErr(null);
-    try {
-      await fileSTR(screening.id, strRef.trim());
-      onFiled();
-    } catch (e) {
-      setErr(e.message);
-    } finally {
-      setFiling(false);
-    }
-  }
-
   return (
-    <div style={{ marginBottom: 16 }}>
-      <div style={{
-        background: overdue ? "#fee2e2" : "#fff7ed",
-        border: `1px solid ${overdue ? COLORS.red : COLORS.amber}`,
-        borderRadius: 4, padding: "10px 14px", marginBottom: 8,
-        fontSize: 13, display: "flex", alignItems: "center", gap: 10,
-      }}>
-        <span style={{ fontSize: 18 }}>{overdue ? "🚨" : "⏰"}</span>
-        <div>
-          <div style={{ fontWeight: 700, color: overdue ? COLORS.red : COLORS.amber }}>
-            {overdue
-              ? "STR FILING OVERDUE — Report to FIU immediately"
-              : `STR must be filed with the FIU — ${hrs}h ${mins}m remaining`}
-          </div>
-          <div style={{ fontSize: 11, color: COLORS.textMuted, marginTop: 2 }}>
-            Deadline: {new Date(screening.str_deadline).toLocaleString()}
-          </div>
-        </div>
-      </div>
-
-      {err && <div style={{ ...styles.error, marginBottom: 8 }}>{err}</div>}
-
-      <div style={{ display: "flex", gap: 8 }}>
-        <input
-          type="text"
-          value={strRef}
-          onChange={(e) => setStrRef(e.target.value)}
-          placeholder="FIU STR reference number"
+    <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+      <div style={{ marginBottom: '30px' }}>
+        <h2
           style={{
-            flex: 1, padding: "8px 12px", border: `1px solid ${COLORS.border}`,
-            borderRadius: 4, fontSize: 13, fontFamily: "inherit",
+            color: '#f59e0b',
+            fontSize: '24px',
+            fontWeight: '700',
+            margin: '0 0 10px 0',
           }}
-        />
-        <button
-          style={{ ...styles.btn("str"), opacity: filing ? 0.6 : 1 }}
-          onClick={handleFile}
-          disabled={filing}
         >
-          {filing ? "Filing..." : "File STR with FIU"}
-        </button>
-      </div>
-    </div>
-  );
-}
-
-export default function ReviewMatchesPanel() {
-  const [pending, setPending] = useState([]);
-  const [selectedId, setSelectedId] = useState(null);
-  const [detail, setDetail] = useState(null);
-  const [notes, setNotes] = useState("");
-  const [escalationJustification, setEscalationJustification] = useState("");
-  const [showEscalate, setShowEscalate] = useState(false);
-  const [error, setError] = useState(null);
-  const [busy, setBusy] = useState(false);
-
-  useEffect(() => { loadPending(); }, []);
-
-  async function loadPending() {
-    const { data, error } = await supabase
-      .from("screening_matches")
-      .select(`
-        id, match_score, list_entry_name, list_source, list_entry_program,
-        is_pep, created_at, screening_result_id, status, escalation_justification,
-        screening_results (
-          id, screened_name, overall_risk, status,
-          str_deadline, str_reference_number, time_to_file_minutes
-        )
-      `)
-      .in("status", ["pending_review", "pending_second_review"])
-      .order("match_score", { ascending: false })
-      .limit(50);
-
-    if (error) { setError(error.message); return; }
-    setPending(data ?? []);
-    if (data?.length && !selectedId) setSelectedId(data[0].id);
-  }
-
-  useEffect(() => {
-    if (!selectedId) { setDetail(null); return; }
-    const match = pending.find((m) => m.id === selectedId);
-    if (!match) return;
-    (async () => {
-      try {
-        const det = await getScreeningDetail(match.screening_result_id);
-        setDetail({ ...det, matchId: selectedId });
-        setNotes("");
-        setEscalationJustification("");
-        setShowEscalate(false);
-      } catch (err) {
-        setError(err.message);
-      }
-    })();
-  }, [selectedId, pending]);
-
-  const currentMatch = detail?.matches.find((m) => m.id === detail.matchId);
-  const pendingMatch = pending.find((m) => m.id === selectedId);
-  const isSecondReview = pendingMatch?.status === "pending_second_review";
-
-  async function handleAction(action) {
-    if (!currentMatch) return;
-    setError(null);
-
-    if ((action === "clear" || action === "confirm") && notes.trim().length < 10) {
-      setError("Add a note (at least 10 characters) explaining your decision.");
-      return;
-    }
-    if (action === "escalate") {
-      if (notes.trim().length < 10) {
-        setError("Add reviewer notes (at least 10 characters).");
-        return;
-      }
-      if (escalationJustification.trim().length < 10) {
-        setError("Add an escalation justification (at least 10 characters) separate from your notes.");
-        return;
-      }
-    }
-
-    setBusy(true);
-    try {
-      if (action === "clear") await clearMatch(currentMatch.id, notes);
-      if (action === "confirm") await confirmMatch(currentMatch.id, notes);
-      if (action === "escalate") await escalateMatch(currentMatch.id, null, notes, escalationJustification);
-
-      const remaining = pending.filter((m) => m.id !== currentMatch.id);
-      setPending(remaining);
-      setSelectedId(remaining[0]?.id ?? null);
-      setNotes("");
-      setEscalationJustification("");
-      setShowEscalate(false);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  return (
-    <div style={styles.panel}>
-      <div style={styles.header}>
-        <h3 style={styles.title}>Review Matches ({pending.length} pending)</h3>
+          Review Screening Matches
+        </h2>
+        <p style={{ color: '#94a3b8', margin: 0 }}>
+          {matches.length} match{matches.length !== 1 ? 'es' : ''} pending review
+        </p>
       </div>
 
-      <div style={styles.queue}>
-        <div style={styles.list}>
-          {pending.length === 0 ? (
-            <div style={styles.emptyState}>No matches pending review.</div>
-          ) : (
-            pending.map((m) => (
+      <div style={{ display: 'grid', gap: '20px' }}>
+        {matches.map((match) => {
+          const screeningResult = match.screening_results;
+          const isExpanded = expandedMatchId === match.id;
+          const score = match.match_score || 0;
+          const scoreBadgeColor = getScoreBadgeColor(score);
+          const riskLevel = screeningResult?.overall_risk || 'unknown';
+          const showComplianceActions =
+            match.status === 'pending_second_review' &&
+            isHighRisk(riskLevel);
+
+          return (
+            <div
+              key={match.id}
+              style={{
+                backgroundColor: '#0f172a',
+                border: '1px solid #1e293b',
+                borderRadius: '8px',
+                overflow: 'hidden',
+                transition: 'all 0.3s ease',
+                boxShadow: isExpanded ? '0 10px 25px rgba(0,0,0,0.3)' : 'none',
+              }}
+            >
+              {/* Match Header */}
               <div
-                key={m.id}
-                style={styles.listItem(m.id === selectedId)}
-                onClick={() => setSelectedId(m.id)}
+                style={{
+                  padding: '20px',
+                  backgroundColor: '#0f172a',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  borderBottom: isExpanded ? '1px solid #1e293b' : 'none',
+                }}
+                onClick={() =>
+                  setExpandedMatchId(isExpanded ? null : match.id)
+                }
               >
-                <div style={styles.listName}>
-                  <span style={styles.scoreTag(m.match_score)}>
-                    {(m.match_score * 100).toFixed(0)}%
-                  </span>
-                  {m.screening_results?.screened_name}
-                </div>
-                <div style={styles.listMeta}>
-                  → {m.list_entry_name} · {m.list_source?.replace(/_/g, " ")}
-                  {m.is_pep ? " · PEP" : ""}
-                  {m.status === "pending_second_review" && (
-                    <span style={{ color: COLORS.amber, fontWeight: 700 }}> · 2nd Review</span>
-                  )}
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-
-        <div style={styles.detail}>
-          {!currentMatch ? (
-            <div style={styles.emptyState}>Select a match to review.</div>
-          ) : (
-            <>
-              {error && <div style={styles.error}>{error}</div>}
-
-              {/* FIX 4: STR deadline banner for confirmed screenings */}
-              {detail?.screening?.status === "match_confirmed" && (
-                <STRDeadlineBanner
-                  screening={detail.screening}
-                  onFiled={() => { loadPending(); setSelectedId(null); }}
-                />
-              )}
-
-              {/* FIX 3: Second-review notice */}
-              {isSecondReview && (
-                <div style={{
-                  background: "#fff7ed", border: `1px solid ${COLORS.amber}`,
-                  borderRadius: 4, padding: "10px 14px", marginBottom: 16, fontSize: 13,
-                }}>
-                  <strong style={{ color: COLORS.amber }}>Second Review Required</strong>
-                  <div style={{ color: COLORS.text, marginTop: 4 }}>
-                    This match was escalated and requires a final decision (clear or confirm).
-                  </div>
-                  {pendingMatch?.escalation_justification && (
-                    <div style={{ marginTop: 8, fontSize: 12, color: COLORS.textMuted }}>
-                      <strong>Escalation reason:</strong> {pendingMatch.escalation_justification}
+                <div style={{ flex: 1 }}>
+                  <h4
+                    style={{
+                      color: '#f1f5f9',
+                      margin: '0 0 8px 0',
+                      fontSize: '16px',
+                      fontWeight: '600',
+                    }}
+                  >
+                    {screeningResult?.screened_name}
+                  </h4>
+                  <div
+                    style={{
+                      display: 'flex',
+                      gap: '12px',
+                      flexWrap: 'wrap',
+                      alignItems: 'center',
+                    }}
+                  >
+                    <div
+                      style={{
+                        backgroundColor: scoreBadgeColor,
+                        color: '#fff',
+                        padding: '4px 12px',
+                        borderRadius: '4px',
+                        fontSize: '12px',
+                        fontWeight: '600',
+                      }}
+                    >
+                      {score.toFixed(1)}%
                     </div>
-                  )}
-                </div>
-              )}
-
-              <div style={styles.compareGrid}>
-                <div style={styles.card}>
-                  <div style={styles.cardHead}>Client (Screened)</div>
-                  <div style={styles.cardBody}>
-                    <div style={styles.row}>
-                      <span style={styles.rowKey}>Name</span>
-                      <span style={styles.rowVal}>{fmtName(detail.screening.screened_name)}</span>
-                    </div>
-                    <div style={styles.row}>
-                      <span style={styles.rowKey}>DOB</span>
-                      <span style={styles.rowVal}>{fmtName(detail.screening.screened_dob)}</span>
-                    </div>
-                    <div style={styles.row}>
-                      <span style={styles.rowKey}>Nationality</span>
-                      <span style={styles.rowVal}>{fmtName(detail.screening.screened_nationality)}</span>
-                    </div>
-                    <div style={styles.row}>
-                      <span style={styles.rowKey}>ID</span>
-                      <span style={styles.rowVal}>{fmtName(detail.screening.screened_id_number)}</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div style={styles.card}>
-                  <div style={styles.cardHead}>
-                    List Entry · {currentMatch.list_source?.replace(/_/g, " ")}
-                  </div>
-                  <div style={styles.cardBody}>
-                    <div style={styles.row}>
-                      <span style={styles.rowKey}>Name</span>
-                      <span style={styles.rowVal}>{fmtName(currentMatch.list_entry_name)}</span>
-                    </div>
-                    <div style={styles.row}>
-                      <span style={styles.rowKey}>DOB</span>
-                      <span style={styles.rowVal}>
-                        {fmtName(
-                          currentMatch.screening_list_entries?.date_of_birth ??
-                          currentMatch.screening_list_entries?.dob_text
-                        )}
-                      </span>
-                    </div>
-                    <div style={styles.row}>
-                      <span style={styles.rowKey}>Nationality</span>
-                      <span style={styles.rowVal}>
-                        {fmtList(currentMatch.screening_list_entries?.nationalities)}
-                      </span>
-                    </div>
-                    <div style={styles.row}>
-                      <span style={styles.rowKey}>Place of Birth</span>
-                      <span style={styles.rowVal}>
-                        {fmtName(currentMatch.screening_list_entries?.place_of_birth)}
-                      </span>
-                    </div>
-                    <div style={styles.row}>
-                      <span style={styles.rowKey}>Program</span>
-                      <span style={styles.rowVal}>{fmtName(currentMatch.list_entry_program)}</span>
-                    </div>
-                    {currentMatch.is_pep && (
-                      <div style={styles.row}>
-                        <span style={styles.rowKey}>PEP</span>
-                        <span style={styles.rowVal}>
-                          {fmtName(currentMatch.screening_list_entries?.pep_position)}
-                          {currentMatch.screening_list_entries?.pep_country
-                            ? ` (${currentMatch.screening_list_entries.pep_country})` : ""}
-                        </span>
+                    <span style={{ color: '#64748b', fontSize: '13px' }}>
+                      {match.match_entity_name}
+                    </span>
+                    {screeningResult?.pep_category && (
+                      <div
+                        style={{
+                          backgroundColor: '#1e293b',
+                          color: '#f59e0b',
+                          padding: '4px 12px',
+                          borderRadius: '4px',
+                          fontSize: '12px',
+                          fontWeight: '600',
+                        }}
+                      >
+                        {screeningResult.pep_category}
                       </div>
                     )}
+                    <div style={getRiskBadgeStyle(riskLevel)}>
+                      {riskLevel}
+                    </div>
                   </div>
+                </div>
+
+                <div
+                  style={{
+                    color: '#94a3b8',
+                    fontSize: '20px',
+                    marginLeft: '20px',
+                  }}
+                >
+                  {isExpanded ? '−' : '+'}
                 </div>
               </div>
 
-              <div style={styles.scoreBox}>
-                <strong>Match score: {(currentMatch.match_score * 100).toFixed(1)}%</strong>
-                {currentMatch.score_breakdown && (
-                  <div style={{ fontSize: 12, marginTop: 6, color: COLORS.textMuted }}>
-                    Name: {(currentMatch.score_breakdown.name_score * 100).toFixed(0)}%
-                    {currentMatch.score_breakdown.dob_bonus !== 0 && ` · DOB: ${currentMatch.score_breakdown.dob_bonus > 0 ? "+" : ""}${(currentMatch.score_breakdown.dob_bonus * 100).toFixed(0)}%`}
-                    {currentMatch.score_breakdown.nationality_bonus > 0 && ` · Nationality: +${(currentMatch.score_breakdown.nationality_bonus * 100).toFixed(0)}%`}
-                    {currentMatch.score_breakdown.id_match_bonus > 0 && ` · ID: +${(currentMatch.score_breakdown.id_match_bonus * 100).toFixed(0)}%`}
+              {/* Expanded Content */}
+              {isExpanded && (
+                <div style={{ padding: '20px', backgroundColor: '#0f172a' }}>
+                  {/* TFS Freeze Banner */}
+                  {showComplianceActions && !match.freeze_action_taken_at && (
+                    <div
+                      style={{
+                        backgroundColor: '#7c2d12',
+                        border: '2px solid #ea580c',
+                        borderRadius: '6px',
+                        padding: '16px',
+                        marginBottom: '20px',
+                        color: '#ffedd5',
+                        fontSize: '14px',
+                        lineHeight: '1.6',
+                      }}
+                    >
+                      <strong>TFS Freeze Required:</strong> TFS freeze
+                      obligates immediate reporting to FIU. Asset freeze must
+                      be applied within 24 hours of designation confirmation.
+                    </div>
+                  )}
+
+                  {/* Review Form */}
+                  <div style={{ marginBottom: '20px' }}>
+                    <label
+                      style={{
+                        display: 'block',
+                        color: '#cbd5e1',
+                        fontSize: '13px',
+                        fontWeight: '600',
+                        marginBottom: '8px',
+                      }}
+                    >
+                      Review Notes
+                    </label>
+                    <textarea
+                      value={notes[match.id] || ''}
+                      onChange={(e) =>
+                        setNotes({ ...notes, [match.id]: e.target.value })
+                      }
+                      placeholder="Enter your review notes..."
+                      style={{
+                        width: '100%',
+                        minHeight: '100px',
+                        padding: '12px',
+                        backgroundColor: '#1e293b',
+                        border: '1px solid #334155',
+                        borderRadius: '6px',
+                        color: '#e2e8f0',
+                        fontSize: '14px',
+                        fontFamily: 'inherit',
+                        boxSizing: 'border-box',
+                      }}
+                    />
                   </div>
-                )}
-              </div>
 
-              <label style={styles.label}>
-                Reviewer notes (required for clear / confirm)
-              </label>
-              <textarea
-                style={{ ...styles.notes, marginBottom: 16 }}
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder="Why is this a false positive or confirmed match? This goes into the audit log."
-              />
+                  {/* Initial Actions */}
+                  <div
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: '1fr 1fr 1fr',
+                      gap: '12px',
+                      marginBottom: showComplianceActions ? '20px' : '0',
+                    }}
+                  >
+                    <button
+                      onClick={() => handleClear(match.id)}
+                      disabled={
+                        actionInProgress === match.id ||
+                        match.status === 'pending_second_review'
+                      }
+                      style={{
+                        padding: '10px 16px',
+                        backgroundColor:
+                          actionInProgress === match.id ||
+                          match.status === 'pending_second_review'
+                            ? '#64748b'
+                            : '#10b981',
+                        color: '#fff',
+                        border: 'none',
+                        borderRadius: '6px',
+                        fontSize: '13px',
+                        fontWeight: '600',
+                        cursor:
+                          actionInProgress === match.id ||
+                          match.status === 'pending_second_review'
+                            ? 'not-allowed'
+                            : 'pointer',
+                        opacity:
+                          actionInProgress === match.id ||
+                          match.status === 'pending_second_review'
+                            ? 0.6
+                            : 1,
+                      }}
+                    >
+                      Clear (False Positive)
+                    </button>
 
-              {/* FIX 3: Escalation justification panel */}
-              {showEscalate && (
-                <div style={{ marginBottom: 16 }}>
-                  <label style={{ ...styles.label, color: COLORS.amber }}>
-                    Escalation Justification (required — logged separately from reviewer notes)
-                  </label>
-                  <textarea
-                    style={{ ...styles.notes, borderColor: COLORS.amber }}
-                    value={escalationJustification}
-                    onChange={(e) => setEscalationJustification(e.target.value)}
-                    placeholder="Document specifically why this cannot be resolved now. When you are both CO and MLRO, this creates a Pending Second Review — you must re-open and make a final decision in a separate session."
-                  />
-                  <div style={{ fontSize: 11, color: COLORS.textMuted, marginTop: 4 }}>
-                    This is logged as a separate audit entry. You will need to return to this match
-                    and issue a final Clear or Confirm decision.
+                    <button
+                      onClick={() => handleConfirm(match.id)}
+                      disabled={actionInProgress === match.id}
+                      style={{
+                        padding: '10px 16px',
+                        backgroundColor:
+                          actionInProgress === match.id ? '#64748b' : '#f59e0b',
+                        color: '#000',
+                        border: 'none',
+                        borderRadius: '6px',
+                        fontSize: '13px',
+                        fontWeight: '600',
+                        cursor:
+                          actionInProgress === match.id
+                            ? 'not-allowed'
+                            : 'pointer',
+                        opacity: actionInProgress === match.id ? 0.6 : 1,
+                      }}
+                    >
+                      Confirm (True Match)
+                    </button>
+
+                    <button
+                      onClick={() => handleEscalate(match.id)}
+                      disabled={actionInProgress === match.id}
+                      style={{
+                        padding: '10px 16px',
+                        backgroundColor:
+                          actionInProgress === match.id ? '#64748b' : '#ef4444',
+                        color: '#fff',
+                        border: 'none',
+                        borderRadius: '6px',
+                        fontSize: '13px',
+                        fontWeight: '600',
+                        cursor:
+                          actionInProgress === match.id
+                            ? 'not-allowed'
+                            : 'pointer',
+                        opacity: actionInProgress === match.id ? 0.6 : 1,
+                      }}
+                    >
+                      Escalate
+                    </button>
+                  </div>
+
+                  {/* Escalation Justification */}
+                  {match.status === 'pending_second_review' && (
+                    <div style={{ marginBottom: '20px' }}>
+                      <label
+                        style={{
+                          display: 'block',
+                          color: '#cbd5e1',
+                          fontSize: '13px',
+                          fontWeight: '600',
+                          marginBottom: '8px',
+                        }}
+                      >
+                        Escalation Justification
+                      </label>
+                      <textarea
+                        value={escalationJustification[match.id] || ''}
+                        onChange={(e) =>
+                          setEscalationJustification({
+                            ...escalationJustification,
+                            [match.id]: e.target.value,
+                          })
+                        }
+                        placeholder="Provide justification for escalation..."
+                        style={{
+                          width: '100%',
+                          minHeight: '80px',
+                          padding: '12px',
+                          backgroundColor: '#1e293b',
+                          border: '1px solid #334155',
+                          borderRadius: '6px',
+                          color: '#e2e8f0',
+                          fontSize: '14px',
+                          fontFamily: 'inherit',
+                          boxSizing: 'border-box',
+                        }}
+                      />
+                    </div>
+                  )}
+
+                  {/* Compliance Actions (Post-Confirmation) */}
+                  {showComplianceActions && (
+                    <div
+                      style={{
+                        borderTop: '1px solid #1e293b',
+                        paddingTop: '20px',
+                      }}
+                    >
+                      <h5
+                        style={{
+                          color: '#f59e0b',
+                          fontSize: '14px',
+                          fontWeight: '600',
+                          margin: '0 0 16px 0',
+                        }}
+                      >
+                        Compliance Actions
+                      </h5>
+
+                      <div
+                        style={{
+                          display: 'grid',
+                          gap: '16px',
+                        }}
+                      >
+                        {/* Record TFS Freeze */}
+                        {!match.freeze_action_taken_at && (
+                          <div>
+                            <button
+                              onClick={() => handleRecordFreeze(match.id)}
+                              disabled={freezeActionInProgress === match.id}
+                              style={{
+                                width: '100%',
+                                padding: '12px 16px',
+                                backgroundColor:
+                                  freezeActionInProgress === match.id
+                                    ? '#64748b'
+                                    : '#ea580c',
+                                color: '#fff',
+                                border: 'none',
+                                borderRadius: '6px',
+                                fontSize: '13px',
+                                fontWeight: '600',
+                                cursor:
+                                  freezeActionInProgress === match.id
+                                    ? 'not-allowed'
+                                    : 'pointer',
+                                opacity:
+                                  freezeActionInProgress === match.id
+                                    ? 0.6
+                                    : 1,
+                              }}
+                            >
+                              Record TFS Freeze Action
+                            </button>
+                          </div>
+                        )}
+
+                        {/* Notify Committee */}
+                        <div>
+                          <label
+                            style={{
+                              display: 'block',
+                              color: '#cbd5e1',
+                              fontSize: '12px',
+                              fontWeight: '600',
+                              marginBottom: '6px',
+                            }}
+                          >
+                            Committee Notification Reference
+                          </label>
+                          <div
+                            style={{
+                              display: 'grid',
+                              gridTemplateColumns: '1fr 120px',
+                              gap: '8px',
+                            }}
+                          >
+                            <input
+                              type="text"
+                              value={committeeReference[match.id] || ''}
+                              onChange={(e) =>
+                                setCommitteeReference({
+                                  ...committeeReference,
+                                  [match.id]: e.target.value,
+                                })
+                              }
+                              placeholder="Enter reference number..."
+                              style={{
+                                padding: '8px 12px',
+                                backgroundColor: '#1e293b',
+                                border: '1px solid #334155',
+                                borderRadius: '6px',
+                                color: '#e2e8f0',
+                                fontSize: '13px',
+                              }}
+                            />
+                            <button
+                              onClick={() =>
+                                handleNotifyCommittee(match.id)
+                              }
+                              disabled={notifyActionInProgress === match.id}
+                              style={{
+                                padding: '8px 12px',
+                                backgroundColor:
+                                  notifyActionInProgress === match.id
+                                    ? '#64748b'
+                                    : '#3b82f6',
+                                color: '#fff',
+                                border: 'none',
+                                borderRadius: '6px',
+                                fontSize: '12px',
+                                fontWeight: '600',
+                                cursor:
+                                  notifyActionInProgress === match.id
+                                    ? 'not-allowed'
+                                    : 'pointer',
+                                opacity:
+                                  notifyActionInProgress === match.id
+                                    ? 0.6
+                                    : 1,
+                              }}
+                            >
+                              Notify
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* File STR */}
+                        <div>
+                          <label
+                            style={{
+                              display: 'block',
+                              color: '#cbd5e1',
+                              fontSize: '12px',
+                              fontWeight: '600',
+                              marginBottom: '6px',
+                            }}
+                          >
+                            STR Reference Number
+                          </label>
+                          <div
+                            style={{
+                              display: 'grid',
+                              gridTemplateColumns: '1fr 120px',
+                              gap: '8px',
+                            }}
+                          >
+                            <input
+                              type="text"
+                              value={strReference[match.id] || ''}
+                              onChange={(e) =>
+                                setStrReference({
+                                  ...strReference,
+                                  [match.id]: e.target.value,
+                                })
+                              }
+                              placeholder="Enter STR reference..."
+                              style={{
+                                padding: '8px 12px',
+                                backgroundColor: '#1e293b',
+                                border: '1px solid #334155',
+                                borderRadius: '6px',
+                                color: '#e2e8f0',
+                                fontSize: '13px',
+                              }}
+                            />
+                            <button
+                              onClick={() =>
+                                handleFileSTR(
+                                  match.id,
+                                  screeningResult?.id
+                                )
+                              }
+                              disabled={strActionInProgress === match.id}
+                              style={{
+                                padding: '8px 12px',
+                                backgroundColor:
+                                  strActionInProgress === match.id
+                                    ? '#64748b'
+                                    : '#8b5cf6',
+                                color: '#fff',
+                                border: 'none',
+                                borderRadius: '6px',
+                                fontSize: '12px',
+                                fontWeight: '600',
+                                cursor:
+                                  strActionInProgress === match.id
+                                    ? 'not-allowed'
+                                    : 'pointer',
+                                opacity:
+                                  strActionInProgress === match.id
+                                    ? 0.6
+                                    : 1,
+                              }}
+                            >
+                              File STR
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Match Details */}
+                  <div
+                    style={{
+                      borderTop: '1px solid #1e293b',
+                      marginTop: '20px',
+                      paddingTop: '16px',
+                      fontSize: '13px',
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: 'grid',
+                        gridTemplateColumns: '1fr 1fr',
+                        gap: '16px',
+                      }}
+                    >
+                      <div>
+                        <p
+                          style={{
+                            color: '#94a3b8',
+                            margin: '0 0 4px 0',
+                          }}
+                        >
+                          Match ID
+                        </p>
+                        <p
+                          style={{
+                            color: '#cbd5e1',
+                            margin: 0,
+                            fontFamily: 'monospace',
+                          }}
+                        >
+                          {match.id}
+                        </p>
+                      </div>
+                      <div>
+                        <p
+                          style={{
+                            color: '#94a3b8',
+                            margin: '0 0 4px 0',
+                          }}
+                        >
+                          Status
+                        </p>
+                        <p
+                          style={{
+                            color: '#cbd5e1',
+                            margin: 0,
+                            textTransform: 'uppercase',
+                            fontSize: '12px',
+                            fontWeight: '600',
+                          }}
+                        >
+                          {match.status.replace(/_/g, ' ')}
+                        </p>
+                      </div>
+                    </div>
                   </div>
                 </div>
               )}
-
-              <div style={styles.actions}>
-                <button
-                  style={{ ...styles.btn("clear"), opacity: busy ? 0.6 : 1 }}
-                  onClick={() => { setShowEscalate(false); handleAction("clear"); }}
-                  disabled={busy}
-                >
-                  Clear as False Positive
-                </button>
-
-                {!showEscalate ? (
-                  <button
-                    style={{ ...styles.btn("escalate"), opacity: busy ? 0.6 : 1 }}
-                    onClick={() => setShowEscalate(true)}
-                    disabled={busy}
-                  >
-                    Escalate / Second Review
-                  </button>
-                ) : (
-                  <>
-                    <button
-                      style={{ ...styles.btn("escalate"), opacity: busy ? 0.6 : 1 }}
-                      onClick={() => handleAction("escalate")}
-                      disabled={busy}
-                    >
-                      {busy ? "Escalating..." : "Confirm Escalation"}
-                    </button>
-                    <button
-                      style={{ ...styles.btn("ghost"), opacity: busy ? 0.6 : 1 }}
-                      onClick={() => setShowEscalate(false)}
-                      disabled={busy}
-                    >
-                      Cancel
-                    </button>
-                  </>
-                )}
-
-                <button
-                  style={{ ...styles.btn("confirm"), opacity: busy ? 0.6 : 1 }}
-                  onClick={() => { setShowEscalate(false); handleAction("confirm"); }}
-                  disabled={busy}
-                >
-                  Confirm Match
-                </button>
-              </div>
-            </>
-          )}
-        </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
-}
+};
+
+export default ReviewMatchesPanel;

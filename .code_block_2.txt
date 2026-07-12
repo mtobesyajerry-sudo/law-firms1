@@ -1,0 +1,17 @@
+  if (activeView === 'domestic_designations') {
+    return (
+      <div style={dashboardStyles.pageContainer}>
+        <button
+          onClick={() => setActiveView('overview')}
+          style={dashboardStyles.backButton}
+          onMouseEnter={(e) => { e.target.style.background = 'rgba(212, 175, 55, 0.1)'; }}
+          onMouseLeave={(e) => { e.target.style.background = 'transparent'; }}
+        >
+          ← Back
+        </button>
+        <div style={{ marginTop: '20px' }}>
+          <DomesticDesignationsAdmin />
+        </div>
+      </div>
+    );
+  }

@@ -8,6 +8,8 @@ import LoadingSpinner from './LoadingSpinner';
 import NewScreeningModal from './NewScreeningModal';
 import ReviewMatchesPanel from './ReviewMatchesPanel';
 import ManageListsPanel from './ManageListsPanel';
+import PEPReviewPanel from './PEPReviewPanel';
+import DomesticDesignationsAdmin from './DomesticDesignationsAdmin';
 import { getDashboardCounters, getScreeningHistory } from '../services/screeningService';
 import PageHeader from './PageHeader';
 
@@ -47,144 +49,24 @@ export default function ScreeningDashboard({ onBack }) {
 
       setOrganizationId(profile.organization_id);
 
-      const { data: clientsData } = await supabase
-        .from('kyc_clients_decrypted')
-        .select('id, client_name, client_type, risk_level, is_pep, is_sanctioned, last_screening_date, nationality')
-        .eq('organization_id', profile.organization_id)
-        .order('client_name');
-
-      setClients(clientsData || []);
-
-      const [counters, history] = await Promise.all([
-        getDashboardCounters().catch(() => null),
-        getScreeningHistory({ pageSize: 50 }).catch(() => ({ rows: [] })),
+      const [counters, historyData] = await Promise.all([
+        getDashboardCounters(),
+        getScreeningHistory({ page: 1, pageSize: 50 }),
       ]);
 
-      if (counters) {
-        setStatistics({
-          total: counters.total,
-          matchesFound: counters.matches,
-          pending: counters.pending,
-          underReview: 0,
-          cleared: counters.cleared,
-          highRisk: counters.high_risk,
-        });
-      } else {
-        setStatistics({ total: 0, matchesFound: 0, pending: 0, underReview: 0, cleared: 0, highRisk: 0 });
-      }
-
-      const liveResults = (history.rows || []).map((r) => ({
-        id: r.id,
-        client_name: r.kyc_clients?.client_name ?? r.screened_name ?? 'Unknown',
-        client_id: r.client_id,
-        screening_type: 'Sanctions / PEP',
-        screening_date: r.screened_at ?? r.created_at,
-        match_found: (r.match_count ?? 0) > 0,
-        match_count: r.match_count ?? 0,
-        risk_level: r.overall_risk ?? 'low',
-        screening_status: r.status ?? 'pending_review',
-        screened_by: r.screened_by,
-        lists_checked: ['OFAC SDN', 'UN Sanctions', 'EU Sanctions', 'UK Sanctions'],
-        nationality: r.screened_nationality,
-      }));
-
-      setRecentResults(liveResults);
-    } catch (error) {
-      console.error('Error loading dashboard data:', error);
+      setStatistics(counters);
+      setRecentResults(historyData.rows || []);
+    } catch (err) {
+      console.error('Dashboard load error:', err);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleScreeningComplete = () => {
-    setSelectedClient(null);
-    setActiveView('overview');
-    loadDashboardData();
-  };
-
-  const getScreeningRiskBadgeStyle = (level) => {
-    const colors = {
-      critical: { bg: '#fee2e2', color: '#991b1b' },
-      high: { bg: '#fed7aa', color: '#c2410c' },
-      medium: { bg: '#fef3c7', color: '#92400e' },
-      low: { bg: '#d1fae5', color: '#065f46' }
-    };
-    const style = colors[level] || colors.low;
-    return {
-      ...dashboardStyles.badge,
-      background: style.bg,
-      color: style.color
-    };
-  };
-
-  const getScreeningStatusBadgeStyle = (status) => {
-    const statusColors = {
-      pending: { bg: '#fef3c7', color: '#92400e' },
-      pending_review: { bg: '#fef3c7', color: '#92400e' },
-      under_review: { bg: '#dbeafe', color: '#1e40af' },
-      cleared: { bg: '#d1fae5', color: '#065f46' },
-      match_confirmed: { bg: '#fee2e2', color: '#991b1b' },
-      escalated: { bg: '#fee2e2', color: '#991b1b' },
-      escalated_to_mlro: { bg: '#fee2e2', color: '#991b1b' },
-    };
-    const style = statusColors[status] || statusColors.pending;
-    return {
-      ...dashboardStyles.badge,
-      background: style.bg,
-      color: style.color
-    };
-  };
-
   if (loading) {
-    return <LoadingSpinner fullPage />;
-  }
-
-  if (activeView === 'perform_screening' && selectedClient) {
     return (
-      <div style={dashboardStyles.pageContainer}>
-        <button
-          onClick={() => {
-            setSelectedClient(null);
-            setActiveView('overview');
-          }}
-          style={dashboardStyles.backButton}
-          onMouseEnter={(e) => {
-            e.target.style.background = 'rgba(212, 175, 55, 0.1)';
-          }}
-          onMouseLeave={(e) => {
-            e.target.style.background = 'transparent';
-          }}
-        >
-          ← Back
-        </button>
-        <div style={{ marginTop: '20px' }}>
-          <ManualScreeningForm
-            client={selectedClient}
-            onComplete={handleScreeningComplete}
-            onCancel={() => {
-              setSelectedClient(null);
-              setActiveView('overview');
-            }}
-          />
-        </div>
-      </div>
-    );
-  }
-
-  if (activeView === 'review_matches') {
-    return (
-      <div style={dashboardStyles.pageContainer}>
-        <button
-          onClick={() => setActiveView('overview')}
-          style={dashboardStyles.backButton}
-          onMouseEnter={(e) => { e.target.style.background = 'rgba(212, 175, 55, 0.1)'; }}
-          onMouseLeave={(e) => { e.target.style.background = 'transparent'; }}
-        >
-          ← Back
-        </button>
-        <div style={{ marginTop: '20px' }}>
-          <ReviewMatchesPanel />
-        </div>
+      <div style={{ ...dashboardStyles.pageContainer, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <LoadingSpinner />
       </div>
     );
   }
@@ -206,62 +88,100 @@ export default function ScreeningDashboard({ onBack }) {
       </div>
     );
   }
+
+  if (activeView === 'review_matches') {
+    return (
+      <div style={dashboardStyles.pageContainer}>
+        <button
+          onClick={() => setActiveView('overview')}
+          style={dashboardStyles.backButton}
+          onMouseEnter={(e) => { e.target.style.background = 'rgba(212, 175, 55, 0.1)'; }}
+          onMouseLeave={(e) => { e.target.style.background = 'transparent'; }}
+        >
+          ← Back
+        </button>
+        <div style={{ marginTop: '20px' }}>
+          <ReviewMatchesPanel organizationId={organizationId} />
+        </div>
+      </div>
+    );
+  }
+
+  if (activeView === 'pep_review') {
+    return (
+      <div style={dashboardStyles.pageContainer}>
+        <button
+          onClick={() => setActiveView('overview')}
+          style={dashboardStyles.backButton}
+          onMouseEnter={(e) => { e.target.style.background = 'rgba(212, 175, 55, 0.1)'; }}
+          onMouseLeave={(e) => { e.target.style.background = 'transparent'; }}
+        >
+          ← Back
+        </button>
+        <div style={{ marginTop: '20px' }}>
+          <PEPReviewPanel />
+        </div>
+      </div>
+    );
+  }
+
+  if (activeView === 'domestic_designations') {
+    return (
+      <div style={dashboardStyles.pageContainer}>
+        <button
+          onClick={() => setActiveView('overview')}
+          style={dashboardStyles.backButton}
+          onMouseEnter={(e) => { e.target.style.background = 'rgba(212, 175, 55, 0.1)'; }}
+          onMouseLeave={(e) => { e.target.style.background = 'transparent'; }}
+        >
+          ← Back
+        </button>
+        <div style={{ marginTop: '20px' }}>
+          <DomesticDesignationsAdmin organizationId={organizationId} />
+        </div>
+      </div>
+    );
+  }
+
   if (activeView === 'perform_screening' && !selectedClient) {
     return (
       <div style={dashboardStyles.pageContainer}>
         <button
           onClick={() => setActiveView('overview')}
           style={dashboardStyles.backButton}
-          onMouseEnter={(e) => {
-            e.target.style.background = 'rgba(212, 175, 55, 0.1)';
-          }}
-          onMouseLeave={(e) => {
-            e.target.style.background = 'transparent';
-          }}
+          onMouseEnter={(e) => { e.target.style.background = 'rgba(212, 175, 55, 0.1)'; }}
+          onMouseLeave={(e) => { e.target.style.background = 'transparent'; }}
         >
           ← Back
         </button>
-        <div style={{ ...dashboardStyles.contentCard, marginTop: '20px' }}>
-          <h2 style={dashboardStyles.sectionTitle}>Select Client to Screen</h2>
-          <p style={{ color: '#64748b', marginBottom: '24px' }}>
-            Choose a client to perform sanctions, PEP, and adverse media screening
-          </p>
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))',
-            gap: '16px',
-            maxHeight: '500px',
-            overflowY: 'auto'
-          }}>
-            {clients.map((client) => (
-              <button
-                key={client.id}
-                onClick={() => setSelectedClient(client)}
-                style={{
-                  ...dashboardStyles.quickActionCard,
-                  textAlign: 'left',
-                  padding: '20px'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.borderColor = '#d4af37';
-                  e.currentTarget.style.transform = 'translateY(-2px)';
-                  e.currentTarget.style.boxShadow = '0 8px 16px rgba(0,0,0,0.1)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.borderColor = '#e8eaed';
-                  e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.boxShadow = 'none';
-                }}
-              >
-                <div style={{ fontSize: '16px', fontWeight: '700', color: '#0a1929', marginBottom: '8px' }}>
-                  {client.client_name}
-                </div>
-                <div style={{ fontSize: '13px', color: '#64748b' }}>
-                  {client.client_type} • {client.risk_level}
-                </div>
-              </button>
-            ))}
-          </div>
+        <div style={{ marginTop: '20px' }}>
+          <ManualScreeningForm
+            onComplete={() => {
+              setActiveView('overview');
+              loadDashboardData();
+            }}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  if (activeView === 'view_result' && selectedClient) {
+    return (
+      <div style={dashboardStyles.pageContainer}>
+        <button
+          onClick={() => { setSelectedClient(null); setActiveView('overview'); }}
+          style={dashboardStyles.backButton}
+          onMouseEnter={(e) => { e.target.style.background = 'rgba(212, 175, 55, 0.1)'; }}
+          onMouseLeave={(e) => { e.target.style.background = 'transparent'; }}
+        >
+          ← Back
+        </button>
+        <div style={{ marginTop: '20px' }}>
+          <ScreeningMatchReview
+            screeningId={selectedClient}
+            onBack={() => { setSelectedClient(null); setActiveView('overview'); }}
+          />
         </div>
       </div>
     );
@@ -269,10 +189,10 @@ export default function ScreeningDashboard({ onBack }) {
 
   const filteredResults = recentResults.filter(result => {
     if (activeTab === 'all') return true;
-    if (activeTab === 'matches') return result.match_found;
-    if (activeTab === 'pending') return result.screening_status === 'pending_review' || result.screening_status === 'pending';
-    if (activeTab === 'cleared') return result.screening_status === 'cleared';
-    if (activeTab === 'high_risk') return result.risk_level === 'high' || result.risk_level === 'critical';
+    if (activeTab === 'matches') return result.match_count > 0;
+    if (activeTab === 'pending') return result.status === 'pending_review';
+    if (activeTab === 'cleared') return result.status === 'cleared';
+    if (activeTab === 'high_risk') return result.overall_risk === 'high' || result.overall_risk === 'critical';
     return true;
   });
 
@@ -296,7 +216,7 @@ export default function ScreeningDashboard({ onBack }) {
         onBack={onBack}
       />
 
-      {/* Workflow Explanation Card */}
+      {/* Workflow Steps Card */}
       <div style={{
         background: 'linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%)',
         border: '2px solid #e8eaed',
@@ -313,7 +233,7 @@ export default function ScreeningDashboard({ onBack }) {
           </h3>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
           <WorkflowStep
             number="1"
             title="Maintain Lists"
@@ -341,6 +261,22 @@ export default function ScreeningDashboard({ onBack }) {
           />
           <WorkflowStep
             number="4"
+            title="PEP Review"
+            description="Enhanced due diligence for politically exposed persons"
+            icon="👤"
+            action="PEP Queue"
+            onClick={() => setActiveView('pep_review')}
+          />
+          <WorkflowStep
+            number="5"
+            title="Domestic Lists"
+            description="Tanzania domestic designations (Gazette)"
+            icon="📜"
+            action="Manage Designations"
+            onClick={() => setActiveView('domestic_designations')}
+          />
+          <WorkflowStep
+            number="6"
             title="Monitor Results"
             description="Track screening history and compliance"
             icon="📊"
@@ -362,179 +298,165 @@ export default function ScreeningDashboard({ onBack }) {
           <StatCard
             label="Total Screenings"
             value={statistics.total}
-            color="#0a1929"
             icon="📋"
-            subtitle="All time"
             onClick={() => scrollToHistory('all')}
           />
           <StatCard
             label="Matches Found"
-            value={statistics.matchesFound}
-            color="#c2410c"
+            value={statistics.matches}
             icon="⚠️"
-            subtitle="Require review"
+            highlight={statistics.matches > 0}
             onClick={() => scrollToHistory('matches')}
           />
           <StatCard
             label="Pending Review"
-            value={statistics.pending + statistics.underReview}
-            color="#92400e"
+            value={statistics.pending}
             icon="⏳"
-            subtitle="Action needed"
-            highlight={true}
-            onClick={() => setActiveView('review_matches')}
+            urgent={statistics.pending > 0}
+            onClick={() => scrollToHistory('pending')}
           />
           <StatCard
             label="Cleared"
             value={statistics.cleared}
-            color="#065f46"
             icon="✓"
-            subtitle="No issues"
             onClick={() => scrollToHistory('cleared')}
           />
           <StatCard
             label="High Risk Alerts"
-            value={statistics.highRisk}
-            color="#991b1b"
+            value={statistics.high_risk}
             icon="🚨"
-            subtitle="Critical"
-            highlight={statistics.highRisk > 0}
+            urgent={statistics.high_risk > 0}
             onClick={() => scrollToHistory('high_risk')}
           />
         </div>
       )}
 
-      {/* Results Table */}
-      <div ref={historyRef} style={dashboardStyles.contentCard}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-          <div>
-            <h2 style={dashboardStyles.sectionTitle}>Screening History</h2>
-            <p style={{ color: '#64748b', margin: '0', fontSize: '14px' }}>
-              Complete record of all client screenings and results
-            </p>
-          </div>
+      {/* Screening History */}
+      <div ref={historyRef} style={{
+        background: '#ffffff',
+        border: '1px solid #e8eaed',
+        borderRadius: '12px',
+        overflow: 'hidden'
+      }}>
+        <div style={{ padding: '20px 24px', borderBottom: '1px solid #e8eaed' }}>
+          <h3 style={{ fontSize: '18px', fontWeight: '700', color: '#0a1929', margin: '0 0 4px 0' }}>
+            Screening History
+          </h3>
+          <p style={{ fontSize: '13px', color: '#64748b', margin: 0 }}>
+            Complete record of all client screenings and results
+          </p>
         </div>
 
         {/* Tabs */}
-        <div style={dashboardStyles.tabContainer}>
-          <TabButton
-            label={`All (${recentResults.length})`}
-            active={activeTab === 'all'}
-            onClick={() => setActiveTab('all')}
-          />
-          <TabButton
-            label={`Matches (${recentResults.filter(r => r.match_found).length})`}
-            active={activeTab === 'matches'}
-            onClick={() => setActiveTab('matches')}
-          />
-          <TabButton
-            label={`Pending (${recentResults.filter(r => r.screening_status === 'pending_review' || r.screening_status === 'pending').length})`}
-            active={activeTab === 'pending'}
-            onClick={() => setActiveTab('pending')}
-          />
-          <TabButton
-            label={`Cleared (${recentResults.filter(r => r.screening_status === 'cleared').length})`}
-            active={activeTab === 'cleared'}
-            onClick={() => setActiveTab('cleared')}
-          />
-          <TabButton
-            label={`High Risk (${recentResults.filter(r => r.risk_level === 'high' || r.risk_level === 'critical').length})`}
-            active={activeTab === 'high_risk'}
-            onClick={() => setActiveTab('high_risk')}
-          />
+        <div style={{ display: 'flex', gap: '0', borderBottom: '1px solid #e8eaed', padding: '0 24px' }}>
+          {[
+            { id: 'all', label: `All (${recentResults.length})` },
+            { id: 'matches', label: `Matches (${recentResults.filter(r => r.match_count > 0).length})` },
+            { id: 'pending', label: `Pending (${recentResults.filter(r => r.status === 'pending_review').length})` },
+            { id: 'cleared', label: `Cleared (${recentResults.filter(r => r.status === 'cleared').length})` },
+            { id: 'high_risk', label: `High Risk (${recentResults.filter(r => r.overall_risk === 'high' || r.overall_risk === 'critical').length})` },
+          ].map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              style={{
+                padding: '12px 16px',
+                border: 'none',
+                borderBottom: activeTab === tab.id ? '2px solid #d4af37' : '2px solid transparent',
+                background: 'transparent',
+                color: activeTab === tab.id ? '#d4af37' : '#64748b',
+                fontWeight: activeTab === tab.id ? '600' : '400',
+                fontSize: '14px',
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+              }}
+            >
+              {tab.label}
+            </button>
+          ))}
         </div>
 
+        {/* Table */}
         {filteredResults.length === 0 ? (
-          <div style={dashboardStyles.emptyState}>
-            <div style={dashboardStyles.emptyStateIcon}>🔍</div>
-            <div style={dashboardStyles.emptyStateText}>No screening results found</div>
-            <div style={dashboardStyles.emptyStateSubtext}>
-              Start by screening your clients against compliance lists
-            </div>
-            <button
-              onClick={() => {
-                setSelectedClient(null);
-                setActiveView('perform_screening');
-              }}
-              style={{ ...dashboardStyles.button, marginTop: '20px' }}
-            >
-              Screen a Client
-            </button>
+          <div style={{ padding: '48px', textAlign: 'center', color: '#64748b' }}>
+            <div style={{ fontSize: '32px', marginBottom: '12px' }}>🔍</div>
+            <p style={{ margin: 0 }}>No screening results found</p>
           </div>
         ) : (
           <div style={{ overflowX: 'auto' }}>
-            <table style={dashboardStyles.table}>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
-                <tr>
-                  <th style={dashboardStyles.tableHeader}>CLIENT</th>
-                  <th style={dashboardStyles.tableHeader}>SCREENING TYPE</th>
-                  <th style={dashboardStyles.tableHeader}>DATE</th>
-                  <th style={dashboardStyles.tableHeader}>MATCHES</th>
-                  <th style={dashboardStyles.tableHeader}>RISK LEVEL</th>
-                  <th style={dashboardStyles.tableHeader}>STATUS</th>
-                  <th style={dashboardStyles.tableHeader}>ACTIONS</th>
+                <tr style={{ background: '#0a1929' }}>
+                  {['CLIENT', 'SCREENING TYPE', 'DATE', 'MATCHES', 'RISK LEVEL', 'STATUS', 'ACTIONS'].map(h => (
+                    <th key={h} style={{
+                      padding: '12px 16px',
+                      textAlign: 'left',
+                      fontSize: '11px',
+                      fontWeight: '700',
+                      color: '#d4af37',
+                      letterSpacing: '0.5px',
+                      whiteSpace: 'nowrap',
+                    }}>{h}</th>
+                  ))}
                 </tr>
               </thead>
               <tbody>
-                {filteredResults.map((result) => (
-                  <tr key={result.id} style={{ transition: 'background 0.2s' }}
-                    onMouseEnter={(e) => e.currentTarget.style.background = '#f8f9fa'}
-                    onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-                  >
-                    <td style={dashboardStyles.tableCell}>
-                      <div style={{ fontWeight: '600', color: '#0a1929' }}>{result.client_name}</div>
-                      <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '2px' }}>
-                        {result.nationality || 'N/A'}
+                {filteredResults.map((result, idx) => (
+                  <tr key={result.id} style={{
+                    background: idx % 2 === 0 ? '#ffffff' : '#f8f9fa',
+                    borderBottom: '1px solid #e8eaed',
+                  }}>
+                    <td style={{ padding: '12px 16px' }}>
+                      <div style={{ fontWeight: '600', fontSize: '14px', color: '#0a1929' }}>
+                        {result.kyc_clients?.client_name || result.screened_name || 'Unknown'}
+                      </div>
+                      <div style={{ fontSize: '12px', color: '#64748b' }}>
+                        {result.screened_nationality || 'N/A'}
                       </div>
                     </td>
-                    <td style={dashboardStyles.tableCell}>
-                      <span style={getBadgeStyle('info')}>
-                        {result.screening_type}
+                    <td style={{ padding: '12px 16px' }}>
+                      <span style={{
+                        background: '#e0f2fe',
+                        color: '#0369a1',
+                        padding: '3px 8px',
+                        borderRadius: '12px',
+                        fontSize: '12px',
+                        fontWeight: '500',
+                      }}>
+                        Sanctions / PEP
                       </span>
                     </td>
-                    <td style={dashboardStyles.tableCell}>
-                      {new Date(result.screening_date).toLocaleDateString('en-US', {
-                        month: 'short',
-                        day: 'numeric',
-                        year: 'numeric'
-                      })}
+                    <td style={{ padding: '12px 16px', fontSize: '13px', color: '#374151', whiteSpace: 'nowrap' }}>
+                      {result.screened_at
+                        ? new Date(result.screened_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+                        : '—'}
                     </td>
-                    <td style={dashboardStyles.tableCell}>
-                      <span style={result.match_found ? getBadgeStyle('warning') : getBadgeStyle('success')}>
-                        {result.match_found ? `${result.match_count} match${result.match_count !== 1 ? 'es' : ''}` : 'Clear'}
+                    <td style={{ padding: '12px 16px' }}>
+                      <span style={getBadgeStyle(result.match_count > 0 ? 'warning' : 'success')}>
+                        {result.match_count > 0 ? `${result.match_count} matches` : 'Clear'}
                       </span>
                     </td>
-                    <td style={dashboardStyles.tableCell}>
-                      <span style={getScreeningRiskBadgeStyle(result.risk_level)}>
-                        {result.risk_level?.toUpperCase()}
+                    <td style={{ padding: '12px 16px' }}>
+                      <span style={getRiskBadgeStyle(result.overall_risk)}>
+                        {(result.overall_risk || 'low').toUpperCase()}
                       </span>
                     </td>
-                    <td style={dashboardStyles.tableCell}>
-                      <span style={getScreeningStatusBadgeStyle(result.screening_status)}>
-                        {result.screening_status ? result.screening_status.replace(/_/g, ' ').toUpperCase() : 'UNKNOWN'}
+                    <td style={{ padding: '12px 16px' }}>
+                      <span style={getStatusBadgeStyle(result.status)}>
+                        {(result.status || 'pending').replace(/_/g, ' ').toUpperCase()}
                       </span>
                     </td>
-                    <td style={dashboardStyles.tableCell}>
+                    <td style={{ padding: '12px 16px' }}>
                       <button
-                        onClick={() => setActiveView('review_matches')}
+                        onClick={() => { setSelectedClient(result.id); setActiveView('view_result'); }}
                         style={{
-                          background: 'transparent',
+                          background: 'none',
                           border: 'none',
                           color: '#d4af37',
-                          cursor: 'pointer',
-                          fontSize: '14px',
                           fontWeight: '600',
-                          padding: '4px 8px',
-                          borderRadius: '4px',
-                          transition: 'all 0.2s'
-                        }}
-                        onMouseEnter={(e) => {
-                          e.target.style.background = 'rgba(212, 175, 55, 0.1)';
-                          e.target.style.color = '#0a1929';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.target.style.background = 'transparent';
-                          e.target.style.color = '#d4af37';
+                          fontSize: '13px',
+                          cursor: 'pointer',
+                          padding: '4px 0',
                         }}
                       >
                         Review →
@@ -547,6 +469,59 @@ export default function ScreeningDashboard({ onBack }) {
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+function StatCard({ label, value, icon, highlight, urgent, onClick }) {
+  const [hovered, setHovered] = useState(false);
+  return (
+    <div
+      onClick={onClick}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        background: urgent ? 'linear-gradient(135deg, #fef3c7, #fef9e6)' : '#ffffff',
+        border: urgent ? '2px solid #d4af37' : (highlight ? '2px solid #f59e0b' : '1px solid #e8eaed'),
+        borderRadius: '10px',
+        padding: '16px',
+        cursor: 'pointer',
+        transition: 'all 0.2s',
+        transform: hovered ? 'translateY(-2px)' : 'none',
+        boxShadow: hovered ? '0 4px 12px rgba(0,0,0,0.1)' : 'none',
+      }}
+    >
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <div>
+          <div style={{ fontSize: '11px', fontWeight: '600', color: '#64748b', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: '4px' }}>
+            {label}
+          </div>
+          <div style={{ fontSize: '28px', fontWeight: '700', color: urgent ? '#b45309' : '#0a1929' }}>
+            {value ?? 0}
+          </div>
+        </div>
+        <div style={{ fontSize: '24px' }}>{icon}</div>
+      </div>
+      {urgent && value > 0 && (
+        <div style={{ fontSize: '11px', color: '#b45309', marginTop: '4px', fontWeight: '500' }}>
+          Action needed
+        </div>
+      )}
+      {!urgent && label === 'Cleared' && (
+        <div style={{ fontSize: '11px', color: '#16a34a', marginTop: '4px', fontWeight: '500' }}>
+          No issues
+        </div>
+      )}
+      {!urgent && label === 'Matches Found' && value > 0 && (
+        <div style={{ fontSize: '11px', color: '#b45309', marginTop: '4px', fontWeight: '500' }}>
+          Require review
+        </div>
+      )}
+      {label === 'Total Screenings' && (
+        <div style={{ fontSize: '11px', color: '#64748b', marginTop: '4px', fontWeight: '500' }}>
+          All time
+        </div>
+      )}
     </div>
   );
 }
@@ -566,7 +541,8 @@ function WorkflowStep({ number, title, description, icon, action, onClick, badge
         background: isActive ? 'linear-gradient(135deg, #fef3c7 0%, #fef9e6 100%)' : 'white',
         transition: 'all 0.2s',
         transform: isHovered && !isActive ? 'translateY(-2px)' : 'none',
-        boxShadow: isHovered && !isActive ? '0 4px 8px rgba(0,0,0,0.1)' : 'none'
+        boxShadow: isHovered && !isActive ? '0 4px 8px rgba(0,0,0,0.1)' : 'none',
+        cursor: 'pointer',
       }}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
@@ -598,7 +574,8 @@ function WorkflowStep({ number, title, description, icon, action, onClick, badge
           alignItems: 'center',
           justifyContent: 'center',
           fontWeight: '700',
-          fontSize: '14px'
+          fontSize: '14px',
+          flexShrink: 0,
         }}>
           {number}
         </div>
@@ -612,89 +589,23 @@ function WorkflowStep({ number, title, description, icon, action, onClick, badge
         {description}
       </p>
 
-      {onClick ? (
-        <button
-          onClick={onClick}
-          style={{
-            background: 'transparent',
-            border: `2px solid ${isActive ? '#d4af37' : '#e8eaed'}`,
-            color: isActive ? '#0a1929' : '#64748b',
-            padding: '6px 12px',
-            borderRadius: '6px',
-            fontSize: '12px',
-            fontWeight: '600',
-            cursor: 'pointer',
-            width: '100%',
-            transition: 'all 0.2s'
-          }}
-          onMouseEnter={(e) => {
-            e.target.style.background = '#d4af37';
-            e.target.style.color = 'white';
-            e.target.style.borderColor = '#d4af37';
-          }}
-          onMouseLeave={(e) => {
-            e.target.style.background = 'transparent';
-            e.target.style.color = isActive ? '#0a1929' : '#64748b';
-            e.target.style.borderColor = isActive ? '#d4af37' : '#e8eaed';
-          }}
-        >
-          {action}
-        </button>
-      ) : (
-        <div style={{
-          background: isActive ? 'rgba(212, 175, 55, 0.2)' : '#f8f9fa',
-          border: `2px solid ${isActive ? '#d4af37' : '#e8eaed'}`,
-          color: isActive ? '#0a1929' : '#64748b',
-          padding: '6px 12px',
+      <button
+        onClick={onClick}
+        style={{
+          width: '100%',
+          padding: '8px',
+          border: `1px solid ${isActive ? '#d4af37' : '#e8eaed'}`,
           borderRadius: '6px',
-          fontSize: '12px',
-          fontWeight: '600',
-          textAlign: 'center'
-        }}>
-          {action}
-        </div>
-      )}
+          background: isActive ? '#d4af37' : 'transparent',
+          color: isActive ? 'white' : '#374151',
+          fontSize: '13px',
+          fontWeight: '500',
+          cursor: 'pointer',
+          transition: 'all 0.2s',
+        }}
+      >
+        {action}
+      </button>
     </div>
-  );
-}
-
-function StatCard({ label, value, color, icon, subtitle, highlight, onClick }) {
-  const [isHovered, setIsHovered] = useState(false);
-
-  return (
-    <div
-      onClick={onClick}
-      style={{
-        ...dashboardStyles.statCard,
-        ...(highlight ? {
-          background: 'linear-gradient(135deg, #fef3c7 0%, #fef9e6 100%)',
-          borderColor: '#d4af37'
-        } : {}),
-        ...(isHovered ? dashboardStyles.statCardHover : {}),
-        ...(onClick ? { cursor: 'pointer' } : {})
-      }}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-    >
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        <div style={{ flex: 1 }}>
-          <div style={dashboardStyles.statLabel}>{label}</div>
-          <div style={{ ...dashboardStyles.statValue, color, marginTop: '4px' }}>{value}</div>
-          <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '4px' }}>{subtitle}</div>
-        </div>
-        <div style={{ fontSize: '24px', opacity: 0.8 }}>{icon}</div>
-      </div>
-    </div>
-  );
-}
-
-function TabButton({ label, active, onClick }) {
-  return (
-    <button
-      onClick={onClick}
-      style={active ? dashboardStyles.tabActive : dashboardStyles.tab}
-    >
-      {label}
-    </button>
   );
 }

@@ -1,0 +1,91 @@
+Build passes. Here is the verbatim output the project owner should see when they open the files:
+
+---
+
+**`ScreeningDashboard.jsx` — import block (lines 1–14), verbatim from disk:**
+
+```
+import React, { useState, useEffect, useRef } from 'react';
+import { supabase } from '../supabaseClient';
+import { dashboardStyles, getBadgeStyle, getRiskBadgeStyle, getStatusBadgeStyle } from '../utils/dashboardStyles';
+import ManualScreeningForm from './ManualScreeningForm';
+import ScreeningMatchReview from './ScreeningMatchReview';
+import ScreeningListManagement from './ScreeningListManagement';
+import LoadingSpinner from './LoadingSpinner';
+import NewScreeningModal from './NewScreeningModal';
+import ReviewMatchesPanel from './ReviewMatchesPanel';
+import ManageListsPanel from './ManageListsPanel';
+import PEPReviewPanel from './PEPReviewPanel';
+import DomesticDesignationsAdmin from './DomesticDesignationsAdmin';
+import { getDashboardCounters, getScreeningHistory } from '../services/screeningService';
+import PageHeader from './PageHeader';
+```
+
+**`ScreeningDashboard.jsx` — `pep_review` activeView block (lines 212–228), verbatim:**
+
+```
+  if (activeView === 'pep_review') {
+    return (
+      <div style={dashboardStyles.pageContainer}>
+        <button
+          onClick={() => setActiveView('overview')}
+          style={dashboardStyles.backButton}
+          onMouseEnter={(e) => { e.target.style.background = 'rgba(212, 175, 55, 0.1)'; }}
+          onMouseLeave={(e) => { e.target.style.background = 'transparent'; }}
+        >
+          ← Back
+        </button>
+        <div style={{ marginTop: '20px' }}>
+          <PEPReviewPanel />
+        </div>
+      </div>
+    );
+  }
+```
+
+**`ScreeningDashboard.jsx` — `domestic_designations` activeView block (lines 230–246), verbatim:**
+
+```
+  if (activeView === 'domestic_designations') {
+    return (
+      <div style={dashboardStyles.pageContainer}>
+        <button
+          onClick={() => setActiveView('overview')}
+          style={dashboardStyles.backButton}
+          onMouseEnter={(e) => { e.target.style.background = 'rgba(212, 175, 55, 0.1)'; }}
+          onMouseLeave={(e) => { e.target.style.background = 'transparent'; }}
+        >
+          ← Back
+        </button>
+        <div style={{ marginTop: '20px' }}>
+          <DomesticDesignationsAdmin />
+        </div>
+      </div>
+    );
+  }
+```
+
+**WorkflowStep tiles wiring (lines 383–396), verbatim:**
+
+```
+            action="PEP Queue"
+            onClick={() => setActiveView('pep_review')}
+          />
+          <WorkflowStep
+            ...
+            action="Manage Designations"
+            onClick={() => setActiveView('domestic_designations')}
+```
+
+---
+
+**Filesystem line counts (from `wc -l`):**
+- `PEPReviewPanel.jsx`: **488 lines**
+- `DomesticDesignationsAdmin.jsx`: **470 lines**
+
+**Schema facts (live DB, queried this response):**
+- `screening_matches.pep_category` (text) — confirmed live, no migration needed
+- `kyc_clients` has all 11 PEP fields needed: `pep_status`, `pep_category`, `pep_senior_approver_name`, `pep_sow_sof_reference`, `pep_family_associates` (jsonb), `pep_enhanced_monitoring`, `pep_senior_approval_notes`, `pep_confirmed_at`, `pep_confirmed_by`, `pep_declaration`, `pep_details`
+- `domestic_designations`: 2 rows present — AL-SHABAAB (1), AL-QAEDA (1)
+
+**Build terminal output:** `✓ built in 11.83s` — 0 errors, 253 modules transformed.

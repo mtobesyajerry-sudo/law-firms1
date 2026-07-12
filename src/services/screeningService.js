@@ -125,7 +125,6 @@ export async function getScreeningDetail(screeningId) {
     .single();
   if (e1) throw e1;
 
-  // Fetch decrypted client data separately (FK joins can't traverse views)
   let kyc_clients = null;
   if (screeningRaw?.client_id) {
     const { data: clientData } = await supabase
@@ -192,11 +191,7 @@ export async function confirmMatch(matchId, notes) {
 }
 
 // ---------------------------------------------------------------------
-// 8. Escalate a match — requires escalation_justification (FIX 3)
-// When the CO is also the MLRO, this sets pending_second_review and
-// requires a separate written justification distinct from the review notes.
-// Both the escalation event and any subsequent re-confirmation are logged
-// as separate audit entries with distinct timestamps.
+// 8. Escalate a match
 // ---------------------------------------------------------------------
 export async function escalateMatch(matchId, escalatedToUserId, notes, escalationJustification) {
   if (!escalationJustification || escalationJustification.trim().length < 10) {
@@ -211,7 +206,7 @@ export async function escalateMatch(matchId, escalatedToUserId, notes, escalatio
 }
 
 // ---------------------------------------------------------------------
-// 9a. File an STR with the FIU — records reference number + timestamps
+// 9a. File an STR with the FIU
 // ---------------------------------------------------------------------
 export async function fileSTR(screeningResultId, strReferenceNumber) {
   if (!strReferenceNumber || strReferenceNumber.trim().length < 3) {
@@ -226,7 +221,33 @@ export async function fileSTR(screeningResultId, strReferenceNumber) {
 }
 
 // ---------------------------------------------------------------------
-// 9. Lists & ingestion status
+// 9b. Record TFS freeze action
+// ---------------------------------------------------------------------
+export async function recordFreezeAction(matchId) {
+  return invokeReviewMatches({
+    action: 'record_freeze',
+    match_id: matchId,
+    notes: '',
+  });
+}
+
+// ---------------------------------------------------------------------
+// 9c. Notify FIU committee
+// ---------------------------------------------------------------------
+export async function notifyCommittee(matchId, committeeNotificationReference) {
+  if (!committeeNotificationReference || committeeNotificationReference.trim().length < 3) {
+    throw new Error('A valid committee notification reference is required.');
+  }
+  return invokeReviewMatches({
+    action: 'notify_committee',
+    match_id: matchId,
+    notes: '',
+    committee_notification_reference: committeeNotificationReference,
+  });
+}
+
+// ---------------------------------------------------------------------
+// 10. Lists & ingestion status
 // ---------------------------------------------------------------------
 export async function getLists() {
   const { data, error } = await supabase
@@ -249,7 +270,7 @@ export async function getRecentIngestionLogs(limit = 20) {
 }
 
 // ---------------------------------------------------------------------
-// 10. Trigger manual list refresh (admin only)
+// 11. Trigger manual list refresh (admin only)
 // ---------------------------------------------------------------------
 export async function triggerListSync(listSource) {
   const fnMap = {
@@ -266,7 +287,6 @@ export async function triggerListSync(listSource) {
   });
 
   if (error) {
-    // Extract the real error message from the response body when available
     let msg = error.message;
     try {
       const body = await error.context?.json?.();
@@ -275,8 +295,6 @@ export async function triggerListSync(listSource) {
     throw new Error(msg);
   }
 
-  // Per-list errors are returned as HTTP 200 with embedded result objects.
-  // Surface them so the UI shows the real cause instead of silent success.
   if (data?.results) {
     const keyMap = {
       OFAC_SDN: 'ofac_sdn',
@@ -294,7 +312,7 @@ export async function triggerListSync(listSource) {
 }
 
 // ---------------------------------------------------------------------
-// 11. Legacy compat — used by existing dashboard components
+// 12. Legacy compat — used by existing dashboard components
 // ---------------------------------------------------------------------
 export const screeningService = {
   async getClientScreeningResults(clientId) {
@@ -357,7 +375,6 @@ export const screeningService = {
       .eq('status', 'pending_review')
       .order('match_score', { ascending: false });
     if (error) throw error;
-    // Fetch decrypted client names separately (FK joins can't traverse views)
     const clientIds = [...new Set(
       (data ?? []).map(r => r.screening_results?.client_id).filter(Boolean)
     )];

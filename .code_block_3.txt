@@ -1,0 +1,7 @@
+            action="PEP Queue"
+            onClick={() => setActiveView('pep_review')}
+          />
+          <WorkflowStep
+            ...
+            action="Manage Designations"
+            onClick={() => setActiveView('domestic_designations')}
