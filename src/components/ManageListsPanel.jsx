@@ -117,6 +117,16 @@ export default function ManageListsPanel() {
                 <div style={{ fontSize: 11, color: COLORS.textMuted, marginTop: 2 }}>
                   {l.description}
                 </div>
+                {l.is_mandatory && (
+                  <span style={{
+                    display: "inline-block", marginTop: 4,
+                    padding: "2px 7px", borderRadius: 10,
+                    fontSize: 10, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase",
+                    background: "#fee2e2", color: COLORS.red, border: `1px solid ${COLORS.red}`,
+                  }}>
+                    Mandatory — cannot be disabled
+                  </span>
+                )}
               </td>
               <td style={styles.td}>
                 <span style={l.is_global ? styles.badge(COLORS.navy) : styles.badge(COLORS.gold)}>

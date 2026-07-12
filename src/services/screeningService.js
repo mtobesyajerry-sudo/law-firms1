@@ -155,39 +155,30 @@ export async function getScreeningDetail(screeningId) {
 }
 
 // ---------------------------------------------------------------------
+// Helper — invoke review-matches edge function (role-enforced server-side)
+// ---------------------------------------------------------------------
+async function invokeReviewMatches(body) {
+  const { data, error } = await supabase.functions.invoke('review-matches', { body });
+  if (error) {
+    let msg = error.message;
+    try {
+      const parsed = await error.context?.json?.();
+      if (parsed?.error) msg = parsed.error;
+    } catch (_) { /* ignore */ }
+    throw new Error(msg);
+  }
+  if (data?.error) throw new Error(data.error);
+  return data;
+}
+
+// ---------------------------------------------------------------------
 // 6. Clear a match as false positive
 // ---------------------------------------------------------------------
 export async function clearMatch(matchId, notes) {
   if (!notes || notes.trim().length < 10) {
     throw new Error('Notes required (min 10 chars) — regulators expect a reason.');
   }
-  const { data: { user } } = await supabase.auth.getUser();
-
-  const { data, error } = await supabase
-    .from('screening_matches')
-    .update({
-      status: 'cleared_false_positive',
-      reviewer_id: user.id,
-      review_notes: notes,
-      reviewed_at: new Date().toISOString(),
-    })
-    .eq('id', matchId)
-    .select()
-    .single();
-  if (error) throw error;
-
-  await supabase.from('screening_audit_log').insert({
-    organization_id: data.organization_id,
-    screening_result_id: data.screening_result_id,
-    match_id: matchId,
-    action: 'match_cleared',
-    actor_id: user.id,
-    actor_email: user.email,
-    details: { notes, list_source: data.list_source },
-  });
-
-  await maybeCloseScreening(data.screening_result_id);
-  return data;
+  return invokeReviewMatches({ action: 'clear', match_id: matchId, notes });
 }
 
 // ---------------------------------------------------------------------
@@ -197,86 +188,41 @@ export async function confirmMatch(matchId, notes) {
   if (!notes || notes.trim().length < 10) {
     throw new Error('Notes required to confirm a sanctions match.');
   }
-  const { data: { user } } = await supabase.auth.getUser();
-
-  const { data, error } = await supabase
-    .from('screening_matches')
-    .update({
-      status: 'confirmed_match',
-      reviewer_id: user.id,
-      review_notes: notes,
-      reviewed_at: new Date().toISOString(),
-    })
-    .eq('id', matchId)
-    .select()
-    .single();
-  if (error) throw error;
-
-  await supabase
-    .from('screening_results')
-    .update({ overall_risk: 'critical', status: 'match_confirmed' })
-    .eq('id', data.screening_result_id);
-
-  await supabase.from('screening_audit_log').insert({
-    organization_id: data.organization_id,
-    screening_result_id: data.screening_result_id,
-    match_id: matchId,
-    action: 'match_confirmed',
-    actor_id: user.id,
-    actor_email: user.email,
-    details: { notes, list_source: data.list_source },
-  });
-
-  return data;
+  return invokeReviewMatches({ action: 'confirm', match_id: matchId, notes });
 }
 
 // ---------------------------------------------------------------------
-// 8. Escalate a match to MLRO
+// 8. Escalate a match — requires escalation_justification (FIX 3)
+// When the CO is also the MLRO, this sets pending_second_review and
+// requires a separate written justification distinct from the review notes.
+// Both the escalation event and any subsequent re-confirmation are logged
+// as separate audit entries with distinct timestamps.
 // ---------------------------------------------------------------------
-export async function escalateMatch(matchId, escalatedToUserId, notes) {
-  const { data: { user } } = await supabase.auth.getUser();
-
-  const { data, error } = await supabase
-    .from('screening_matches')
-    .update({
-      status: 'escalated_to_mlro',
-      escalated_to: escalatedToUserId,
-      escalated_at: new Date().toISOString(),
-      review_notes: notes,
-      reviewer_id: user.id,
-    })
-    .eq('id', matchId)
-    .select()
-    .single();
-  if (error) throw error;
-
-  await supabase.from('screening_audit_log').insert({
-    organization_id: data.organization_id,
-    screening_result_id: data.screening_result_id,
-    match_id: matchId,
-    action: 'match_escalated',
-    actor_id: user.id,
-    actor_email: user.email,
-    details: { escalated_to: escalatedToUserId, notes },
-  });
-
-  return data;
-}
-
-async function maybeCloseScreening(screeningId) {
-  const { data: open } = await supabase
-    .from('screening_matches')
-    .select('id')
-    .eq('screening_result_id', screeningId)
-    .eq('status', 'pending_review');
-
-  if (!open || open.length === 0) {
-    await supabase
-      .from('screening_results')
-      .update({ status: 'cleared' })
-      .eq('id', screeningId)
-      .neq('status', 'match_confirmed');
+export async function escalateMatch(matchId, escalatedToUserId, notes, escalationJustification) {
+  if (!escalationJustification || escalationJustification.trim().length < 10) {
+    throw new Error('Escalation justification required (min 10 chars) — document why this needs further review.');
   }
+  return invokeReviewMatches({
+    action: 'escalate',
+    match_id: matchId,
+    notes: notes || 'Escalated for second review.',
+    escalation_justification: escalationJustification,
+  });
+}
+
+// ---------------------------------------------------------------------
+// 9a. File an STR with the FIU — records reference number + timestamps
+// ---------------------------------------------------------------------
+export async function fileSTR(screeningResultId, strReferenceNumber) {
+  if (!strReferenceNumber || strReferenceNumber.trim().length < 3) {
+    throw new Error('A valid FIU STR reference number is required.');
+  }
+  return invokeReviewMatches({
+    action: 'file_str',
+    screening_result_id: screeningResultId,
+    notes: '',
+    str_reference_number: strReferenceNumber,
+  });
 }
 
 // ---------------------------------------------------------------------
@@ -459,5 +405,11 @@ export const screeningService = {
       .single();
     if (error) throw error;
     return data;
+  },
+
+  async updateScreeningResult(screeningResultId, reviewAction) {
+    throw new Error(
+      'updateScreeningResult is no longer supported. Use ReviewMatchesPanel which routes through the review-matches edge function.'
+    );
   },
 };
