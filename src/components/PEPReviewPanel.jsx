@@ -197,7 +197,7 @@ const PEPReviewPanel = () => {
                   </div>
                 </div>
                 <div style={{ fontSize: '20px', color: '#d4af37' }}>
-                  {expandedId === match.id ? '▼' : '▶'}
+                  {expandedId === match.id ? '\u25BC' : '\u25B6'}
                 </div>
               </div>
 
@@ -228,7 +228,7 @@ const PEPReviewPanel = () => {
                     </div>
 
                     <div style={formGroupStyle}>
-                      <label style={formLabelStyle}>Family & Associates Notes</label>
+                      <label style={formLabelStyle}>Family &amp; Associates Notes</label>
                       <input type="text" value={formData.familyAssociates} onChange={(e) => handleFormChange('familyAssociates', e.target.value)} placeholder="Notable family members or associates" style={formInputStyle} />
                     </div>
                   </div>
