@@ -120,9 +120,12 @@ export default function ScreeningDashboard({ onBack }) {
   const getScreeningStatusBadgeStyle = (status) => {
     const statusColors = {
       pending: { bg: '#fef3c7', color: '#92400e' },
+      pending_review: { bg: '#fef3c7', color: '#92400e' },
       under_review: { bg: '#dbeafe', color: '#1e40af' },
       cleared: { bg: '#d1fae5', color: '#065f46' },
-      escalated: { bg: '#fee2e2', color: '#991b1b' }
+      match_confirmed: { bg: '#fee2e2', color: '#991b1b' },
+      escalated: { bg: '#fee2e2', color: '#991b1b' },
+      escalated_to_mlro: { bg: '#fee2e2', color: '#991b1b' },
     };
     const style = statusColors[status] || statusColors.pending;
     return {
@@ -268,7 +271,7 @@ export default function ScreeningDashboard({ onBack }) {
   const filteredResults = recentResults.filter(result => {
     if (activeTab === 'all') return true;
     if (activeTab === 'matches') return result.match_found;
-    if (activeTab === 'pending') return result.screening_status === 'pending';
+    if (activeTab === 'pending') return result.screening_status === 'pending_review' || result.screening_status === 'pending';
     if (activeTab === 'cleared') return result.screening_status === 'cleared';
     if (activeTab === 'high_risk') return result.risk_level === 'high' || result.risk_level === 'critical';
     return true;
@@ -426,7 +429,7 @@ export default function ScreeningDashboard({ onBack }) {
             onClick={() => setActiveTab('matches')}
           />
           <TabButton
-            label={`Pending (${recentResults.filter(r => r.screening_status === 'pending').length})`}
+            label={`Pending (${recentResults.filter(r => r.screening_status === 'pending_review' || r.screening_status === 'pending').length})`}
             active={activeTab === 'pending'}
             onClick={() => setActiveTab('pending')}
           />
@@ -509,7 +512,7 @@ export default function ScreeningDashboard({ onBack }) {
                     </td>
                     <td style={dashboardStyles.tableCell}>
                       <span style={getScreeningStatusBadgeStyle(result.screening_status)}>
-                        {result.screening_status ? result.screening_status.replace('_', ' ').toUpperCase() : 'UNKNOWN'}
+                        {result.screening_status ? result.screening_status.replace(/_/g, ' ').toUpperCase() : 'UNKNOWN'}
                       </span>
                     </td>
                     <td style={dashboardStyles.tableCell}>
