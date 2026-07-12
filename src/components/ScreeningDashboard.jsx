@@ -7,8 +7,7 @@ import ScreeningListManagement from './ScreeningListManagement';
 import LoadingSpinner from './LoadingSpinner';
 import NewScreeningModal from './NewScreeningModal';
 import ReviewMatchesPanel from './ReviewMatchesPanel';
-import ManageListsPanel from './ManageListsPanel';import PEPReviewPanel from './PEPReviewPanel';
-import DomesticDesignationsAdmin from './DomesticDesignationsAdmin';
+import ManageListsPanel from './ManageListsPanel';
 import { getDashboardCounters, getScreeningHistory } from '../services/screeningService';
 import PageHeader from './PageHeader';
 
@@ -207,43 +206,6 @@ export default function ScreeningDashboard({ onBack }) {
       </div>
     );
   }
-  
-  if (activeView === 'pep_review') {
-    return (
-      <div style={dashboardStyles.pageContainer}>
-        <button
-          onClick={() => setActiveView('overview')}
-          style={dashboardStyles.backButton}
-          onMouseEnter={(e) => { e.target.style.background = 'rgba(212, 175, 55, 0.1)'; }}
-          onMouseLeave={(e) => { e.target.style.background = 'transparent'; }}
-        >
-          ← Back
-        </button>
-        <div style={{ marginTop: '20px' }}>
-          <PEPReviewPanel />
-        </div>
-      </div>
-    );
-  }
-
-  if (activeView === 'domestic_designations') {
-    return (
-      <div style={dashboardStyles.pageContainer}>
-        <button
-          onClick={() => setActiveView('overview')}
-          style={dashboardStyles.backButton}
-          onMouseEnter={(e) => { e.target.style.background = 'rgba(212, 175, 55, 0.1)'; }}
-          onMouseLeave={(e) => { e.target.style.background = 'transparent'; }}
-        >
-          ← Back
-        </button>
-        <div style={{ marginTop: '20px' }}>
-          <DomesticDesignationsAdmin />
-        </div>
-      </div>
-    );
-  }
-
   if (activeView === 'perform_screening' && !selectedClient) {
     return (
       <div style={dashboardStyles.pageContainer}>
@@ -385,21 +347,6 @@ export default function ScreeningDashboard({ onBack }) {
             action="View History"
             isActive={true}
             onClick={() => scrollToHistory('all')}
-          /><WorkflowStep
-            number="5"
-            title="PEP Review"
-            description="Review politically exposed person matches"
-            icon="🏛️"
-            action="PEP Queue"
-            onClick={() => setActiveView('pep_review')}
-          />
-          <WorkflowStep
-            number="6"
-            title="Domestic Designations"
-            description="Manage Tanzania's own designated parties list"
-            icon="🗂️"
-            action="Manage Designations"
-            onClick={() => setActiveView('domestic_designations')}
           />
         </div>
       </div>
