@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../supabaseClient';
 import { dashboardStyles, getBadgeStyle, getRiskBadgeStyle, getStatusBadgeStyle } from '../utils/dashboardStyles';
 import ManualScreeningForm from './ManualScreeningForm';
@@ -21,6 +21,14 @@ export default function ScreeningDashboard({ onBack }) {
   const [selectedClient, setSelectedClient] = useState(null);
   const [organizationId, setOrganizationId] = useState(null);
   const [showNewScreening, setShowNewScreening] = useState(false);
+  const historyRef = useRef(null);
+
+  const scrollToHistory = (tab) => {
+    setActiveTab(tab);
+    setTimeout(() => {
+      historyRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 50);
+  };
 
   useEffect(() => {
     loadDashboardData();
@@ -334,8 +342,9 @@ export default function ScreeningDashboard({ onBack }) {
             title="Monitor Results"
             description="Track screening history and compliance"
             icon="📊"
-            action="View Below"
+            action="View History"
             isActive={true}
+            onClick={() => scrollToHistory('all')}
           />
         </div>
       </div>
@@ -354,6 +363,7 @@ export default function ScreeningDashboard({ onBack }) {
             color="#0a1929"
             icon="📋"
             subtitle="All time"
+            onClick={() => scrollToHistory('all')}
           />
           <StatCard
             label="Matches Found"
@@ -361,6 +371,7 @@ export default function ScreeningDashboard({ onBack }) {
             color="#c2410c"
             icon="⚠️"
             subtitle="Require review"
+            onClick={() => scrollToHistory('matches')}
           />
           <StatCard
             label="Pending Review"
@@ -369,6 +380,7 @@ export default function ScreeningDashboard({ onBack }) {
             icon="⏳"
             subtitle="Action needed"
             highlight={true}
+            onClick={() => setActiveView('review_matches')}
           />
           <StatCard
             label="Cleared"
@@ -376,6 +388,7 @@ export default function ScreeningDashboard({ onBack }) {
             color="#065f46"
             icon="✓"
             subtitle="No issues"
+            onClick={() => scrollToHistory('cleared')}
           />
           <StatCard
             label="High Risk Alerts"
@@ -384,12 +397,13 @@ export default function ScreeningDashboard({ onBack }) {
             icon="🚨"
             subtitle="Critical"
             highlight={statistics.highRisk > 0}
+            onClick={() => scrollToHistory('high_risk')}
           />
         </div>
       )}
 
       {/* Results Table */}
-      <div style={dashboardStyles.contentCard}>
+      <div ref={historyRef} style={dashboardStyles.contentCard}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
           <div>
             <h2 style={dashboardStyles.sectionTitle}>Screening History</h2>
@@ -642,18 +656,20 @@ function WorkflowStep({ number, title, description, icon, action, onClick, badge
   );
 }
 
-function StatCard({ label, value, color, icon, subtitle, highlight }) {
+function StatCard({ label, value, color, icon, subtitle, highlight, onClick }) {
   const [isHovered, setIsHovered] = useState(false);
 
   return (
     <div
+      onClick={onClick}
       style={{
         ...dashboardStyles.statCard,
         ...(highlight ? {
           background: 'linear-gradient(135deg, #fef3c7 0%, #fef9e6 100%)',
           borderColor: '#d4af37'
         } : {}),
-        ...(isHovered ? dashboardStyles.statCardHover : {})
+        ...(isHovered ? dashboardStyles.statCardHover : {}),
+        ...(onClick ? { cursor: 'pointer' } : {})
       }}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
