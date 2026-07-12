@@ -385,6 +385,21 @@ export default function ScreeningDashboard({ onBack }) {
             action="View History"
             isActive={true}
             onClick={() => scrollToHistory('all')}
+          /><WorkflowStep
+            number="5"
+            title="PEP Review"
+            description="Review politically exposed person matches"
+            icon="🏛️"
+            action="PEP Queue"
+            onClick={() => setActiveView('pep_review')}
+          />
+          <WorkflowStep
+            number="6"
+            title="Domestic Designations"
+            description="Manage Tanzania's own designated parties list"
+            icon="🗂️"
+            action="Manage Designations"
+            onClick={() => setActiveView('domestic_designations')}
           />
         </div>
       </div>
