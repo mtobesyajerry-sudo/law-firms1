@@ -7,7 +7,8 @@ import ScreeningListManagement from './ScreeningListManagement';
 import LoadingSpinner from './LoadingSpinner';
 import NewScreeningModal from './NewScreeningModal';
 import ReviewMatchesPanel from './ReviewMatchesPanel';
-import ManageListsPanel from './ManageListsPanel';
+import ManageListsPanel from './ManageListsPanel';import PEPReviewPanel from './PEPReviewPanel';
+import DomesticDesignationsAdmin from './DomesticDesignationsAdmin';
 import { getDashboardCounters, getScreeningHistory } from '../services/screeningService';
 import PageHeader from './PageHeader';
 
@@ -202,6 +203,42 @@ export default function ScreeningDashboard({ onBack }) {
         </button>
         <div style={{ marginTop: '20px' }}>
           <ManageListsPanel />
+        </div>
+      </div>
+    );
+  }
+  
+  if (activeView === 'pep_review') {
+    return (
+      <div style={dashboardStyles.pageContainer}>
+        <button
+          onClick={() => setActiveView('overview')}
+          style={dashboardStyles.backButton}
+          onMouseEnter={(e) => { e.target.style.background = 'rgba(212, 175, 55, 0.1)'; }}
+          onMouseLeave={(e) => { e.target.style.background = 'transparent'; }}
+        >
+          ← Back
+        </button>
+        <div style={{ marginTop: '20px' }}>
+          <PEPReviewPanel />
+        </div>
+      </div>
+    );
+  }
+
+  if (activeView === 'domestic_designations') {
+    return (
+      <div style={dashboardStyles.pageContainer}>
+        <button
+          onClick={() => setActiveView('overview')}
+          style={dashboardStyles.backButton}
+          onMouseEnter={(e) => { e.target.style.background = 'rgba(212, 175, 55, 0.1)'; }}
+          onMouseLeave={(e) => { e.target.style.background = 'transparent'; }}
+        >
+          ← Back
+        </button>
+        <div style={{ marginTop: '20px' }}>
+          <DomesticDesignationsAdmin />
         </div>
       </div>
     );
