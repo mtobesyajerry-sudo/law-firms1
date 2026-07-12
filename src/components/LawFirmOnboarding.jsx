@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import supabase from '../supabaseClient';
+import { supabase } from '../supabaseClient';
 import ContactSalesModal from './pricing/ContactSalesModal';
 
 const PLAN_DESCRIPTIONS = {
