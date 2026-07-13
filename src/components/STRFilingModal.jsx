@@ -212,11 +212,12 @@ export default function STRFilingModal({ alert, onClose, onSuccess }) {
       setSubmitting(true);
       const now = new Date().toISOString();
       const year = new Date().getFullYear();
-      const strNumber = `STR-${year}-${Date.now().toString().slice(-7)}`;
+      // Stable str_number derived from alert so retries upsert rather than duplicate.
+      const strNumber = `STR-${year}-${(alert.alert_number || alert.id.slice(0, 8)).replace(/[^A-Z0-9]/gi, '-').toUpperCase()}`;
 
       const { error: insertError } = await supabase
         .from('suspicious_activity_reports')
-        .insert({
+        .upsert({
           organization_id: profile.organization_id,
           str_number: strNumber,
           report_type: 'suspicious_transaction',
@@ -273,11 +274,12 @@ export default function STRFilingModal({ alert, onClose, onSuccess }) {
           submission_date: now,
           submission_method: 'online_portal',
           is_confidential: true,
-        });
+        }, { onConflict: 'alert_id' });
 
-      if (insertError) throw new Error(insertError.message);
+      if (insertError) throw new Error(`SAR record failed: ${insertError.message}`);
 
-      // Mark alert as STR filed on transaction_alerts
+      // Mark alert as STR filed on transaction_alerts (edge function).
+      // If this fails the SAR row already exists; retry is safe (upsert above).
       await fileTransactionSTR(alert.id, partA.fiu_reference_number.trim(), partA.filing_notes.trim());
 
       onSuccess?.();
