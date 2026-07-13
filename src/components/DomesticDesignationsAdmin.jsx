@@ -13,12 +13,12 @@ const DomesticDesignationsAdmin = ({ organizationId }) => {
   const [successMessage, setSuccessMessage] = useState('');
 
   const [formData, setFormData] = useState({
-    designation_name: '',
-    entity_type: 'individual',
-    designation_basis: '',
+    party_name: '',
+    aliases: '',
+    designating_authority: '',
     gazette_reference: '',
-    effective_date: '',
-    review_date: '',
+    designation_date: '',
+    delisting_date: '',
     status: 'active',
     notes: '',
   });
@@ -52,38 +52,49 @@ const DomesticDesignationsAdmin = ({ organizationId }) => {
   };
 
   const resetForm = () => {
-    setFormData({ designation_name: '', entity_type: 'individual', designation_basis: '', gazette_reference: '', effective_date: '', review_date: '', status: 'active', notes: '' });
+    setFormData({ party_name: '', aliases: '', designating_authority: '', gazette_reference: '', designation_date: '', delisting_date: '', status: 'active', notes: '' });
     setEditingId(null);
     setShowForm(false);
   };
 
   const handleAddClick = () => { resetForm(); setShowForm(true); };
 
-  const handleEditClick = (designation) => {
+  const handleEditClick = (d) => {
     setFormData({
-      designation_name: designation.designation_name,
-      entity_type: designation.entity_type,
-      designation_basis: designation.designation_basis,
-      gazette_reference: designation.gazette_reference,
-      effective_date: designation.effective_date || '',
-      review_date: designation.review_date || '',
-      status: designation.status,
-      notes: designation.notes || '',
+      party_name: d.party_name,
+      aliases: (d.aliases || []).join(', '),
+      designating_authority: d.designating_authority,
+      gazette_reference: d.gazette_reference || '',
+      designation_date: d.designation_date || '',
+      delisting_date: d.delisting_date || '',
+      status: d.status,
+      notes: d.notes || '',
     });
-    setEditingId(designation.id);
+    setEditingId(d.id);
     setShowForm(true);
   };
+
+  const buildPayload = () => ({
+    party_name: formData.party_name.trim(),
+    aliases: formData.aliases ? formData.aliases.split(',').map(s => s.trim()).filter(Boolean) : [],
+    designating_authority: formData.designating_authority.trim(),
+    gazette_reference: formData.gazette_reference.trim() || null,
+    designation_date: formData.designation_date || null,
+    delisting_date: formData.delisting_date || null,
+    status: formData.status,
+    notes: formData.notes.trim() || null,
+  });
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
       setError(null);
       if (editingId) {
-        const { error: updateError } = await supabase.from('domestic_designations').update(formData).eq('id', editingId);
+        const { error: updateError } = await supabase.from('domestic_designations').update(buildPayload()).eq('id', editingId);
         if (updateError) throw updateError;
         setSuccessMessage('Designation updated successfully');
       } else {
-        const { error: insertError } = await supabase.from('domestic_designations').insert([{ ...formData, organization_id: organizationId, created_by: 'admin' }]);
+        const { error: insertError } = await supabase.from('domestic_designations').insert([{ ...buildPayload(), organization_id: organizationId }]);
         if (insertError) throw insertError;
         setSuccessMessage('Designation added successfully');
       }
@@ -99,7 +110,7 @@ const DomesticDesignationsAdmin = ({ organizationId }) => {
     if (!window.confirm('Are you sure you want to delist this designation?')) return;
     try {
       setError(null);
-      const { error: updateError } = await supabase.from('domestic_designations').update({ status: 'delisted' }).eq('id', id);
+      const { error: updateError } = await supabase.from('domestic_designations').update({ status: 'delisted', delisting_date: new Date().toISOString().split('T')[0] }).eq('id', id);
       if (updateError) throw updateError;
       setSuccessMessage('Designation delisted successfully');
       await fetchDesignations();
@@ -113,7 +124,7 @@ const DomesticDesignationsAdmin = ({ organizationId }) => {
     if (!window.confirm('Are you sure you want to reactivate this designation?')) return;
     try {
       setError(null);
-      const { error: updateError } = await supabase.from('domestic_designations').update({ status: 'active' }).eq('id', id);
+      const { error: updateError } = await supabase.from('domestic_designations').update({ status: 'active', delisting_date: null }).eq('id', id);
       if (updateError) throw updateError;
       setSuccessMessage('Designation reactivated successfully');
       await fetchDesignations();
@@ -125,7 +136,7 @@ const DomesticDesignationsAdmin = ({ organizationId }) => {
 
   const filteredDesignations = designations.filter((d) => {
     const matchesStatus = statusFilter === 'all' || d.status === statusFilter;
-    const matchesSearch = d.designation_name.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = d.party_name.toLowerCase().includes(searchTerm.toLowerCase());
     return matchesStatus && matchesSearch;
   });
 
@@ -166,7 +177,7 @@ const DomesticDesignationsAdmin = ({ organizationId }) => {
       {successMessage && <div style={messageStyle('success')}>{successMessage}</div>}
 
       <div style={warningBannerStyle}>
-        <strong>Verification Required:</strong> All entries must be manually verified against the current Tanzania Gazette. This list supplements but does not replace official Gazette verification.
+        <strong>Verification Required:</strong> All entries must be manually verified against the current Tanzania Gazette and POTA Regulations Schedule. This list supplements but does not replace official Gazette verification.
       </div>
 
       <div style={headerStyle}>
@@ -185,16 +196,16 @@ const DomesticDesignationsAdmin = ({ organizationId }) => {
           <option value="delisted">Delisted</option>
           <option value="under_review">Under Review</option>
         </select>
-        <input style={searchStyle} type="text" placeholder="Search by designation name..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+        <input style={searchStyle} type="text" placeholder="Search by party name..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
         <span style={{ color: '#ffd700', fontSize: '14px' }}>{filteredDesignations.length} result{filteredDesignations.length !== 1 ? 's' : ''}</span>
       </div>
 
       <table style={tableStyle}>
         <thead style={theadStyle}>
           <tr>
-            <th style={thStyle}>Name</th>
-            <th style={thStyle}>Type</th>
-            <th style={thStyle}>Basis</th>
+            <th style={thStyle}>Party Name</th>
+            <th style={thStyle}>Aliases</th>
+            <th style={thStyle}>Designating Authority</th>
             <th style={thStyle}>Gazette Ref</th>
             <th style={thStyle}>Status</th>
             <th style={thStyle}>Actions</th>
@@ -204,21 +215,21 @@ const DomesticDesignationsAdmin = ({ organizationId }) => {
           {filteredDesignations.length === 0 ? (
             <tr><td colSpan="6" style={{ ...tdStyle, textAlign: 'center', padding: '24px' }}>No designations found.</td></tr>
           ) : (
-            filteredDesignations.map((designation) => (
-              <tr key={designation.id} style={tbodyTrStyle}>
-                <td style={tdStyle}>{designation.designation_name}</td>
-                <td style={tdStyle}>{designation.entity_type === 'individual' ? 'Individual' : 'Entity'}</td>
-                <td style={tdStyle}>{designation.designation_basis}</td>
-                <td style={tdStyle}>{designation.gazette_reference}</td>
+            filteredDesignations.map((d) => (
+              <tr key={d.id} style={tbodyTrStyle}>
+                <td style={tdStyle}>{d.party_name}</td>
+                <td style={tdStyle}>{(d.aliases || []).join(', ') || '—'}</td>
+                <td style={tdStyle}>{d.designating_authority}</td>
+                <td style={tdStyle}>{d.gazette_reference || '—'}</td>
                 <td style={tdStyle}>
-                  <span style={statusBadgeStyle(designation.status)}>
-                    {designation.status.charAt(0).toUpperCase() + designation.status.slice(1).replace('_', ' ')}
+                  <span style={statusBadgeStyle(d.status)}>
+                    {d.status.charAt(0).toUpperCase() + d.status.slice(1).replace('_', ' ')}
                   </span>
                 </td>
                 <td style={tdStyle}>
-                  <button style={actionButtonStyle} onClick={() => handleEditClick(designation)}>Edit</button>
-                  {designation.status === 'active' && <button style={secondaryButtonStyle} onClick={() => handleDelist(designation.id)}>Delist</button>}
-                  {designation.status === 'delisted' && <button style={secondaryButtonStyle} onClick={() => handleReactivate(designation.id)}>Reactivate</button>}
+                  <button style={actionButtonStyle} onClick={() => handleEditClick(d)}>Edit</button>
+                  {d.status === 'active' && <button style={secondaryButtonStyle} onClick={() => handleDelist(d.id)}>Delist</button>}
+                  {d.status === 'delisted' && <button style={secondaryButtonStyle} onClick={() => handleReactivate(d.id)}>Reactivate</button>}
                 </td>
               </tr>
             ))
@@ -232,31 +243,28 @@ const DomesticDesignationsAdmin = ({ organizationId }) => {
             <h2 style={{ color: '#ffd700', marginBottom: '20px' }}>{editingId ? 'Edit Designation' : 'Add New Designation'}</h2>
             <form onSubmit={handleSubmit}>
               <div style={formGroupStyle}>
-                <label style={labelStyle}>Designation Name *</label>
-                <input style={inputStyle} type="text" name="designation_name" value={formData.designation_name} onChange={handleInputChange} required placeholder="e.g., AL-SHABAAB" />
+                <label style={labelStyle}>Party Name *</label>
+                <input style={inputStyle} type="text" name="party_name" value={formData.party_name} onChange={handleInputChange} required placeholder="e.g., AL-SHABAAB AL ISLAMIYA" />
               </div>
               <div style={formGroupStyle}>
-                <label style={labelStyle}>Entity Type *</label>
-                <select style={inputStyle} name="entity_type" value={formData.entity_type} onChange={handleInputChange} required>
-                  <option value="individual">Individual</option>
-                  <option value="entity">Entity</option>
-                </select>
+                <label style={labelStyle}>Aliases (comma-separated)</label>
+                <input style={inputStyle} type="text" name="aliases" value={formData.aliases} onChange={handleInputChange} placeholder="e.g., Al-Shabaab, HSM" />
               </div>
               <div style={formGroupStyle}>
-                <label style={labelStyle}>Designation Basis *</label>
-                <input style={inputStyle} type="text" name="designation_basis" value={formData.designation_basis} onChange={handleInputChange} required placeholder="e.g., UN Security Council Resolution" />
+                <label style={labelStyle}>Designating Authority *</label>
+                <input style={inputStyle} type="text" name="designating_authority" value={formData.designating_authority} onChange={handleInputChange} required placeholder="e.g., domestic declaration, UN Security Council" />
               </div>
               <div style={formGroupStyle}>
-                <label style={labelStyle}>Gazette Reference *</label>
-                <input style={inputStyle} type="text" name="gazette_reference" value={formData.gazette_reference} onChange={handleInputChange} required placeholder="e.g., Gazette No. 45/2023" />
+                <label style={labelStyle}>Gazette Reference</label>
+                <input style={inputStyle} type="text" name="gazette_reference" value={formData.gazette_reference} onChange={handleInputChange} placeholder="e.g., POTA Regulations Schedule" />
               </div>
               <div style={formGroupStyle}>
-                <label style={labelStyle}>Effective Date</label>
-                <input style={inputStyle} type="date" name="effective_date" value={formData.effective_date} onChange={handleInputChange} />
+                <label style={labelStyle}>Designation Date</label>
+                <input style={inputStyle} type="date" name="designation_date" value={formData.designation_date} onChange={handleInputChange} />
               </div>
               <div style={formGroupStyle}>
-                <label style={labelStyle}>Review Date</label>
-                <input style={inputStyle} type="date" name="review_date" value={formData.review_date} onChange={handleInputChange} />
+                <label style={labelStyle}>Delisting Date</label>
+                <input style={inputStyle} type="date" name="delisting_date" value={formData.delisting_date} onChange={handleInputChange} />
               </div>
               <div style={formGroupStyle}>
                 <label style={labelStyle}>Status *</label>
