@@ -5,6 +5,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
+import { fmtDate, fmtDateTime, nowLocalInput } from '../utils/dateFormat';
 
 const COMPLIANCE_ROLES = ['compliance_officer', 'admin', 'system_admin', 'mlro'];
 
@@ -47,26 +48,13 @@ function StatusBadge({ status }) {
   );
 }
 
-function fmt(date) {
-  if (!date) return '—';
-  return new Date(date).toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
-}
-
-function fmtDt(date) {
-  if (!date) return '—';
-  return new Date(date).toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-}
+// fmt and fmtDt imported from ../utils/dateFormat as fmtDate/fmtDateTime
 
 // ConfirmFiledModal — the "Confirm Filed with FIU" action panel
 function ConfirmFiledPanel({ record, onSuccess, onCancel }) {
   const { user } = useAuth();
   const [fiuRef, setFiuRef] = useState(record.fiu_reference_number || '');
-  const nowLocal = (() => {
-    const d = new Date();
-    const tzOffset = d.getTimezoneOffset() * 60000;
-    return new Date(d.getTime() - tzOffset).toISOString().slice(0, 16);
-  })();
-  const [filedDate, setFiledDate] = useState(nowLocal);
+  const [filedDate, setFiledDate] = useState(nowLocalInput());
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
 
@@ -176,7 +164,7 @@ function ConfirmFiledPanel({ record, onSuccess, onCancel }) {
             type="datetime-local"
             value={filedDate}
             onChange={e => setFiledDate(e.target.value)}
-            max={nowLocal}
+            max={nowLocalInput()}
             style={{ width: '100%', padding: '8px 10px', border: '1px solid #86efac', borderRadius: '6px', fontSize: '13px', boxSizing: 'border-box', background: 'white' }}
           />
         </div>
@@ -220,7 +208,7 @@ function PrintView({ record, alertNumber }) {
       <div style={{ borderBottom: '3px solid #000', paddingBottom: '12px', marginBottom: '20px' }}>
         <h1 style={{ margin: 0, fontSize: '18px' }}>SUSPICIOUS TRANSACTION REPORT</h1>
         <p style={{ margin: '4px 0 0', fontSize: '13px' }}>GN No. 397 (Anti-Money Laundering Regulations 2022) — Regulation 14 Schedule</p>
-        <p style={{ margin: '4px 0 0', fontSize: '12px', color: '#555' }}>Internal Reference: {record.str_number} | Alert: {alertNumber || record.alert_id} | Generated: {new Date().toLocaleString('en-GB')}</p>
+        <p style={{ margin: '4px 0 0', fontSize: '12px', color: '#555' }}>Internal Reference: {record.str_number} | Alert: {alertNumber || record.alert_id} | Generated: {fmtDateTime(new Date().toISOString())}</p>
       </div>
 
       <section style={{ marginBottom: '20px' }}>
@@ -254,9 +242,9 @@ function PrintView({ record, alertNumber }) {
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
           <tbody>
             {[
-              ['B(i) Incident Date From', fmt(record.incident_date_from)],
-              ['B(ii) Incident Date To', fmt(record.incident_date_to)],
-              ['B(iii) Value Date', fmt(record.transaction_value_date)],
+              ['B(i) Incident Date From', fmtDate(record.incident_date_from)],
+              ['B(ii) Incident Date To', fmtDate(record.incident_date_to)],
+              ['B(iii) Value Date', fmtDate(record.transaction_value_date)],
               ['B(iv) Total Amount', record.total_amount != null ? `${record.total_amount} ${record.currency || 'TZS'}` : '—'],
               ['B(v) Currency', record.currency],
               ['B(vi) Transaction Count', record.transaction_count],
@@ -332,7 +320,7 @@ function PrintView({ record, alertNumber }) {
               ['Reporting Officer', record.reporting_officer_name],
               ['Internal Status', record.str_status],
               ['FIU Reference Number', record.fiu_reference_number || '(to be completed after goAML submission)'],
-              ['Date Filed with FIU', fmt(record.fiu_acknowledgment_date) || '(to be completed after goAML submission)'],
+              ['Date Filed with FIU', fmtDate(record.fiu_acknowledgment_date) || '(to be completed after goAML submission)'],
               ['Internal Notes', record.internal_notes],
             ].map(([k, v]) => (
               <tr key={k} style={{ borderBottom: '1px solid #e5e5e5' }}>
@@ -443,7 +431,7 @@ export default function STRRecordDetail() {
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '8px', flexWrap: 'wrap' }}>
               <StatusBadge status={record.str_status} />
               {alertNumber && <span style={{ fontSize: '13px', color: '#6b7280' }}>Alert: <strong>{alertNumber}</strong></span>}
-              <span style={{ fontSize: '13px', color: '#6b7280' }}>Saved: <strong>{fmt(record.created_at)}</strong></span>
+              <span style={{ fontSize: '13px', color: '#6b7280' }}>Saved: <strong>{fmtDate(record.created_at)}</strong></span>
             </div>
           </div>
           <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
@@ -469,7 +457,7 @@ export default function STRRecordDetail() {
           <div style={{ padding: '14px 20px', borderRadius: '10px', background: '#d1fae5', border: '1px solid #86efac', marginBottom: '24px', fontSize: '13px', color: '#065f46', display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
             <span><strong>Filed with FIU</strong></span>
             {record.fiu_reference_number && <span>FIU Reference: <strong>{record.fiu_reference_number}</strong></span>}
-            {record.fiu_acknowledgment_date && <span>Date: <strong>{fmt(record.fiu_acknowledgment_date)}</strong></span>}
+            {record.fiu_acknowledgment_date && <span>Date: <strong>{fmtDate(record.fiu_acknowledgment_date)}</strong></span>}
           </div>
         )}
 
@@ -508,9 +496,9 @@ export default function STRRecordDetail() {
 
         {/* PART B */}
         <SectionCard title="Part B — Transaction Details" reg="Reg 14 Part B, GN No. 397">
-          <Field label="B(i) Incident Date From" value={fmt(record.incident_date_from)} />
-          <Field label="B(ii) Incident Date To" value={fmt(record.incident_date_to)} />
-          <Field label="B(iii) Value Date" value={fmt(record.transaction_value_date)} />
+          <Field label="B(i) Incident Date From" value={fmtDate(record.incident_date_from)} />
+          <Field label="B(ii) Incident Date To" value={fmtDate(record.incident_date_to)} />
+          <Field label="B(iii) Value Date" value={fmtDate(record.transaction_value_date)} />
           <Field label="B(iv) Total Amount" value={record.total_amount != null ? `${Number(record.total_amount).toLocaleString()} ${record.currency || 'TZS'}` : null} />
           <Field label="B(v) Currency" value={record.currency} />
           <Field label="B(vi) Transaction Count" value={record.transaction_count != null ? String(record.transaction_count) : null} />
@@ -556,9 +544,9 @@ export default function STRRecordDetail() {
           <h3 style={{ margin: '0 0 16px', fontSize: '14px', fontWeight: '700', color: '#374151' }}>Internal Filing Record</h3>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px 24px' }}>
             <Field label="Internal STR Number" value={record.str_number} />
-            <Field label="Saved Date" value={fmtDt(record.created_at)} />
+            <Field label="Saved Date" value={fmtDateTime(record.created_at)} />
             <Field label="FIU Reference Number" value={record.fiu_reference_number} />
-            <Field label="Date Filed with FIU" value={fmt(record.fiu_acknowledgment_date)} />
+            <Field label="Date Filed with FIU" value={fmtDate(record.fiu_acknowledgment_date)} />
             <Field label="Filing Notes" value={record.internal_notes} full />
           </div>
         </div>

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
 import { serverValidateFile } from '../utils/documentUtils';
+import { fmtDate } from '../utils/dateFormat';
 
 const SOFSOWTemplates = ({ client, onClose, onUpdate, isReadOnly = false }) => {
   const [selectedTemplate, setSelectedTemplate] = useState(null);
@@ -639,7 +640,7 @@ const SOFSOWTemplates = ({ client, onClose, onUpdate, isReadOnly = false }) => {
                         <div style={styles.docInfo}>
                           <div style={styles.docName}>{doc.document_name}</div>
                           <div style={styles.docMeta}>
-                            Uploaded {new Date(doc.uploaded_at).toLocaleDateString()}
+                            Uploaded {fmtDate(doc.uploaded_at)}
                             {' • '}
                             <span style={{
                               ...styles.verificationBadge,

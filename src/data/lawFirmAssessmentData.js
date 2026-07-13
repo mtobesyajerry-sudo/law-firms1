@@ -2,6 +2,8 @@
 // Tiered Questionnaire Framework (2026)
 // Regulator-Ready | Risk-Based | TLS-Aligned
 
+import { fmtDate } from '../utils/dateFormat';
+
 export const lawFirmsFramework = {
   name: 'Law Firms and Legal Professionals',
   code: 'law_firms_tanzania',
@@ -1123,7 +1125,7 @@ export function generateResidualRiskNarrative(residualResult) {
 export function generateExecutiveSummary(inherentResult, complianceResult, effectivenessResult, maturityResult, residualResult, tier, organizationName) {
   const summary = {
     title: `AML/CFT INSTITUTIONAL RISK ASSESSMENT - ${organizationName}`,
-    assessmentDate: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' }),
+    assessmentDate: fmtDate(new Date()),
     tier: lawFirmsTierProfiles[tier].name,
 
     overallRiskRating: residualResult.rating,

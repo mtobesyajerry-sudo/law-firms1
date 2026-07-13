@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
+import { fmtDate } from '../utils/dateFormat';
 
 export default function MatterMilestones({ matterId, organizationId, onMilestoneAdded, isReadOnly = false }) {
   const [milestones, setMilestones] = useState([]);
@@ -468,13 +469,8 @@ export default function MatterMilestones({ matterId, organizationId, onMilestone
                       <div style={styles.milestoneInfoItem}>
                         <span style={styles.milestoneLabel}>Date & Time</span>
                         <span style={styles.milestoneValue}>
-                          {new Date(milestone.milestone_date).toLocaleDateString('en-US', {
-                            weekday: 'short',
-                            year: 'numeric',
-                            month: 'short',
-                            day: 'numeric'
-                          })}
-                          {milestone.milestone_time && ` at ${milestone.milestone_time}`}
+                          {fmtDate(milestone.milestone_date)}
+                          {milestone.milestone_time && ` at ${milestone.milestone_time}`}}
                         </span>
                       </div>
                     </div>

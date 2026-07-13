@@ -23,6 +23,7 @@ import {
   dueDiligenceLevels
 } from '../data/kycData';
 import { serviceRiskFactors as insuranceServiceRiskFactors } from '../data/insuranceKycData';
+import { fmtDate } from '../utils/dateFormat';
 
 export default function KYCClientManagement({ initialFilter = 'all', sector }) {
   const [clients, setClients] = useState([]);
@@ -295,7 +296,7 @@ export default function KYCClientManagement({ initialFilter = 'all', sector }) {
                     <td style={styles.td}>
                       {client.next_review_date ? (
                         <span style={styles.dateText}>
-                          {new Date(client.next_review_date).toLocaleDateString()}
+                          {fmtDate(client.next_review_date)}
                         </span>
                       ) : (
                         <span style={styles.mutedText}>Not set</span>

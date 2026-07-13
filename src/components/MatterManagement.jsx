@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import LoadingSpinner from './LoadingSpinner';
 import MatterDetailView from './MatterDetailView';
 import { getSectorLabels } from '../utils/sectorLabels';
+import { fmtDate } from '../utils/dateFormat';
 
 export default function MatterManagement({ sector }) {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -445,7 +446,7 @@ export default function MatterManagement({ sector }) {
                       <td style={styles.td}>
                         {matter.opened_date ? (
                           <span style={styles.dateText}>
-                            {new Date(matter.opened_date).toLocaleDateString()}
+                            {fmtDate(matter.opened_date)}
                           </span>
                         ) : (
                           <span style={styles.mutedText}>Not set</span>

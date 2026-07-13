@@ -25,6 +25,7 @@ import {
 } from '../utils/frameworkUtils';
 import { serverValidateFile } from '../utils/documentUtils';
 import AssessmentIntroduction from './AssessmentIntroduction';
+import { fmtDate, fmtTime } from '../utils/dateFormat';
 
 export default function AssessmentForm() {
   const { id } = useParams();
@@ -101,7 +102,7 @@ export default function AssessmentForm() {
     } else if (diffMins < 60) {
       return `Saved ${diffMins} minutes ago`;
     } else {
-      return `Last saved at ${lastSaved.toLocaleTimeString()}`;
+      return `Last saved at ${fmtTime(lastSaved)}`;
     }
   };
 
@@ -1277,7 +1278,7 @@ export default function AssessmentForm() {
                                 <div>
                                   <p style={styles.attachmentName}>{att.file_name}</p>
                                   <p style={styles.attachmentMeta}>
-                                    {(att.file_size / 1024).toFixed(1)} KB • {new Date(att.uploaded_at || att.created_at).toLocaleDateString()}
+                                    {(att.file_size / 1024).toFixed(1)} KB • {fmtDate(att.uploaded_at || att.created_at)}
                                   </p>
                                 </div>
                               </div>

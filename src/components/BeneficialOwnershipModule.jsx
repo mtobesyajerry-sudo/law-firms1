@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
+import { fmtDate } from '../utils/dateFormat';
 
 export default function BeneficialOwnershipModule({ clientId, onUpdate }) {
   const [owners, setOwners] = useState([]);
@@ -515,7 +516,7 @@ export default function BeneficialOwnershipModule({ clientId, onUpdate }) {
                 )}
                 {owner.verified && owner.verification_date && (
                   <div style={styles.ownerDetailRow}>
-                    <strong>Verified:</strong> {new Date(owner.verification_date).toLocaleDateString()}
+                    <strong>Verified:</strong> {fmtDate(owner.verification_date)}
                   </div>
                 )}
               </div>

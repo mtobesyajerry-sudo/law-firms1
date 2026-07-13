@@ -7,6 +7,7 @@ import MatterBillingMilestones from './MatterBillingMilestones';
 import DocumentUploadManager from './DocumentUploadManager';
 import LoadingSpinner from './LoadingSpinner';
 import { AML_TRIGGER_LABELS } from '../utils/amlTriggerLabels';
+import { fmtDate } from '../utils/dateFormat';
 
 export default function MatterDetailView({ matter, onClose, onUpdate, activeTab: propActiveTab, onTabChange }) {
   const { profile } = useAuth();
@@ -285,14 +286,14 @@ export default function MatterDetailView({ matter, onClose, onUpdate, activeTab:
                         <div style={styles.infoRow}>
                           <span style={styles.infoLabel}>Opened Date:</span>
                           <span style={styles.infoValue}>
-                            {matterData.opened_date ? new Date(matterData.opened_date).toLocaleDateString() : 'Not set'}
+                            {matterData.opened_date ? fmtDate(matterData.opened_date) : 'Not set'}
                           </span>
                         </div>
                         {matterData.closed_date && (
                           <div style={styles.infoRow}>
                             <span style={styles.infoLabel}>Closed Date:</span>
                             <span style={styles.infoValue}>
-                              {new Date(matterData.closed_date).toLocaleDateString()}
+                              {fmtDate(matterData.closed_date)}
                             </span>
                           </div>
                         )}

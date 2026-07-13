@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { fmtDate } from '../utils/dateFormat';
 
 export default function TrialBanner({ daysUntilTrialEnds, trialEndsAt }) {
   const days = daysUntilTrialEnds ?? 0;
@@ -19,7 +20,7 @@ export default function TrialBanner({ daysUntilTrialEnds, trialEndsAt }) {
     bg = '#fffbeb';
     border = '#fcd34d';
     textColor = '#92400e';
-    const endDate = trialEndsAt ? new Date(trialEndsAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : '';
+    const endDate = trialEndsAt ? fmtDate(trialEndsAt) : '';
     label = `You are on a free trial${endDate ? ` ending ${endDate}` : ''}.`;
   }
 

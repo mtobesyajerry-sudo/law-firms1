@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
+import { fmtDate } from '../utils/dateFormat';
 
 export default function InstitutionalUserManagement({ user }) {
   const [requests, setRequests] = useState([]);
@@ -564,7 +565,7 @@ export default function InstitutionalUserManagement({ user }) {
                   Requested by: {request.requested_by_user?.full_name}
                 </div>
                 <div style={styles.requestDetail}>
-                  Date: {new Date(request.created_at).toLocaleDateString()}
+                  Date: {fmtDate(request.created_at)}
                 </div>
               </div>
               <div style={styles.badges}>

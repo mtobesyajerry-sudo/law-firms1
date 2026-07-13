@@ -6,6 +6,7 @@ import {
   getDocumentCategoryColor,
   serverValidateFile
 } from '../utils/documentUtils';
+import { fmtDate } from '../utils/dateFormat';
 
 export default function ClientDocumentManagement({ client, onUpdate }) {
   const { user, profile } = useAuth();
@@ -312,7 +313,7 @@ export default function ClientDocumentManagement({ client, onUpdate }) {
                                 <div style={styles.docInfo}>
                                   <div style={styles.docName}>{uploadedDoc.document_name}</div>
                                   <div style={styles.docMeta}>
-                                    Uploaded {new Date(uploadedDoc.uploaded_at).toLocaleDateString()}
+                                    Uploaded {fmtDate(uploadedDoc.uploaded_at)}
                                     {' • '}
                                     <span style={{
                                       ...styles.verificationBadge,

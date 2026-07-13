@@ -28,6 +28,7 @@ import DualApprovalInterface from './DualApprovalInterface';
 import NewUserRequestForm from './NewUserRequestForm';
 import MatterManagement from './MatterManagement';
 import { hidesMatters } from '../utils/sectorLabels';
+import { fmtDate, fmtDateTime } from '../utils/dateFormat';
 
 export default function ClientManagementDashboard() {
   const { profile, organization } = useAuth();
@@ -939,7 +940,7 @@ export default function ClientManagementDashboard() {
                                 )}
 
                                 <div style={{ fontSize: '12px', color: '#94a3b8' }}>
-                                  Created: {new Date(request.created_at).toLocaleString()}
+                                  Created: {fmtDateTime(request.created_at)}
                                 </div>
                               </div>
                             </div>
@@ -1073,7 +1074,7 @@ export default function ClientManagementDashboard() {
                               </div>
                             )}
                             <div style={{ fontSize: '12px', color: '#64748b', marginTop: '8px' }}>
-                              Requested: {new Date(request.created_at).toLocaleString()}
+                              Requested: {fmtDateTime(request.created_at)}
                             </div>
                           </div>
                         </div>
@@ -1285,7 +1286,7 @@ export default function ClientManagementDashboard() {
                         paddingTop: '8px',
                         borderTop: '1px solid #e5e7eb'
                       }}>
-                        Member since {new Date(user.created_at).toLocaleDateString()}
+                        Member since {fmtDate(user.created_at)}
                       </div>
 
                       {user.id === profile.id && (
@@ -1560,7 +1561,7 @@ export default function ClientManagementDashboard() {
                             {assessment.institution_name || 'Institutional Assessment'}
                           </div>
                           <div style={{ fontSize: '13px', color: '#64748b' }}>
-                            Created: {new Date(assessment.created_at).toLocaleDateString()}
+                            Created: {fmtDate(assessment.created_at)}
                           </div>
                         </div>
                         {assessment.overall_risk_rating && (
@@ -1635,7 +1636,7 @@ export default function ClientManagementDashboard() {
                             Severity: {alert.severity?.toUpperCase() || 'UNKNOWN'}
                           </div>
                           <div style={{ fontSize: '13px', color: '#64748b' }}>
-                            Created: {new Date(alert.created_at).toLocaleDateString()}
+                            Created: {fmtDate(alert.created_at)}
                           </div>
                         </div>
                         <div style={{

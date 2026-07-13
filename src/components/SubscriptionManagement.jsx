@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
+import { fmtDate, fmtDateTime } from '../utils/dateFormat';
 
 function maskPhone(phone) {
   if (!phone) return '—';
@@ -96,7 +97,7 @@ function ClickPesaPaymentDetail({ orgId }) {
                 return (
                   <>
                     <tr key={p.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                      <td style={{ padding: '10px 12px' }}>{new Date(p.created_at).toLocaleDateString()}</td>
+                      <td style={{ padding: '10px 12px' }}>{fmtDate(p.created_at)}</td>
                       <td style={{ padding: '10px 12px', fontWeight: '600' }}>TZS {Number(p.amount_gross_tzs ?? p.amount_tzs || 0).toLocaleString()}</td>
                       <td style={{ padding: '10px 12px', color: '#64748b' }}>{p.payment_method || '—'}</td>
                       <td style={{ padding: '10px 12px' }}><span style={sc.statusBadge(p.status)}>{p.status}</span></td>
@@ -127,7 +128,7 @@ function ClickPesaPaymentDetail({ orgId }) {
                               ['Transaction ID', p.clickpesa_transaction_id],
                               ['Order Reference', p.clickpesa_order_reference || p.payment_reference],
                               ['Channel', p.clickpesa_channel],
-                              ['Webhook Received', p.webhook_received_at ? new Date(p.webhook_received_at).toLocaleString() : null],
+                              ['Webhook Received', p.webhook_received_at ? fmtDateTime(p.webhook_received_at) : null],
                               ['Failure Reason', p.failure_reason],
                               ['Payer Name', p.payer_name],
                             ].filter(([, v]) => v).map(([label, val]) => (
@@ -182,7 +183,7 @@ function ClickPesaPaymentDetail({ orgId }) {
                       {entry.signature_valid ? 'Valid' : 'Invalid'}
                     </td>
                     <td style={{ padding: '10px 12px', color: '#64748b', fontSize: '12px' }}>
-                      {entry.created_at ? new Date(entry.created_at).toLocaleString() : '—'}
+                      {entry.created_at ? fmtDateTime(entry.created_at) : '—'}
                     </td>
                     <td style={{ padding: '10px 12px' }}>
                       <button onClick={() => setExpandedWebhook(expandedWebhook === entry.id ? null : entry.id)}
@@ -572,7 +573,7 @@ export default function SubscriptionManagement() {
                 <div style={styles.detailLabel}>Expiry Date</div>
                 <div style={styles.detailValue}>
                   {org.subscription_expiry_date
-                    ? new Date(org.subscription_expiry_date).toLocaleDateString()
+                    ? fmtDate(org.subscription_expiry_date)
                     : 'N/A'}
                 </div>
               </div>

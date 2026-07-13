@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
 import LoadingSpinner from './LoadingSpinner';
+import { fmtDate } from '../utils/dateFormat';
 
 export default function DualApprovalInterface({ user, organizationId }) {
   const [requests, setRequests] = useState([]);
@@ -397,7 +398,7 @@ export default function DualApprovalInterface({ user, organizationId }) {
                 </div>
                 <div style={styles.detailRow}>
                   <span style={{ color: '#64748b' }}>Requested:</span>
-                  <span>{new Date(request.created_at).toLocaleDateString()}</span>
+                  <span>{fmtDate(request.created_at)}</span>
                 </div>
                 {request.requester && (
                   <div style={styles.detailRow}>
@@ -425,7 +426,7 @@ export default function DualApprovalInterface({ user, organizationId }) {
                         {approval.approver?.full_name}
                       </span>
                       <span style={{ color: '#64748b' }}>
-                        on {new Date(approval.approved_at).toLocaleDateString()}
+                        on {fmtDate(approval.approved_at)}
                       </span>
                     </div>
                   ))

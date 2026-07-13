@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
+import { fmtDateTime } from '../utils/dateFormat';
 
 const C = {
   gold: '#d4af37', goldSoft: '#f4e8b8', goldDim: '#b8941f',
@@ -173,14 +174,6 @@ const s = {
   },
 };
 
-function fmt(iso) {
-  if (!iso) return '—';
-  return new Date(iso).toLocaleString('en-GB', {
-    day: '2-digit', month: 'short', year: 'numeric',
-    hour: '2-digit', minute: '2-digit',
-  });
-}
-
 function truncate(str, n = 60) {
   if (!str) return '—';
   return str.length > n ? str.slice(0, n) + '…' : str;
@@ -339,7 +332,7 @@ export default function DataDeletionRequestsPanel({ orgId }) {
           <tbody>
             {logs.map(row => (
               <tr key={row.id}>
-                <td style={s.td}>{fmt(row.created_at)}</td>
+                <td style={s.td}>{fmtDateTime(row.created_at)}</td>
                 <td style={{ ...s.td, fontFamily: 'monospace', fontSize: 12 }}>{row.table_name}</td>
                 <td style={{ ...s.td, fontFamily: 'monospace', fontSize: 11, color: C.muted }}>
                   {row.record_id}

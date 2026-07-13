@@ -11,6 +11,7 @@ import {
 } from '../data/assessmentData';
 import { getFilteredSections, resolveFrameworkType } from '../utils/frameworkUtils';
 import MaturityAssessmentSection from './MaturityAssessmentSection';
+import { fmtDate } from '../utils/dateFormat';
 
 export default function DetailedAssessmentReport({ assessment, sectionScores = [], responses = [], onClose }) {
   const [keyFindings, setKeyFindings] = useState(null);
@@ -48,15 +49,6 @@ export default function DetailedAssessmentReport({ assessment, sectionScores = [
     });
     return allQuestions;
   };
-  const formatDate = (dateStr) => {
-    if (!dateStr) return '';
-    return new Date(dateStr).toLocaleDateString('en-GB', {
-      day: '2-digit',
-      month: 'long',
-      year: 'numeric'
-    });
-  };
-
   const getInstitutionLabel = (value) => {
     const category = institutionCategories.find(c => c.value === value);
     return category ? category.label : value;
@@ -108,7 +100,7 @@ export default function DetailedAssessmentReport({ assessment, sectionScores = [
               <p style={styles.orgName}>{assessment.organizations?.name}</p>
               <p>{getInstitutionLabel(assessment.dnfbp_category)}</p>
               <p style={styles.coverDate}>
-                Assessment Date: {formatDate(assessment.created_at)}
+                Assessment Date: {fmtDate(assessment.created_at)}
               </p>
               <div style={styles.coverScore}>
                 <p style={styles.scoreLabel}>Overall Risk Score</p>
@@ -136,7 +128,7 @@ export default function DetailedAssessmentReport({ assessment, sectionScores = [
                 </div>
                 <div style={styles.summaryItem}>
                   <span style={styles.summaryLabel}>Assessment Date:</span>
-                  <span style={styles.summaryValue}>{formatDate(assessment.created_at)}</span>
+                  <span style={styles.summaryValue}>{fmtDate(assessment.created_at)}</span>
                 </div>
                 <div style={styles.summaryItem}>
                   <span style={styles.summaryLabel}>Overall Risk Rating:</span>
@@ -809,7 +801,7 @@ export default function DetailedAssessmentReport({ assessment, sectionScores = [
                   <div style={styles.signatureLabel}>Date:</div>
                   <div style={styles.signatureSpace}>_______________________________</div>
                   <div style={styles.signatureInfo}>
-                    <p>{formatDate(assessment.created_at)}</p>
+                    <p>{fmtDate(assessment.created_at)}</p>
                   </div>
                 </div>
               </div>

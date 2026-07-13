@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
 import LoadingSpinner from './LoadingSpinner';
+import { fmtDate } from '../utils/dateFormat';
 
 const PEPReviewPanel = () => {
   const [pepMatches, setPepMatches] = useState([]);
@@ -192,7 +193,7 @@ const PEPReviewPanel = () => {
                     </div>
                     <div style={detailItemStyle}>
                       <span style={labelStyle}>Screened:</span>
-                      <span>{match.screened_at ? new Date(match.screened_at).toLocaleDateString() : 'N/A'}</span>
+                      <span>{match.screened_at ? fmtDate(match.screened_at) : 'N/A'}</span>
                     </div>
                   </div>
                 </div>

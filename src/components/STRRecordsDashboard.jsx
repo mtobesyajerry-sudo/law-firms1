@@ -6,6 +6,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
+import { fmtDateShort } from '../utils/dateFormat';
 
 const STATUS_LABELS = {
   saved: 'Saved — Not Yet Filed with FIU',
@@ -42,10 +43,7 @@ function StatusBadge({ status }) {
   );
 }
 
-function fmt(date) {
-  if (!date) return '—';
-  return new Date(date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-}
+
 
 export default function STRRecordsDashboard() {
   const { user, profile } = useAuth();
@@ -203,10 +201,10 @@ export default function STRRecordsDashboard() {
                       <td style={{ padding: '14px 16px', fontSize: '13px', color: '#374151', fontWeight: '600' }}>{alertNum}</td>
                       <td style={{ padding: '14px 16px', fontSize: '12px', color: '#6b7280', fontFamily: 'monospace' }}>{r.str_number}</td>
                       <td style={{ padding: '14px 16px', fontSize: '13px', color: '#111827' }}>{subjectName}</td>
-                      <td style={{ padding: '14px 16px', fontSize: '12px', color: '#6b7280', whiteSpace: 'nowrap' }}>{fmt(r.created_at)}</td>
+                      <td style={{ padding: '14px 16px', fontSize: '12px', color: '#6b7280', whiteSpace: 'nowrap' }}>{fmtDateShort(r.created_at)}</td>
                       <td style={{ padding: '14px 16px' }}><StatusBadge status={r.str_status} /></td>
                       <td style={{ padding: '14px 16px', fontSize: '12px', color: '#374151', fontFamily: 'monospace' }}>{r.fiu_reference_number || '—'}</td>
-                      <td style={{ padding: '14px 16px', fontSize: '12px', color: '#6b7280', whiteSpace: 'nowrap' }}>{fmt(r.fiu_acknowledgment_date)}</td>
+                      <td style={{ padding: '14px 16px', fontSize: '12px', color: '#6b7280', whiteSpace: 'nowrap' }}>{fmtDateShort(r.fiu_acknowledgment_date)}</td>
                       <td style={{ padding: '14px 16px' }}>
                         <span style={{ fontSize: '12px', color: '#3b82f6', fontWeight: '600' }}>View →</span>
                       </td>

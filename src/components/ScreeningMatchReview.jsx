@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { screeningService } from '../services/screeningService';
 import { supabase } from '../supabaseClient';
 import { dashboardStyles } from '../utils/dashboardStyles';
+import { fmtDate, fmtDateShort } from '../utils/dateFormat';
 
 export default function ScreeningMatchReview() {
   const [loading, setLoading] = useState(true);
@@ -381,11 +382,7 @@ export default function ScreeningMatchReview() {
                     </span>
                   </div>
                   <div style={{ fontSize: '11px', color: '#94a3b8' }}>
-                    {new Date(result.screening_date).toLocaleDateString('en-US', {
-                      month: 'short',
-                      day: 'numeric',
-                      year: 'numeric'
-                    })}
+                    {fmtDateShort(result.screening_date)}
                   </div>
                 </button>
               ))
@@ -474,7 +471,7 @@ export default function ScreeningMatchReview() {
                   <div>
                     <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.6)', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Date</div>
                     <div style={{ fontSize: '14px', fontWeight: '600', color: '#ffffff' }}>
-                      {new Date(selectedResult.screening_date).toLocaleDateString()}
+                      {fmtDate(selectedResult.screening_date)}
                     </div>
                   </div>
                   <div>

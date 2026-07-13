@@ -11,6 +11,7 @@ import RoleUpgradeRequestForm from './RoleUpgradeRequestForm';
 import { resolveFrameworkType } from '../utils/frameworkUtils';
 import { getSectorLabels, hidesMatters } from '../utils/sectorLabels';
 import { getKycFormRoute } from '../utils/kycRouting';
+import { fmtDate, todayEAT } from '../utils/dateFormat';
 
 export default function StaffDashboard() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -151,7 +152,7 @@ export default function StaffDashboard() {
       const conflicts = conflictsRes.data;
       const pendingApprovalClients = pendingApprovalRes.data;
 
-      const today = new Date().toISOString().split('T')[0];
+      const today = todayEAT();
       // A review is overdue if next_review_date is in the past AND the last_review_date is before next_review_date (meaning the review hasn't been completed yet)
       const overdueReviews = allClients?.filter(c => {
         if (!c.next_review_date || c.next_review_date >= today) return false;
@@ -350,7 +351,7 @@ export default function StaffDashboard() {
             {myClients
               .filter(c => {
                 if (!c.next_review_date) return false;
-                const today = new Date().toISOString().split('T')[0];
+                const today = todayEAT();
                 if (c.next_review_date >= today) return false;
                 if (!c.last_review_date) return true;
                 return new Date(c.last_review_date) < new Date(c.next_review_date);
@@ -446,7 +447,7 @@ export default function StaffDashboard() {
                           Last Review
                         </div>
                         <div style={{ color: '#0a1929', fontWeight: '600', fontSize: '11px' }}>
-                          {client.last_review_date ? new Date(client.last_review_date).toLocaleDateString() : 'N/A'}
+                          {client.last_review_date ? fmtDate(client.last_review_date) : 'N/A'}
                         </div>
                       </div>
                       <div>
@@ -454,7 +455,7 @@ export default function StaffDashboard() {
                           Due Date
                         </div>
                         <div style={{ color: urgencyColor, fontWeight: '700', fontSize: '11px' }}>
-                          {new Date(client.next_review_date).toLocaleDateString()}
+                          {fmtDate(client.next_review_date)}
                         </div>
                       </div>
                       <div>
@@ -607,7 +608,7 @@ export default function StaffDashboard() {
                       </span>
                     </div>
                     <div style={{ fontSize: '12px', color: '#64748b' }}>
-                      {matter.matter_type.replace('_', ' ')} • {new Date(matter.opened_date).toLocaleDateString()}
+                      {matter.matter_type.replace('_', ' ')} • {fmtDate(matter.opened_date)}
                     </div>
                   </div>
                 );
@@ -836,7 +837,7 @@ function OverdueReviewsList({ organizationId, userId }) {
   const loadOverdueClients = async () => {
     try {
       setLoading(true);
-      const today = new Date().toISOString().split('T')[0];
+      const today = todayEAT();
 
       const { data, error } = await supabase
         .from('kyc_clients_decrypted')
@@ -1001,7 +1002,7 @@ function OverdueReviewsList({ organizationId, userId }) {
                       Last Review
                     </div>
                     <div style={{ color: '#0a1929', fontWeight: '600' }}>
-                      {client.last_review_date ? new Date(client.last_review_date).toLocaleDateString() : 'N/A'}
+                      {client.last_review_date ? fmtDate(client.last_review_date) : 'N/A'}
                     </div>
                   </div>
                   <div>
@@ -1009,7 +1010,7 @@ function OverdueReviewsList({ organizationId, userId }) {
                       Due Date
                     </div>
                     <div style={{ color: urgencyColor, fontWeight: '700' }}>
-                      {new Date(client.next_review_date).toLocaleDateString()}
+                      {fmtDate(client.next_review_date)}
                     </div>
                   </div>
                   <div>

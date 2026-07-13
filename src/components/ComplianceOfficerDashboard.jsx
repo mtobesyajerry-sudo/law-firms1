@@ -10,6 +10,7 @@ import { dashboardStyles, getBadgeStyle, getRiskBadgeStyle, getStatusBadgeStyle 
 import PageHeader from './PageHeader';
 import LoadingSpinner from './LoadingSpinner';
 import RoleUpgradeRequestForm from './RoleUpgradeRequestForm';
+import { fmtDate, todayEAT } from '../utils/dateFormat';
 export default function ComplianceOfficerDashboard() {
   const [showRoleUpgradeForm, setShowRoleUpgradeForm] = useState(false);
   const [stats, setStats] = useState({
@@ -162,7 +163,7 @@ export default function ComplianceOfficerDashboard() {
 
       const alerts = [];
 
-      const today = new Date().toISOString().split('T')[0];
+      const today = todayEAT();
       const overdueReviews = clients?.filter(c =>
         c.next_review_date && c.next_review_date < today
       ).length || 0;
@@ -412,7 +413,7 @@ export default function ComplianceOfficerDashboard() {
                         {assessment.assessor_name || profile?.organization_name || 'Institutional Assessment'}
                       </div>
                       <div style={{ fontSize: '13px', color: '#64748b', marginBottom: '4px' }}>
-                        Created: {new Date(assessment.created_at).toLocaleDateString()}
+                        Created: {fmtDate(assessment.created_at)}
                       </div>
                       <div style={{ fontSize: '13px', color: '#64748b' }}>
                         Status: <span style={{
@@ -691,7 +692,7 @@ export default function ComplianceOfficerDashboard() {
                       {item.kyc_clients?.client_name || 'Unknown Client'}
                     </span>
                     <span style={{ fontSize: '11px', color: '#64748b' }}>
-                      {new Date(item.incident_date).toLocaleDateString()}
+                      {fmtDate(item.incident_date)}
                     </span>
                   </div>
                   <p style={{ margin: '4px 0', fontSize: '12px', color: '#4a5568' }}>
@@ -824,7 +825,7 @@ function ClientsList({ organizationId, navigate, initialFilter }) {
         } else if (initialFilter === 'pep') {
           query = query.eq('is_pep', true);
         } else if (initialFilter === 'overdue') {
-          query = query.lt('next_review_date', new Date().toISOString().split('T')[0]);
+          query = query.lt('next_review_date', todayEAT());
         }
 
         const { data } = await query;

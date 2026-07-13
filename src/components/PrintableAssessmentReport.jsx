@@ -2,6 +2,7 @@ import React from 'react';
 import { getRiskColor, getRiskLabel, institutionCategories, requiresEDD, getRequiredAction } from '../data/assessmentData';
 import { getFilteredSections, resolveFrameworkType } from '../utils/frameworkUtils';
 import MaturityAssessmentSection from './MaturityAssessmentSection';
+import { fmtDate } from '../utils/dateFormat';
 
 export default function PrintableAssessmentReport({ assessment, sectionScores, responses, remediationActions, onClose }) {
   const tier = assessment.entity_tier || assessment.dnfbp_tier || 2;
@@ -16,15 +17,6 @@ export default function PrintableAssessmentReport({ assessment, sectionScores, r
 
   const handlePrint = () => {
     window.print();
-  };
-
-  const formatDate = (dateStr) => {
-    if (!dateStr) return '';
-    return new Date(dateStr).toLocaleDateString('en-GB', {
-      day: '2-digit',
-      month: 'long',
-      year: 'numeric'
-    });
   };
 
   const getInstitutionLabel = (value) => {
@@ -132,12 +124,12 @@ export default function PrintableAssessmentReport({ assessment, sectionScores, r
                 </tr>
                 <tr>
                   <td style={styles.summaryLabel}>Assessment Date</td>
-                  <td style={styles.summaryValue}>{formatDate(assessment.assessment_date)}</td>
+                  <td style={styles.summaryValue}>{fmtDate(assessment.assessment_date)}</td>
                 </tr>
                 <tr>
                   <td style={styles.summaryLabel}>Completed</td>
                   <td style={styles.summaryValue}>
-                    {assessment.completed_at ? formatDate(assessment.completed_at) : 'In Progress'}
+                    {assessment.completed_at ? fmtDate(assessment.completed_at) : 'In Progress'}
                   </td>
                 </tr>
                 <tr>
@@ -326,7 +318,7 @@ export default function PrintableAssessmentReport({ assessment, sectionScores, r
                       </div>
                       {action.target_date && (
                         <div style={styles.remediationMeta}>
-                          <strong>Target Date:</strong> {formatDate(action.target_date)}
+                          <strong>Target Date:</strong> {fmtDate(action.target_date)}
                         </div>
                       )}
                       <div style={styles.remediationMeta}>

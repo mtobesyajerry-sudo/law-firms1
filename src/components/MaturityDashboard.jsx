@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { ControlAssessmentService } from '../services/controlAssessmentService';
 import { getMaturityLabel, getGapSeverityLabel } from '../utils/maturityUtils';
 import LoadingSpinner from './LoadingSpinner';
+import { fmtDate, fmtDateShort } from '../utils/dateFormat';
 
 export default function MaturityDashboard({ assessment }) {
   const [loading, setLoading] = useState(true);
@@ -67,7 +68,7 @@ export default function MaturityDashboard({ assessment }) {
           AML/CFT Maturity Assessment Dashboard
         </h2>
         <p className="text-gray-600">
-          {assessment.institution_name} - {new Date(assessment.assessment_date).toLocaleDateString()}
+          {assessment.institution_name} - {fmtDate(assessment.assessment_date)}
         </p>
       </div>
 
@@ -583,7 +584,7 @@ function RemediationTab({ plans, onUpdate }) {
                 <div>
                   <span className="text-gray-600">Target Date:</span>
                   <p className="font-medium">
-                    {plan.target_date ? new Date(plan.target_date).toLocaleDateString() : 'Not set'}
+                    {plan.target_date ? fmtDate(plan.target_date) : 'Not set'}
                   </p>
                 </div>
               </div>
@@ -664,10 +665,7 @@ function TrendingTab({ snapshots }) {
                   ></div>
                 </div>
                 <div className="mt-2 text-xs text-gray-600 text-center">
-                  {new Date(snapshot.snapshot_date).toLocaleDateString('en-US', {
-                    month: 'short',
-                    day: 'numeric'
-                  })}
+                  {fmtDateShort(snapshot.snapshot_date)}
                 </div>
                 <div className="text-sm font-medium text-gray-900">{maturity.toFixed(2)}</div>
               </div>
@@ -683,7 +681,7 @@ function TrendingTab({ snapshots }) {
             <div className="flex justify-between">
               <span className="text-gray-600">Date:</span>
               <span className="font-medium">
-                {new Date(snapshots[0].snapshot_date).toLocaleDateString()}
+                {fmtDate(snapshots[0].snapshot_date)}
               </span>
             </div>
             <div className="flex justify-between">

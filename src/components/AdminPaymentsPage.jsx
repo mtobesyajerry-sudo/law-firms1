@@ -1,24 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
+import { fmtDateShort, fmtDateTime, todayEAT } from '../utils/dateFormat';
 
 function formatTZS(v) {
   if (v == null) return '—';
   return `TZS ${Number(v).toLocaleString()}`;
-}
-
-function formatDate(d) {
-  if (!d) return '—';
-  return new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-}
-
-function formatDateTime(d) {
-  if (!d) return '—';
-  return new Date(d).toLocaleString('en-GB', {
-    day: '2-digit', month: 'short', year: 'numeric',
-    hour: '2-digit', minute: '2-digit',
-    timeZone: 'Africa/Dar_es_Salaam',
-  });
 }
 
 const STATUS_BADGE = {
@@ -43,7 +30,7 @@ function StatusBadge({ status }) {
 // ─── Record Deposit Modal ─────────────────────────────────────────────────────
 function RecordDepositModal({ onClose, onSaved }) {
   const [amount, setAmount]   = useState('');
-  const [date, setDate]       = useState(new Date().toISOString().slice(0, 10));
+  const [date, setDate]       = useState(todayEAT());
   const [time, setTime]       = useState('');
   const [notes, setNotes]     = useState('');
   const [saving, setSaving]   = useState(false);
@@ -295,7 +282,7 @@ function MatchPanel({ deposit, onClose, onMatched }) {
         <div>
           <h2 style={{ margin: 0, fontSize: '16px', fontWeight: '800', color: '#d4af37' }}>Match Deposit</h2>
           <p style={{ margin: '4px 0 0', fontSize: '12px', color: '#94a3b8' }}>
-            {formatTZS(deposit.amount_tzs)} · {formatDate(deposit.deposit_date)}
+            {formatTZS(deposit.amount_tzs)} · {fmtDateShort(deposit.deposit_date)}
           </p>
         </div>
         <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '20px', lineHeight: 1, padding: '2px 6px' }}>×</button>
@@ -308,7 +295,7 @@ function MatchPanel({ deposit, onClose, onMatched }) {
           <div style={{ display: 'grid', gap: '6px', fontSize: '13px' }}>
             {[
               ['Amount',  formatTZS(deposit.amount_tzs)],
-              ['Date',    formatDate(deposit.deposit_date)],
+              ['Date',    fmtDateShort(deposit.deposit_date)],
               ['Time',    deposit.deposit_time ?? '—'],
               ['Notes',   deposit.notes ?? '—'],
               ['Status',  deposit.status],
@@ -377,7 +364,7 @@ function MatchPanel({ deposit, onClose, onMatched }) {
                           borderRadius: '999px', padding: '2px 8px',
                         }}>CUSTOMER CONFIRMED</span>
                       )}
-                      <span style={{ fontSize: '12px', color: '#64748b' }}>{formatDate(p.created_at)}</span>
+                      <span style={{ fontSize: '12px', color: '#64748b' }}>{fmtDateShort(p.created_at)}</span>
                     </div>
                   </div>
                   <div style={{ fontSize: '13px', color: '#374151', marginBottom: '4px' }}>
@@ -389,7 +376,7 @@ function MatchPanel({ deposit, onClose, onMatched }) {
                   </div>
                   {isConfirmed && p.customer_confirmed_at && (
                     <div style={{ fontSize: '11px', color: '#92400e', marginBottom: '10px' }}>
-                      Confirmed {formatDateTime(p.customer_confirmed_at)}
+                      Confirmed {fmtDateTime(p.customer_confirmed_at)}
                     </div>
                   )}
                   <button
@@ -618,7 +605,7 @@ export default function AdminPaymentsPage() {
                       <td style={{ ...td, fontWeight: '600' }}>{c.organizations?.name ?? '—'}</td>
                       <td style={{ ...td, fontWeight: '700' }}>{formatTZS(c.amount_gross_tzs)}</td>
                       <td style={td}>{c.billing_cycle ?? '—'}</td>
-                      <td style={{ ...td, color: '#64748b', fontSize: '12px' }}>{formatDateTime(c.created_at)}</td>
+                      <td style={{ ...td, color: '#64748b', fontSize: '12px' }}>{fmtDateTime(c.created_at)}</td>
                       <td style={td}>
                         {isConfirmed ? (
                           <span style={{
@@ -711,7 +698,7 @@ export default function AdminPaymentsPage() {
                 ) : sortedDeposits.map((d, i) => (
                   <tr key={d.id} style={{ background: i % 2 === 0 ? 'white' : '#fafafa' }}>
                     <td style={{ ...td, fontWeight: '700' }}>{formatTZS(d.amount_tzs)}</td>
-                    <td style={td}>{formatDate(d.deposit_date)}</td>
+                    <td style={td}>{fmtDateShort(d.deposit_date)}</td>
                     <td style={{ ...td, color: '#64748b' }}>{d.deposit_time ?? '—'}</td>
                     <td style={td}><StatusBadge status={d.status} /></td>
                     <td style={{ ...td, fontFamily: 'monospace', fontSize: '12px', color: '#1e40af' }}>

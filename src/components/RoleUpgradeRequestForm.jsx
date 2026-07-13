@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
+import { fmtDate } from '../utils/dateFormat';
 
 const ROLE_OPTIONS = [
   { value: 'staff', label: 'Staff', description: 'Administrative and support functions' },
@@ -261,9 +262,9 @@ export default function RoleUpgradeRequestForm({ onClose, onSuccess }) {
                       </div>
                     )}
                     <div style={{ fontSize: '11px', color: '#94a3b8' }}>
-                      Submitted: {new Date(request.created_at).toLocaleDateString()}
+                      Submitted: {fmtDate(request.created_at)}
                       {request.status === 'approved' && request.reviewed_at && (
-                        <> • Approved: {new Date(request.reviewed_at).toLocaleDateString()}</>
+                        <> • Approved: {fmtDate(request.reviewed_at)}</>
                       )}
                     </div>
                   </div>

@@ -4,6 +4,7 @@ import { supabase } from '../supabaseClient';
 import { getComplianceAction, redFlags } from '../data/kycCddData';
 import { checkSuspiciousActivity } from '../utils/kycRiskCalculator';
 import { useAuth } from '../contexts/AuthContext';
+import { fmtDate, fmtDateTime } from '../utils/dateFormat';
 
 export default function KycCddReport({ recordId: propRecordId, onClose }) {
   const { id: paramId } = useParams();
@@ -273,7 +274,7 @@ export default function KycCddReport({ recordId: propRecordId, onClose }) {
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
               <span style={{ fontSize: '11px', fontWeight: '600', color: '#6c757d', textTransform: 'uppercase' }}>Created</span>
-              <span style={{ fontSize: '14px', fontWeight: '600', color: '#2c3e50' }}>{new Date(record.created_at).toLocaleDateString()}</span>
+              <span style={{ fontSize: '14px', fontWeight: '600', color: '#2c3e50' }}>{fmtDate(record.created_at)}</span>
             </div>
           </div>
         </section>
@@ -397,7 +398,7 @@ export default function KycCddReport({ recordId: propRecordId, onClose }) {
             {record.next_review_date && (
               <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '10px' }}>
                 <strong>Next Review Date:</strong>
-                <span style={{ fontSize: '16px' }}>{new Date(record.next_review_date).toLocaleDateString()}</span>
+                <span style={{ fontSize: '16px' }}>{fmtDate(record.next_review_date)}</span>
               </div>
             )}
             {record.senior_approval_status && record.senior_approval_status !== 'not_required' && (
@@ -459,7 +460,7 @@ export default function KycCddReport({ recordId: propRecordId, onClose }) {
 
           {record.next_review_date && (
             <div style={{ padding: '15px', backgroundColor: 'white', borderRadius: '4px', marginTop: '10px' }}>
-              <strong>Next Review Date:</strong> {new Date(record.next_review_date).toLocaleDateString()}
+              <strong>Next Review Date:</strong> {fmtDate(record.next_review_date)}
             </div>
           )}
         </section>
@@ -559,9 +560,9 @@ export default function KycCddReport({ recordId: propRecordId, onClose }) {
                     </div>
                   )}
                   <div style={{ marginTop: '8px', fontSize: '12px', color: '#6c757d', display: 'flex', gap: '15px' }}>
-                    <span>Created: {new Date(doc.created_at).toLocaleDateString()}</span>
+                    <span>Created: {fmtDate(doc.created_at)}</span>
                     {doc.completed_at && (
-                      <span>Completed: {new Date(doc.completed_at).toLocaleDateString()}</span>
+                      <span>Completed: {fmtDate(doc.completed_at)}</span>
                     )}
                   </div>
                 </div>
@@ -601,7 +602,7 @@ export default function KycCddReport({ recordId: propRecordId, onClose }) {
 
         <div style={{ marginTop: '40px', paddingTop: '20px', borderTop: '1px solid #dee2e6', fontSize: '12px', color: '#6c757d', textAlign: 'center' }}>
           <p>This report is generated in accordance with Tanzania AML Act, AML Regulations 2022, and FIU AML/CFT Guidelines to Insurers</p>
-          <p>Generated on {new Date().toLocaleString()}</p>
+          <p>Generated on {fmtDateTime(new Date())}</p>
         </div>
       </div>
 

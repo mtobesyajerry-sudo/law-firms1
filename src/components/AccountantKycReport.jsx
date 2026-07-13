@@ -4,6 +4,7 @@ import { supabase } from '../supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
 import { calculateAccountantKycRisk, getMonitoringFrequency, getRiskMitigationAction, calculateNextReviewDate } from '../utils/accountantKycRiskCalculator';
 import { accountantKycSections } from '../data/accountantKycData';
+import { fmtDate, fmtDateTime, fmtDateTimeLong } from '../utils/dateFormat';
 
 export default function AccountantKycReport() {
   const { id } = useParams();
@@ -97,7 +98,7 @@ export default function AccountantKycReport() {
       return value ? 'Yes' : 'No';
     }
     if (field.type === 'date' && value) {
-      return new Date(value).toLocaleDateString();
+      return fmtDate(value);
     }
     if (Array.isArray(value)) {
       return value.join(', ');
@@ -141,7 +142,7 @@ export default function AccountantKycReport() {
             </div>
             <div style={styles.infoRow}>
               <span style={styles.infoLabel}>Created Date:</span>
-              <span style={styles.infoValue}>{new Date(record.created_at).toLocaleString()}</span>
+              <span style={styles.infoValue}>{fmtDateTime(record.created_at)}</span>
             </div>
             <div style={styles.infoRow}>
               <span style={styles.infoLabel}>Status:</span>
@@ -270,11 +271,7 @@ export default function AccountantKycReport() {
           <div style={styles.reviewSection}>
             <h3 style={styles.subsectionTitle}>Next Review Date</h3>
             <p style={styles.reviewDate}>
-              {new Date(record.next_review_date).toLocaleDateString('en-GB', {
-                day: '2-digit',
-                month: 'long',
-                year: 'numeric'
-              })}
+              {fmtDate(record.next_review_date)}
             </p>
           </div>
         )}
@@ -284,7 +281,7 @@ export default function AccountantKycReport() {
             <h3 style={styles.rejectionTitle}>Rejection Information</h3>
             <p style={styles.rejectionReason}>{record.senior_approval_notes}</p>
             <p style={styles.rejectionDate}>
-              Rejected on: {new Date(record.senior_approval_date).toLocaleString()}
+              Rejected on: {fmtDateTime(record.senior_approval_date)}
             </p>
           </div>
         )}
@@ -293,7 +290,7 @@ export default function AccountantKycReport() {
           <div style={styles.approvalNotice}>
             <h3 style={styles.approvalTitle}>Compliance Approval Confirmation</h3>
             <p style={styles.approvalDate}>
-              Approved on: {new Date(record.senior_approval_date).toLocaleString()}
+              Approved on: {fmtDateTime(record.senior_approval_date)}
             </p>
           </div>
         )}
@@ -316,13 +313,7 @@ export default function AccountantKycReport() {
             and FIU Guidelines for Designated Non-Financial Businesses and Professions (DNFBPs).
           </p>
           <p style={styles.footerDate}>
-            Report Generated: {new Date().toLocaleString('en-GB', {
-              day: '2-digit',
-              month: 'long',
-              year: 'numeric',
-              hour: '2-digit',
-              minute: '2-digit'
-            })}
+            Report Generated: {fmtDateTimeLong(new Date())}
           </p>
         </div>
       </div>

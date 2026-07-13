@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
 import LoadingSpinner from './LoadingSpinner';
+import { fmtDate } from '../utils/dateFormat';
 
 export default function ManagementUserApproval({ user }) {
   const [registrations, setRegistrations] = useState([]);
@@ -406,7 +407,7 @@ export default function ManagementUserApproval({ user }) {
                     <div style={styles.userDetail}>Position: {reg.user_position}</div>
                     <div style={styles.userDetail}>Mobile: {reg.mobile_number || 'Not provided'}</div>
                     <div style={styles.userDetail}>
-                      Submitted: {new Date(reg.created_at).toLocaleDateString()}
+                      Submitted: {fmtDate(reg.created_at)}
                     </div>
                     {reg.is_primary_contact && (
                       <div style={styles.primaryBadge}>PRIMARY CONTACT</div>

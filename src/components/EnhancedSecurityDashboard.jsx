@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
+import { fmtDateTime } from '../utils/dateFormat';
 
 export default function EnhancedSecurityDashboard() {
   const [stats, setStats] = useState({
@@ -401,7 +402,7 @@ export default function EnhancedSecurityDashboard() {
                           </div>
                           <p className="mt-2 text-sm text-gray-600">{event.description}</p>
                           <div className="mt-2 flex items-center space-x-4 text-xs text-gray-500">
-                            <span>{new Date(event.created_at).toLocaleString()}</span>
+                            <span>{fmtDateTime(event.created_at)}</span>
                             {event.ip_address && <span>IP: {event.ip_address}</span>}
                             {event.risk_score && <span>Risk Score: {event.risk_score}/100</span>}
                           </div>
@@ -447,7 +448,7 @@ export default function EnhancedSecurityDashboard() {
                             {JSON.stringify(threat.detection_details)}
                           </p>
                           <div className="mt-2 text-xs text-gray-500">
-                            Detected: {new Date(threat.created_at).toLocaleString()}
+                            Detected: {fmtDateTime(threat.created_at)}
                           </div>
                         </div>
                         <div className="ml-4 flex space-x-2">
@@ -508,7 +509,7 @@ export default function EnhancedSecurityDashboard() {
                             {JSON.stringify(event.detection_details)}
                           </p>
                           <div className="mt-2 flex items-center space-x-4 text-xs text-gray-500">
-                            <span>{new Date(event.created_at).toLocaleString()}</span>
+                            <span>{fmtDateTime(event.created_at)}</span>
                             <span>IP: {event.ip_address}</span>
                           </div>
                         </div>
@@ -553,7 +554,7 @@ export default function EnhancedSecurityDashboard() {
                           </div>
                           <p className="mt-2 text-sm text-gray-600">{incident.incident_description}</p>
                           <div className="mt-2 text-xs text-gray-500">
-                            Detected: {new Date(incident.detected_at).toLocaleString()}
+                            Detected: {fmtDateTime(incident.detected_at)}
                           </div>
                         </div>
                         <div className="ml-4 flex space-x-2">

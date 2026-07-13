@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
+import { fmtDateShort } from '../utils/dateFormat';
 
 export default function MatterBillingMilestones({ matterId, organizationId, onBillingAdded, isReadOnly = false }) {
   const [billingMilestones, setBillingMilestones] = useState([]);
@@ -493,11 +494,7 @@ export default function MatterBillingMilestones({ matterId, organizationId, onBi
                     </div>
                   </div>
                   <span style={styles.billingDate}>
-                    {new Date(billing.milestone_date).toLocaleDateString('en-US', {
-                      month: 'short',
-                      day: 'numeric',
-                      year: 'numeric'
-                    })}
+                    {fmtDateShort(billing.milestone_date)}
                   </span>
                 </div>
 

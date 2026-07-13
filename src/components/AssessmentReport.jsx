@@ -8,6 +8,7 @@ import DetailedAssessmentReport from './DetailedAssessmentReport';
 import PrintableAssessmentReport from './PrintableAssessmentReport';
 import FIUComplianceReport from './FIUComplianceReport';
 import LoadingSpinner from './LoadingSpinner';
+import { fmtDate } from '../utils/dateFormat';
 
 export default function AssessmentReport() {
   const { id } = useParams();
@@ -604,14 +605,14 @@ export default function AssessmentReport() {
           <div style={styles.summaryCard} className="print-card">
             <h3 style={styles.summaryLabel}>Assessment Date</h3>
             <p style={styles.summaryValue}>
-              {new Date(assessment.assessment_date).toLocaleDateString()}
+              {fmtDate(assessment.assessment_date)}
             </p>
           </div>
 
           <div style={styles.summaryCard} className="print-card">
             <h3 style={styles.summaryLabel}>Completed</h3>
             <p style={styles.summaryValue}>
-              {assessment.completed_at ? new Date(assessment.completed_at).toLocaleDateString() : 'In Progress'}
+              {assessment.completed_at ? fmtDate(assessment.completed_at) : 'In Progress'}
             </p>
           </div>
 
@@ -1193,7 +1194,7 @@ export default function AssessmentReport() {
                       </p>
                       {action.target_date && (
                         <p style={styles.remediationMeta}>
-                          <strong>Target:</strong> {new Date(action.target_date).toLocaleDateString()}
+                          <strong>Target:</strong> {fmtDate(action.target_date)}
                         </p>
                       )}
                     </div>

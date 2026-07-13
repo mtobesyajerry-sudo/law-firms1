@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
+import { fmtDate, fmtDateTime } from '../utils/dateFormat';
 
 export default function SOFSOWVerification({ client, onClose, onVerificationComplete }) {
   const [loading, setLoading] = useState(true);
@@ -272,9 +273,9 @@ function OverviewTab({ verifications, client, onCreateNew, onViewVerification })
                     </div>
                   )}
                   <div style={styles.recordFooter}>
-                    <span>Created: {new Date(verification.created_at).toLocaleDateString()}</span>
+                    <span>Created: {fmtDate(verification.created_at)}</span>
                     {verification.verified_at && (
-                      <span>Verified: {new Date(verification.verified_at).toLocaleDateString()}</span>
+                      <span>Verified: {fmtDate(verification.verified_at)}</span>
                     )}
                   </div>
                 </div>
@@ -517,14 +518,14 @@ function VerificationDetailsTab({ verification, client, isNew, onSave, onCancel 
         {verification?.verified_at && (
           <div style={styles.infoBox}>
             <strong>Verified by:</strong> {verification.verified_by}<br />
-            <strong>Verified at:</strong> {new Date(verification.verified_at).toLocaleString()}
+            <strong>Verified at:</strong> {fmtDateTime(verification.verified_at)}
           </div>
         )}
 
         {verification?.approved_at && (
           <div style={{ ...styles.infoBox, borderColor: '#10b981', backgroundColor: '#10b98110' }}>
             <strong>Approved by:</strong> {verification.approved_by}<br />
-            <strong>Approved at:</strong> {new Date(verification.approved_at).toLocaleString()}
+            <strong>Approved at:</strong> {fmtDateTime(verification.approved_at)}
           </div>
         )}
       </div>
@@ -724,7 +725,7 @@ function ChecklistTab({ verification, checklistItems, onUpdate }) {
                   />
                   {completion?.completed_at && (
                     <div style={styles.completionInfo}>
-                      Completed: {new Date(completion.completed_at).toLocaleString()}
+                      Completed: {fmtDateTime(completion.completed_at)}
                     </div>
                   )}
                 </div>
@@ -778,7 +779,7 @@ function HistoryTab({ verificationId }) {
               <div style={styles.historyHeader}>
                 <span style={styles.historyAction}>{record.action?.replace('_', ' ').toUpperCase() || 'UNKNOWN'}</span>
                 <span style={styles.historyDate}>
-                  {new Date(record.created_at).toLocaleString()}
+                  {fmtDateTime(record.created_at)}
                 </span>
               </div>
               {record.change_details && Object.keys(record.change_details).length > 0 && (

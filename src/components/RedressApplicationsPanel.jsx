@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
+import { fmtDate } from '../utils/dateFormat';
 
 const RedressApplicationsPanel = ({ matchId }) => {
   const [applications, setApplications] = useState([]);
@@ -140,7 +141,7 @@ const RedressApplicationsPanel = ({ matchId }) => {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '12px' }}>
                 <div>
                   <h3 style={{ margin: '0 0 4px 0', color: '#d4af37' }}>{app.applicant_name}</h3>
-                  <p style={{ margin: '0', fontSize: '12px', color: '#e2e8f0' }}>Applied: {new Date(app.created_at).toLocaleDateString()}</p>
+                  <p style={{ margin: '0', fontSize: '12px', color: '#e2e8f0' }}>Applied: {fmtDate(app.created_at)}</p>
                 </div>
                 <div style={statusBadgeStyle(app.status)}>{app.status.replace('_', ' ').toUpperCase()}</div>
               </div>

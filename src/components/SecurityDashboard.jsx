@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
 import PageHeader from './PageHeader';
+import { fmtDateTime } from '../utils/dateFormat';
 
 export default function SecurityDashboard() {
   const navigate = useNavigate();
@@ -227,10 +228,6 @@ export default function SecurityDashboard() {
     }
   };
 
-  const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleString();
-  };
-
   const getSeverityColor = (severity) => {
     const colors = {
       low: '#10b981',
@@ -378,7 +375,7 @@ export default function SecurityDashboard() {
                     </td>
                     <td style={styles.td}>{login.ip_address}</td>
                     <td style={styles.td}>{login.mfa_used ? 'Yes' : 'No'}</td>
-                    <td style={styles.td}>{formatDate(login.created_at)}</td>
+                    <td style={styles.td}>{fmtDateTime(login.created_at)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -429,7 +426,7 @@ export default function SecurityDashboard() {
                     <div style={styles.alertMeta}>User ID: {alert.user_id.substring(0, 8)}</div>
                   )}
                   <div style={styles.alertMeta}>
-                    Created: {formatDate(alert.created_at)}
+                    Created: {fmtDateTime(alert.created_at)}
                   </div>
                 </div>
               ))}
@@ -639,8 +636,8 @@ export default function SecurityDashboard() {
                   <tr key={session.id} style={styles.tr}>
                     <td style={styles.td}>{session.user_profiles?.email || 'Unknown'}</td>
                     <td style={styles.td}>{session.ip_address}</td>
-                    <td style={styles.td}>{formatDate(session.last_activity_at)}</td>
-                    <td style={styles.td}>{formatDate(session.expires_at)}</td>
+                    <td style={styles.td}>{fmtDateTime(session.last_activity_at)}</td>
+                    <td style={styles.td}>{fmtDateTime(session.expires_at)}</td>
                     <td style={styles.td}>
                       <button
                         onClick={() => openTerminateModal(session)}
@@ -680,7 +677,7 @@ export default function SecurityDashboard() {
                     </td>
                     <td style={styles.td}>{log.action_description}</td>
                     <td style={styles.td}>{log.user_id ? log.user_id.substring(0, 8) : 'System'}</td>
-                    <td style={styles.td}>{formatDate(log.created_at)}</td>
+                    <td style={styles.td}>{fmtDateTime(log.created_at)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -712,7 +709,7 @@ export default function SecurityDashboard() {
                     </td>
                     <td style={styles.td}>{access.user_id.substring(0, 8)}</td>
                     <td style={styles.td}>{access.ip_address}</td>
-                    <td style={styles.td}>{formatDate(access.created_at)}</td>
+                    <td style={styles.td}>{fmtDateTime(access.created_at)}</td>
                   </tr>
                 ))}
               </tbody>

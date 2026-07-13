@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import integrationService from '../services/integrationService';
 import { getRiskColor } from '../data/kycData';
+import { fmtDate } from '../utils/dateFormat';
 
 export default function IntegratedClientRiskView() {
   const { clientId } = useParams();
@@ -152,7 +153,7 @@ export default function IntegratedClientRiskView() {
               <span style={styles.dataLabel}>Last Review:</span>
               <span style={styles.dataValue}>
                 {client.last_review_date
-                  ? new Date(client.last_review_date).toLocaleDateString()
+                  ? fmtDate(client.last_review_date)
                   : 'Never'}
               </span>
             </div>
@@ -160,7 +161,7 @@ export default function IntegratedClientRiskView() {
               <span style={styles.dataLabel}>Next Review:</span>
               <span style={styles.dataValue}>
                 {client.next_review_date
-                  ? new Date(client.next_review_date).toLocaleDateString()
+                  ? fmtDate(client.next_review_date)
                   : 'Not scheduled'}
               </span>
             </div>
@@ -269,7 +270,7 @@ export default function IntegratedClientRiskView() {
                 <div style={styles.dataRow}>
                   <span style={styles.dataLabel}>Completed:</span>
                   <span style={styles.dataValue}>
-                    {new Date(institutionalAssessment.completed_at).toLocaleDateString()}
+                    {fmtDate(institutionalAssessment.completed_at)}
                   </span>
                 </div>
               </>
@@ -336,7 +337,7 @@ export default function IntegratedClientRiskView() {
                             {matter.opened_date && (
                               <>
                                 <span>•</span>
-                                <span>Opened: {new Date(matter.opened_date).toLocaleDateString()}</span>
+                                <span>Opened: {fmtDate(matter.opened_date)}</span>
                               </>
                             )}
                           </div>

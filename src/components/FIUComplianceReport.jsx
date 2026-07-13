@@ -26,6 +26,7 @@ import {
   generateTechnicalComplianceNarrative as generateTechnicalComplianceNarrativeAcc,
   generateEffectivenessNarrative as generateEffectivenessNarrativeAcc
 } from '../data/accountantReportNarratives';
+import { fmtDateShort } from '../utils/dateFormat';
 
 export default function FIUComplianceReport({ assessment, sectionScores, responses, onClose }) {
   const [organization, setOrganization] = useState(null);
@@ -437,12 +438,6 @@ export default function FIUComplianceReport({ assessment, sectionScores, respons
     };
   };
 
-  const formatDate = (dateString) => {
-    if (!dateString) return 'N/A';
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
-  };
-
   const exportToWord = async () => {
     const inherentRisks = calculateInherentRiskScores();
     const tcRating = getTechnicalComplianceRating();
@@ -494,14 +489,14 @@ export default function FIUComplianceReport({ assessment, sectionScores, respons
           new Paragraph({
             children: [
               new TextRun({ text: 'Reporting Period: ', bold: true }),
-              new TextRun(`${formatDate(getReportingPeriod().start)} – ${formatDate(getReportingPeriod().end)}`)
+              new TextRun(`${fmtDateShort(getReportingPeriod().start)} – ${fmtDateShort(getReportingPeriod().end)}`)
             ],
             spacing: { after: 200 }
           }),
           new Paragraph({
             children: [
               new TextRun({ text: 'Date of Assessment: ', bold: true }),
-              new TextRun(formatDate(assessment.created_at))
+              new TextRun(fmtDateShort(assessment.created_at))
             ],
             spacing: { after: 400 }
           }),
@@ -545,7 +540,7 @@ export default function FIUComplianceReport({ assessment, sectionScores, respons
             spacing: { before: 200, after: 200 }
           }),
           new Paragraph({
-            text: `This assessment covers the period ${formatDate(assessment.created_at)} to ${formatDate(new Date())} and is conducted at least annually or when material changes occur in the institution's risk profile.`,
+            text: `This assessment covers the period ${fmtDateShort(assessment.created_at)} to ${fmtDateShort(new Date())} and is conducted at least annually or when material changes occur in the institution's risk profile.`,
             alignment: AlignmentType.JUSTIFIED,
             spacing: { after: 400 }
           }),
@@ -1247,7 +1242,7 @@ export default function FIUComplianceReport({ assessment, sectionScores, respons
     });
 
     Packer.toBlob(doc).then(blob => {
-      saveAs(blob, `FIU_AML_Risk_Assessment_Report_${organization?.name || 'Report'}_${formatDate(new Date())}.docx`);
+      saveAs(blob, `FIU_AML_Risk_Assessment_Report_${organization?.name || 'Report'}_${fmtDateShort(new Date())}.docx`);
     });
   };
 
@@ -1279,8 +1274,8 @@ export default function FIUComplianceReport({ assessment, sectionScores, respons
           <div style={styles.metadata}>
             <p><strong>Name of Reporting Person:</strong> {organization?.name || 'N/A'}</p>
             <p><strong>Type of Institution:</strong> {getInstitutionType()}</p>
-            <p><strong>Reporting Period:</strong> {formatDate(getReportingPeriod().start)} – {formatDate(getReportingPeriod().end)}</p>
-            <p><strong>Date of Assessment:</strong> {formatDate(assessment.created_at)}</p>
+            <p><strong>Reporting Period:</strong> {fmtDateShort(getReportingPeriod().start)} – {fmtDateShort(getReportingPeriod().end)}</p>
+            <p><strong>Date of Assessment:</strong> {fmtDateShort(assessment.created_at)}</p>
           </div>
 
           <p style={{
@@ -1310,7 +1305,7 @@ export default function FIUComplianceReport({ assessment, sectionScores, respons
 
           <h3 style={styles.subheading}>1.3 Period and Frequency</h3>
           <p style={styles.justifiedText}>
-            This assessment covers the period {formatDate(assessment.created_at)} to {formatDate(new Date())} and is conducted at least annually or when material changes occur in the institution's risk profile.
+            This assessment covers the period {fmtDateShort(assessment.created_at)} to {fmtDateShort(new Date())} and is conducted at least annually or when material changes occur in the institution's risk profile.
           </p>
 
           <h2 style={styles.sectionHeading}>2. AML/CFT/CPF RISK ASSESSMENT METHODOLOGY</h2>

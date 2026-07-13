@@ -12,6 +12,7 @@ import PEPReviewPanel from './PEPReviewPanel';
 import DomesticDesignationsAdmin from './DomesticDesignationsAdmin';
 import { getDashboardCounters, getScreeningHistory } from '../services/screeningService';
 import PageHeader from './PageHeader';
+import { fmtDateShort } from '../utils/dateFormat';
 
 export default function ScreeningDashboard({ onBack }) {
   const [loading, setLoading] = useState(true);
@@ -428,7 +429,7 @@ export default function ScreeningDashboard({ onBack }) {
                     </td>
                     <td style={{ padding: '12px 16px', fontSize: '13px', color: '#374151', whiteSpace: 'nowrap' }}>
                       {result.screened_at
-                        ? new Date(result.screened_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+                        ? fmtDateShort(result.screened_at)
                         : '—'}
                     </td>
                     <td style={{ padding: '12px 16px' }}>

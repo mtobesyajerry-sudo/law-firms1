@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { DocumentService } from '../services/documentService';
 import { sanitizeUrl } from '../utils/sanitization';
+import { fmtDate } from '../utils/dateFormat';
 
 export default function DocumentViewer({ documentId, onClose }) {
   const [document, setDocument] = useState(null);
@@ -55,7 +56,7 @@ export default function DocumentViewer({ documentId, onClose }) {
                   {DocumentService.formatFileSize(document.file_size)}
                 </span>
                 <span style={styles.metadataItem}>
-                  {new Date(document.created_at).toLocaleDateString()}
+                  {fmtDate(document.created_at)}
                 </span>
                 <span style={styles.metadataItem}>
                   {document.classification?.toUpperCase() || 'CONFIDENTIAL'}

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../supabaseClient';
+import { fmtDate } from '../utils/dateFormat';
 
 export default function DocumentUploadManager({
   clientId,
@@ -791,7 +792,7 @@ export default function DocumentUploadManager({
                                       fontSize: '11px',
                                       color: '#6b7280'
                                     }}>
-                                      {formatFileSize(doc.file_size)} • {new Date(doc.created_at).toLocaleDateString()}
+                                      {formatFileSize(doc.file_size)} • {fmtDate(doc.created_at)}
                                     </div>
                                   </div>
                                   <div style={{

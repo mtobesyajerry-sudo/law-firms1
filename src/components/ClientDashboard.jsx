@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../supabaseClient';
 import LoadingSpinner from './LoadingSpinner';
+import { fmtDateShort } from '../utils/dateFormat';
 
 function formatSectorLabel(sector) {
   const labels = {
@@ -409,7 +410,7 @@ export default function ClientDashboard() {
                       const isActive = expiryDate > new Date();
                       return (
                         <>
-                          {expiryDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                          {fmtDateShort(expiry)}
                           {organization.is_trialing && (
                             <span style={{ marginLeft: '6px', fontSize: '11px', color: '#92400e', fontWeight: '600' }}>
                               (Trial)

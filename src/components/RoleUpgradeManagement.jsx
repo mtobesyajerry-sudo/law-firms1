@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
+import { fmtDateTime } from '../utils/dateFormat';
 
 const ROLE_LABELS = {
   client: 'Client',
@@ -225,9 +226,9 @@ export default function RoleUpgradeManagement() {
               )}
 
               <div className="text-xs text-gray-400 mb-4">
-                Submitted: {new Date(request.created_at).toLocaleString()}
+                Submitted: {fmtDateTime(request.created_at)}
                 {request.reviewed_at && (
-                  <> • Reviewed: {new Date(request.reviewed_at).toLocaleString()}</>
+                  <> • Reviewed: {fmtDateTime(request.reviewed_at)}</>
                 )}
               </div>
 

@@ -32,6 +32,7 @@ import AccountantKycForm from './components/AccountantKycForm';
 import AccountantKycReport from './components/AccountantKycReport';
 import KycCddForm from './components/KycCddForm';
 import KycCddReport from './components/KycCddReport';
+import { fmtDate } from './utils/dateFormat';
 
 // Shown when profile.password_change_required = true.
 // The user cannot reach any other route until they set a compliant password.
@@ -142,7 +143,7 @@ function MfaNudgeBanner({ gracePeriodEnds, onSetupNow, onDismiss }) {
       justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap',
     }}>
       <span style={{ fontSize: '14px', color: daysLeft <= 3 ? '#b91c1c' : '#92400e', fontWeight: '600' }}>
-        Two-factor authentication is required by {graceDate.toLocaleDateString()}.
+        Two-factor authentication is required by {fmtDate(graceDate)}.
         {daysLeft > 0 ? ` ${daysLeft} day${daysLeft !== 1 ? 's' : ''} remaining.` : ' Required now.'}
       </span>
       <div style={{ display: 'flex', gap: '8px' }}>

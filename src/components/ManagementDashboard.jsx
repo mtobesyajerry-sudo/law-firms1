@@ -6,6 +6,7 @@ import MfaEnrollment from './MfaEnrollment';
 import ManagementUserApproval from './ManagementUserApproval';
 import DataDeletionRequestsPanel from './DataDeletionRequestsPanel';
 import LoadingSpinner from './LoadingSpinner';
+import { fmtDate, fmtDateTime } from '../utils/dateFormat';
 
 function MfaBanner({ gracePeriodEnds, onSetup }) {
   const [dismissed, setDismissed] = useState(false);
@@ -21,7 +22,7 @@ function MfaBanner({ gracePeriodEnds, onSetup }) {
       gap: '12px', flexWrap: 'wrap',
     }}>
       <span style={{ fontSize: '14px', color: daysLeft <= 3 ? '#b91c1c' : '#92400e', fontWeight: '600' }}>
-        Two-factor authentication is required by {graceDate.toLocaleDateString()}.
+        Two-factor authentication is required by {fmtDate(graceDate)}.
         {daysLeft > 0 ? ` ${daysLeft} day${daysLeft !== 1 ? 's' : ''} remaining.` : ' Required now.'}
       </span>
       <div style={{ display: 'flex', gap: '8px' }}>
@@ -582,7 +583,7 @@ export default function ManagementDashboard() {
                             {org.is_active ? 'Active' : 'Inactive'}
                           </span>
                         </td>
-                        <td style={styles.td}>{new Date(org.created_at).toLocaleDateString()}</td>
+                        <td style={styles.td}>{fmtDate(org.created_at)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -705,7 +706,7 @@ export default function ManagementDashboard() {
                           {org.last_payment_date ? (
                             <>
                               <div style={{ color: '#0a1929', fontWeight: '600' }}>
-                                Last: {new Date(org.last_payment_date).toLocaleDateString()}
+                                Last: {fmtDate(org.last_payment_date)}
                               </div>
                               {org.next_payment_due && (
                                 <div style={{
@@ -713,7 +714,7 @@ export default function ManagementDashboard() {
                                   fontSize: '11px',
                                   marginTop: '2px'
                                 }}>
-                                  Due: {new Date(org.next_payment_due).toLocaleDateString()}
+                                  Due: {fmtDate(org.next_payment_due)}
                                 </div>
                               )}
                             </>
@@ -845,7 +846,7 @@ export default function ManagementDashboard() {
                           {user.is_active ? 'Active' : 'Inactive'}
                         </span>
                       </td>
-                      <td style={styles.td}>{new Date(user.created_at).toLocaleDateString()}</td>
+                      <td style={styles.td}>{fmtDate(user.created_at)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -878,7 +879,7 @@ export default function ManagementDashboard() {
                   <tbody>
                     {recentActivity.map((log) => (
                       <tr key={log.id} style={styles.tr}>
-                        <td style={styles.td}>{new Date(log.created_at).toLocaleString()}</td>
+                        <td style={styles.td}>{fmtDateTime(log.created_at)}</td>
                         <td style={styles.td}>
                           <span style={{
                             padding: '4px 12px',
@@ -1062,7 +1063,7 @@ function SalesEnquiriesTab({ enquiries, selectedEnquiry, setSelectedEnquiry, enq
               >
                 {STATUS_OPTIONS.map(s => <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>)}
               </select>
-              <span style={{ fontSize: '12px', color: '#94a3b8' }}>{new Date(e.created_at).toLocaleDateString()}</span>
+              <span style={{ fontSize: '12px', color: '#94a3b8' }}>{fmtDate(e.created_at)}</span>
             </div>
           </div>
           <div style={{ padding: '24px 28px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
@@ -1189,7 +1190,7 @@ function SalesEnquiriesTab({ enquiries, selectedEnquiry, setSelectedEnquiry, enq
                     onMouseEnter={e => e.currentTarget.style.background = '#fafafa'}
                     onMouseLeave={e => e.currentTarget.style.background = 'white'}
                   >
-                    <td style={{ padding: '14px 16px', fontSize: '13px', color: '#64748b', whiteSpace: 'nowrap' }}>{new Date(enq.created_at).toLocaleDateString()}</td>
+                    <td style={{ padding: '14px 16px', fontSize: '13px', color: '#64748b', whiteSpace: 'nowrap' }}>{fmtDate(enq.created_at)}</td>
                     <td style={{ padding: '14px 16px', fontSize: '14px', fontWeight: '700', color: '#0a1929' }}>{enq.firm_name}</td>
                     <td style={{ padding: '14px 16px', fontSize: '13px', color: '#374151' }}>{enq.contact_name}</td>
                     <td style={{ padding: '14px 16px', fontSize: '13px', color: '#374151' }}>{enq.advocate_count || '—'}</td>

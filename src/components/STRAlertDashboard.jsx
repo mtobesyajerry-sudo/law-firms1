@@ -4,6 +4,7 @@ import { supabase } from '../supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
 import { confirmTransactionAlert, clearTransactionAlert } from '../services/screeningService';
 import STRFilingModal from './STRFilingModal';
+import { fmtDateTime } from '../utils/dateFormat';
 
 export default function STRAlertDashboard() {
   const { user, profile } = useAuth();
@@ -191,7 +192,7 @@ export default function STRAlertDashboard() {
 
   const formatDate = (dateString) => {
     if (!dateString) return '-';
-    return new Date(dateString).toLocaleString();
+    return fmtDateTime(dateString);
   };
 
   const handleAssignAlert = async (alertId) => {
@@ -661,7 +662,7 @@ function STRDeadlineCountdown({ deadline }) {
     }}>
       {overdue ? '⚠ STR OVERDUE' : `⏱ STR due in ${hours}h ${minutes}m`}
       <span style={{ fontWeight: '400', fontSize: '11px' }}>
-        ({deadlineDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} {deadlineDate.toLocaleDateString()})
+        ({fmtDateTime(deadlineDate.toISOString())})
       </span>
     </div>
   );
@@ -694,12 +695,12 @@ function AlertActionPanel({ alert, notes, onNotesChange, onConfirm, onClear, onO
       )}
       {hasStrFiledWithFIU && (
         <div style={{ marginBottom: '12px', padding: '8px 12px', backgroundColor: '#f0fdf4', borderRadius: '6px', border: '1px solid #86efac', fontSize: '12px', color: '#166534' }}>
-          STR filed with FIU — ref: <strong>{alert.str_reference_number || sarData?.fiu_reference_number}</strong> at {new Date(alert.str_filed_at || sarData?.fiu_acknowledgment_date).toLocaleString()}
+          STR filed with FIU — ref: <strong>{alert.str_reference_number || sarData?.fiu_reference_number}</strong> at {fmtDateTime(alert.str_filed_at || sarData?.fiu_acknowledgment_date)}
         </div>
       )}
       {hasStrRecordSaved && !hasStrFiledWithFIU && (
         <div style={{ marginBottom: '12px', padding: '8px 12px', backgroundColor: '#eff6ff', borderRadius: '6px', border: '1px solid #93c5fd', fontSize: '12px', color: '#1e40af' }}>
-          STR record saved internally — ref: <strong>{alert.str_reference_number}</strong> at {new Date(alert.str_record_saved_at).toLocaleString()}.
+          STR record saved internally — ref: <strong>{alert.str_reference_number}</strong> at {fmtDateTime(alert.str_record_saved_at)}.
           Not yet filed with FIU. Use the STR Records tab to confirm FIU filing.
         </div>
       )}
@@ -857,7 +858,7 @@ function AlertDetailModal({ alert, onClose }) {
               <InfoField label="Alert Score" value={alert.alert_score} />
               <InfoField label="Transaction Amount" value={alert.transaction_amount ? `${alert.transaction_currency} ${alert.transaction_amount?.toLocaleString()}` : '-'} />
               <InfoField label="Transaction Type" value={alert.transaction_type} />
-              <InfoField label="Detected" value={new Date(alert.alert_date).toLocaleString()} />
+              <InfoField label="Detected" value={fmtDateTime(alert.alert_date)} />
             </div>
 
             {alert.transaction_monitoring_rules && (
@@ -873,7 +874,7 @@ function AlertDetailModal({ alert, onClose }) {
             <h3 style={styles.detailsHeading}>Transaction Details</h3>
             <div style={styles.detailsGrid}>
               <InfoField label="Transaction Reference" value={alert.transaction_reference} />
-              <InfoField label="Transaction Date" value={alert.transaction_date ? new Date(alert.transaction_date).toLocaleString() : '-'} />
+              <InfoField label="Transaction Date" value={alert.transaction_date ? fmtDateTime(alert.transaction_date) : '-'} />
             </div>
 
             <h3 style={styles.detailsHeading}>Alert Description</h3>

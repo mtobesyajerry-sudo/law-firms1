@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
 import { serverValidateFile } from '../utils/documentUtils';
+import { fmtDate } from '../utils/dateFormat';
 
 const EDDDocumentTemplates = ({ clientId, clientName, client, onClose, onUpdate, isReadOnly = false }) => {
   const { user, profile } = useAuth();
@@ -629,7 +630,7 @@ const EDDDocumentTemplates = ({ clientId, clientName, client, onClose, onUpdate,
                           }}>
                             📎 {uploadedDoc.document_name}
                             <div style={{ marginTop: '2px', fontSize: '10px' }}>
-                              Uploaded {new Date(uploadedDoc.uploaded_at).toLocaleDateString()}
+                              Uploaded {fmtDate(uploadedDoc.uploaded_at)}
                             </div>
                           </div>
                           <div style={{

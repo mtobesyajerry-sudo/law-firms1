@@ -30,6 +30,7 @@ import MarkdownRenderer from './MarkdownRenderer';
 import { dashboardStyles, getBadgeStyle, getRiskBadgeStyle, getStatusBadgeStyle } from '../utils/dashboardStyles';
 import PageHeader from './PageHeader';
 import LoadingSpinner from './LoadingSpinner';
+import { fmtDate, fmtDateTime } from '../utils/dateFormat';
 
 export default function SystemAdminDashboard() {
   // Helper functions for display formatting
@@ -392,7 +393,7 @@ export default function SystemAdminDashboard() {
     newExpiryDate.setDate(newExpiryDate.getDate() + days);
     const formattedDate = newExpiryDate.toISOString().split('T')[0];
 
-    if (confirm(`Renew subscription for ${orgName} for ${days} days (until ${new Date(newExpiryDate).toLocaleDateString()})?`)) {
+    if (confirm(`Renew subscription for ${orgName} for ${days} days (until ${fmtDate(newExpiryDate)})?`)) {
       await updateOrganizationSubscription(orgId, formattedDate);
     }
   };
@@ -991,7 +992,7 @@ export default function SystemAdminDashboard() {
                               <td style={styles.td}>{request.user_full_name}</td>
                               <td style={styles.td}>{request.user_position}</td>
                               <td style={styles.td}>{request.mobile_number}</td>
-                              <td style={styles.td}>{new Date(request.created_at).toLocaleDateString()}</td>
+                              <td style={styles.td}>{fmtDate(request.created_at)}</td>
                               <td style={styles.td}>
                                 <div style={{ display: 'flex', gap: '8px' }}>
                                   <button
@@ -1063,7 +1064,7 @@ export default function SystemAdminDashboard() {
                               </span>
                             </td>
                             <td style={styles.td}>
-                              {request.reviewed_at ? new Date(request.reviewed_at).toLocaleDateString() : '-'}
+                              {request.reviewed_at ? fmtDate(request.reviewed_at) : '-'}
                             </td>
                             <td style={styles.td}>
                               <button
@@ -1274,7 +1275,7 @@ export default function SystemAdminDashboard() {
                                       background: isExpired ? '#fee2e2' : isExpiringSoon ? '#fef3c7' : '#d1fae5',
                                       color: isExpired ? '#991b1b' : isExpiringSoon ? '#92400e' : '#065f46'
                                     }}>
-                                      {new Date(org.subscription_expiry_date).toLocaleDateString()}
+                                      {fmtDate(org.subscription_expiry_date)}
                                     </span>
                                   ) : (
                                     <span style={styles.noExpiry}>Not set</span>
@@ -1349,7 +1350,7 @@ export default function SystemAdminDashboard() {
                                       background: '#fee2e2',
                                       color: '#991b1b'
                                     }}>
-                                      Expired: {new Date(org.subscription_expiry_date).toLocaleDateString()}
+                                      Expired: {fmtDate(org.subscription_expiry_date)}
                                     </span>
                                   ) : (
                                     <span style={{...styles.badge, background: '#fee2e2', color: '#991b1b'}}>Not set</span>
@@ -1437,7 +1438,7 @@ export default function SystemAdminDashboard() {
                                 </span>
                               </td>
                               <td style={styles.td}>
-                                {org.suspended_at ? new Date(org.suspended_at).toLocaleDateString() : '-'}
+                                {org.suspended_at ? fmtDate(org.suspended_at) : '-'}
                               </td>
                               <td style={styles.td}>
                                 <span style={styles.suspensionReason}>
@@ -1451,7 +1452,7 @@ export default function SystemAdminDashboard() {
                                     background: '#d1fae5',
                                     color: '#065f46'
                                   }}>
-                                    Valid until {new Date(org.subscription_expiry_date).toLocaleDateString()}
+                                    Valid until {fmtDate(org.subscription_expiry_date)}
                                   </span>
                                 ) : (
                                   <span style={{
@@ -1607,7 +1608,7 @@ export default function SystemAdminDashboard() {
                       <tbody>
                         {orgAssessments.map((assessment) => (
                           <tr key={assessment.id} style={styles.tr}>
-                            <td style={styles.td}>{new Date(assessment.assessment_date).toLocaleDateString()}</td>
+                            <td style={styles.td}>{fmtDate(assessment.assessment_date)}</td>
                             <td style={styles.td}>
                               <span style={{
                                 ...styles.badge,
@@ -1642,7 +1643,7 @@ export default function SystemAdminDashboard() {
                                     show: true,
                                     type: 'assessment',
                                     id: assessment.id,
-                                    name: `${org.name} - ${new Date(assessment.assessment_date).toLocaleDateString()}`
+                                    name: `${org.name} - ${fmtDate(assessment.assessment_date)}`
                                   })}
                                   style={styles.dangerActionButton}
                                 >
@@ -1681,7 +1682,7 @@ export default function SystemAdminDashboard() {
                   <div key={key} style={styles.contentCard}>
                     <h3 style={styles.contentCardTitle}>{content.title}</h3>
                     <p style={styles.contentCardMeta}>
-                      Last updated: {content.updated_at ? new Date(content.updated_at).toLocaleString() : 'Never'}
+                      Last updated: {content.updated_at ? fmtDateTime(content.updated_at) : 'Never'}
                     </p>
                     <button
                       onClick={() => setEditingContent({...content})}

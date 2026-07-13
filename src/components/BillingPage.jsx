@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
+import { fmtDate, fmtDateShort, fmtDateTime } from '../utils/dateFormat';
 
 const CLICKPESA_MAX_AMOUNT = 3000000;
 
@@ -766,7 +767,7 @@ function WebhookLogRow({ entry }) {
         {entry.signature_valid ? 'Valid' : 'Invalid'}
       </td>
       <td style={{ padding: '10px 12px', fontSize: '12px', color: '#64748b' }}>
-        {entry.created_at ? new Date(entry.created_at).toLocaleString() : '—'}
+        {entry.created_at ? fmtDateTime(entry.created_at) : '—'}
       </td>
       <td style={{ padding: '10px 12px' }}>
         <button
@@ -938,7 +939,7 @@ export default function BillingPage() {
     subStateLabel  = `Free trial — ${daysUntilTrial} day${daysUntilTrial !== 1 ? 's' : ''} remaining`;
     subStateBg     = '#fffbeb'; subStateColor = '#92400e'; subStateBorder = '#fcd34d';
   } else if (hasActiveSub) {
-    subStateLabel  = `Active: ${TIER_LABELS[activeTier] || activeTier} — expires ${expiryDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}`;
+    subStateLabel  = `Active: ${TIER_LABELS[activeTier] || activeTier} — expires ${fmtDate(org.subscription_expiry_date)}`;
     subStateBg     = '#d1fae5'; subStateColor = '#065f46'; subStateBorder = '#86efac';
   } else {
     subStateLabel  = 'No active subscription — choose a plan below';
@@ -1103,7 +1104,7 @@ export default function BillingPage() {
                           <PaymentStatusBadge status={p.status} />
                         </td>
                         <td style={{ padding: '12px 14px', fontSize: '12px', color: '#64748b', whiteSpace: 'nowrap' }}>
-                          {new Date(p.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                          {fmtDateShort(p.created_at)}
                         </td>
                         <td style={{ padding: '12px 14px' }}>
                           {isBankPending && isManagement && (

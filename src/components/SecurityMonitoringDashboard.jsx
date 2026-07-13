@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
+import { fmtDateTime } from '../utils/dateFormat';
 
 export default function SecurityMonitoringDashboard() {
   const [stats, setStats] = useState({
@@ -260,7 +261,7 @@ export default function SecurityMonitoringDashboard() {
                             {event.details ? JSON.stringify(event.details) : 'No additional details'}
                           </p>
                           <div className="mt-2 flex items-center space-x-4 text-xs text-gray-500">
-                            <span>{new Date(event.created_at).toLocaleString()}</span>
+                            <span>{fmtDateTime(event.created_at)}</span>
                             {event.ip_address && <span>IP: {event.ip_address}</span>}
                           </div>
                         </div>
@@ -312,7 +313,7 @@ export default function SecurityMonitoringDashboard() {
                             {incident.incident_description || 'No description available'}
                           </p>
                           <div className="mt-2 text-xs text-gray-500">
-                            Detected: {new Date(incident.detected_at).toLocaleString()}
+                            Detected: {fmtDateTime(incident.detected_at)}
                           </div>
                         </div>
                       </div>

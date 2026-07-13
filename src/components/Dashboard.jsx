@@ -8,6 +8,7 @@ import KYCClientManagement from './KYCClientManagement';
 import STRAlertDashboard from './STRAlertDashboard';
 import integrationService from '../services/integrationService';
 import LoadingSpinner from './LoadingSpinner';
+import { fmtDate } from '../utils/dateFormat';
 
 function ClientRiskProfilesSection({ organizationId }) {
   const [clients, setClients] = useState([]);
@@ -580,7 +581,7 @@ export default function Dashboard() {
               <h3 style={styles.warningTitle}>Subscription Required</h3>
               <p style={styles.warningText}>
                 {profile?.subscription_expiry_date
-                  ? `Your subscription expired on ${new Date(profile.subscription_expiry_date).toLocaleDateString()}. Please contact support to renew your subscription and continue using the assessment system.`
+                  ? `Your subscription expired on ${fmtDate(profile.subscription_expiry_date)}. Please contact support to renew your subscription and continue using the assessment system.`
                   : 'No active subscription found. Please contact support to activate your subscription and access the assessment system.'}
               </p>
             </div>
@@ -818,7 +819,7 @@ export default function Dashboard() {
                           {integrationData.assessment.overall_risk_rating}
                         </div>
                         <div style={{ fontSize: '13px', color: '#64748b', marginTop: '8px' }}>
-                          Completed {new Date(integrationData.assessment.completed_at).toLocaleDateString()}
+                          Completed {fmtDate(integrationData.assessment.completed_at)}
                         </div>
                       </div>
                       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px', fontSize: '12px' }}>
@@ -959,7 +960,7 @@ export default function Dashboard() {
                 <tbody>
                   {assessments.map((assessment) => (
                     <tr key={assessment.id} style={styles.tr}>
-                      <td style={styles.td}>{new Date(assessment.assessment_date).toLocaleDateString()}</td>
+                      <td style={styles.td}>{fmtDate(assessment.assessment_date)}</td>
                       <td style={styles.td}>
                         <span style={{
                           ...styles.badge,
@@ -995,7 +996,7 @@ export default function Dashboard() {
                             onClick={() => setDeleteConfirm({
                               show: true,
                               id: assessment.id,
-                              date: new Date(assessment.assessment_date).toLocaleDateString()
+                              date: fmtDate(assessment.assessment_date)
                             })}
                             style={styles.dangerButton}
                           >

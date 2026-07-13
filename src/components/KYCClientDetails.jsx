@@ -26,6 +26,7 @@ import {
 import { checkEnhancedDDTriggers } from '../utils/documentUtils';
 import { isKycComplete } from '../utils/kycCompleteness';
 import { confirmTransactionAlert, clearTransactionAlert, fileTransactionSTR } from '../services/screeningService';
+import { fmtDate } from '../utils/dateFormat';
 
 function StandardDDStatusSection({ client }) {
   const getStatusColor = (isCompleted) => {
@@ -843,7 +844,7 @@ export default function KYCClientDetails() {
                       <div style={styles.infoRow}>
                         <span style={styles.infoLabel}>Date of Birth:</span>
                         <span style={styles.infoValue}>
-                          {new Date(client.date_of_birth).toLocaleDateString()}
+                          {fmtDate(client.date_of_birth)}
                         </span>
                       </div>
                     )}
@@ -851,7 +852,7 @@ export default function KYCClientDetails() {
                       <div style={styles.infoRow}>
                         <span style={styles.infoLabel}>Incorporation Date:</span>
                         <span style={styles.infoValue}>
-                          {new Date(client.incorporation_date).toLocaleDateString()}
+                          {fmtDate(client.incorporation_date)}
                         </span>
                       </div>
                     )}
@@ -963,7 +964,7 @@ export default function KYCClientDetails() {
                     {client.account_opening_date && (
                       <div style={styles.infoRow}>
                         <span style={styles.infoLabel}>Account Opening Date:</span>
-                        <span style={styles.infoValue}>{new Date(client.account_opening_date).toLocaleDateString()}</span>
+                        <span style={styles.infoValue}>{fmtDate(client.account_opening_date)}</span>
                       </div>
                     )}
                     {client.products_services && client.products_services.length > 0 && (
@@ -993,13 +994,13 @@ export default function KYCClientDetails() {
                     {client.last_screening_date && (
                       <div style={styles.infoRow}>
                         <span style={styles.infoLabel}>Last Screening:</span>
-                        <span style={styles.infoValue}>{new Date(client.last_screening_date).toLocaleDateString()}</span>
+                        <span style={styles.infoValue}>{fmtDate(client.last_screening_date)}</span>
                       </div>
                     )}
                     {client.next_screening_due && (
                       <div style={styles.infoRow}>
                         <span style={styles.infoLabel}>Next Screening Due:</span>
-                        <span style={styles.infoValue}>{new Date(client.next_screening_due).toLocaleDateString()}</span>
+                        <span style={styles.infoValue}>{fmtDate(client.next_screening_due)}</span>
                       </div>
                     )}
                     <div style={styles.infoRow}>
@@ -1242,7 +1243,7 @@ export default function KYCClientDetails() {
                       }}>
                         {client.next_review_date ? (
                           <>
-                            {new Date(client.next_review_date).toLocaleDateString()}
+                            {fmtDate(client.next_review_date)}
                             {isReviewOverdue(client.next_review_date) ? (
                               <span style={{fontSize: '11px', marginLeft: '8px'}}>⚠️ OVERDUE</span>
                             ) : (
@@ -1257,7 +1258,7 @@ export default function KYCClientDetails() {
                     <div style={styles.infoRow}>
                       <span style={styles.infoLabel}>Last Review:</span>
                       <span style={styles.infoValue}>
-                        {client.last_review_date ? new Date(client.last_review_date).toLocaleDateString() : 'Never'}
+                        {client.last_review_date ? fmtDate(client.last_review_date) : 'Never'}
                       </span>
                     </div>
                     <div style={styles.infoRow}>
@@ -1309,7 +1310,7 @@ export default function KYCClientDetails() {
                         }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
                             <span style={{ fontWeight: '600', color: '#111827' }}>
-                              {new Date(review.review_date).toLocaleDateString()}
+                              {fmtDate(review.review_date)}
                             </span>
                             <span style={{
                               fontSize: '11px',
@@ -1429,7 +1430,7 @@ export default function KYCClientDetails() {
                       {screeningResults.map((result) => (
                         <tr key={result.id} style={{borderBottom: '1px solid #e5e7eb'}}>
                           <td style={{padding: '12px', fontWeight: '600'}}>{result.screening_type?.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}</td>
-                          <td style={{padding: '12px'}}>{new Date(result.screening_date).toLocaleDateString()}</td>
+                          <td style={{padding: '12px'}}>{fmtDate(result.screening_date)}</td>
                           <td style={{padding: '12px'}}>
                             <span style={{
                               padding: '4px 8px',
@@ -1513,7 +1514,7 @@ export default function KYCClientDetails() {
                               <strong>Transaction:</strong> {alert.transaction_reference}
                             </div>
                             <div>
-                              <strong>Date:</strong> {new Date(alert.transaction_date).toLocaleDateString()}
+                              <strong>Date:</strong> {fmtDate(alert.transaction_date)}
                             </div>
                             <div>
                               <strong>Amount:</strong> {alert.transaction_currency} {parseInt(alert.transaction_amount).toLocaleString()}
@@ -1683,7 +1684,7 @@ export default function KYCClientDetails() {
                       {transactions.map((txn) => (
                         <tr key={txn.id} style={{borderBottom: '1px solid #e5e7eb'}}>
                           <td style={{padding: '12px', fontSize: '11px', fontWeight: '600', color: '#6b7280'}}>{txn.transaction_ref}</td>
-                          <td style={{padding: '12px', fontSize: '11px'}}>{new Date(txn.transaction_date).toLocaleDateString()}</td>
+                          <td style={{padding: '12px', fontSize: '11px'}}>{fmtDate(txn.transaction_date)}</td>
                           <td style={{padding: '12px', fontSize: '11px', fontWeight: '600'}}>{txn.transaction_type?.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}</td>
                           <td style={{padding: '12px', textAlign: 'right', fontWeight: '600'}}>
                             {txn.currency} {parseInt(txn.amount).toLocaleString()}

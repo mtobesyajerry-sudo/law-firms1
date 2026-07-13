@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
+import { fmtDate } from '../utils/dateFormat';
 
 export default function OrganizationUserManagement({ user }) {
   const [organizations, setOrganizations] = useState([]);
@@ -402,7 +403,7 @@ export default function OrganizationUserManagement({ user }) {
                       <div style={styles.userEmail}>{access.user?.email}</div>
                       <div style={styles.grantedInfo}>
                         Granted by {access.granted_by_user?.full_name || 'System'} •{' '}
-                        {new Date(access.granted_at).toLocaleDateString()}
+                        {fmtDate(access.granted_at)}
                       </div>
                       <button
                         onClick={() => revokeAccess(access.id)}

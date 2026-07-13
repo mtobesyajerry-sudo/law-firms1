@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
+import { fmtDate, fmtDateShort } from '../utils/dateFormat';
 
 export default function MatterActivities({ matterId, organizationId, onActivityAdded, isReadOnly = false }) {
   const [activities, setActivities] = useState([]);
@@ -382,11 +383,7 @@ export default function MatterActivities({ matterId, organizationId, onActivityA
                     </div>
                   </div>
                   <span style={styles.activityDate}>
-                    {new Date(activity.activity_date).toLocaleDateString('en-US', {
-                      month: 'short',
-                      day: 'numeric',
-                      year: 'numeric'
-                    })}
+                    {fmtDateShort(activity.activity_date)}
                   </span>
                 </div>
 
@@ -418,7 +415,7 @@ export default function MatterActivities({ matterId, organizationId, onActivityA
                         )}
                         {activity.requires_follow_up && (
                           <span style={styles.followUpFlag}>
-                            Follow-up: {activity.follow_up_date ? new Date(activity.follow_up_date).toLocaleDateString() : 'TBD'}
+                            Follow-up: {activity.follow_up_date ? fmtDate(activity.follow_up_date) : 'TBD'}
                           </span>
                         )}
                       </div>
