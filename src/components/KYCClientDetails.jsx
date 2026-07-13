@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
 import ClientDocumentManagement from './ClientDocumentManagement';
@@ -374,10 +374,13 @@ const unifiedStyles = {
 export default function KYCClientDetails() {
   const { clientId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { profile, organization } = useAuth();
   const [client, setClient] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('overview');
+  const validTabs = ['overview', 'risk', 'documents', 'sof-sow-templates', 'edd-templates', 'monitoring'];
+  const initialTab = location.state?.initialTab;
+  const [activeTab, setActiveTab] = useState(validTabs.includes(initialTab) ? initialTab : 'overview');
   const [ddTriggers, setDdTriggers] = useState(null);
   const [eddDocuments, setEddDocuments] = useState([]);
   const [showDeclarationForm, setShowDeclarationForm] = useState(false);

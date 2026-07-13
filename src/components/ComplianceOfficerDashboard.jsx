@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
@@ -31,12 +31,40 @@ export default function ComplianceOfficerDashboard() {
   const [assessments, setAssessments] = useState([]);
   const [organizationUsers, setOrganizationUsers] = useState([]);
   const [kycClients, setKycClients] = useState([]);
+  const [kycClientsLoading, setKycClientsLoading] = useState(true);
   const { profile } = useAuth();
   const navigate = useNavigate();
 
   const getBackRoute = () => {
     return '/client/dashboard';
   };
+
+  const loadKycClients = useCallback(async () => {
+    if (!profile?.organization_id) return;
+    try {
+      setKycClientsLoading(true);
+      const { data, error } = await supabase
+        .from('kyc_clients_decrypted')
+        .select('id, client_name, client_type, current_risk_rating')
+        .eq('organization_id', profile.organization_id)
+        .order('client_name', { ascending: true });
+      if (error) {
+        console.error('Error loading KYC clients for dropdown:', error);
+        setKycClients([]);
+      } else {
+        setKycClients(data || []);
+      }
+    } catch (err) {
+      console.error('Error loading KYC clients for dropdown:', err);
+      setKycClients([]);
+    } finally {
+      setKycClientsLoading(false);
+    }
+  }, [profile?.organization_id]);
+
+  useEffect(() => {
+    loadKycClients();
+  }, [loadKycClients]);
 
   useEffect(() => {
     // Only load dashboard data if we're on the overview view
@@ -177,7 +205,7 @@ export default function ComplianceOfficerDashboard() {
       setRecentActivity(activity || []);
 
       // Load remaining data in parallel
-      const [usersRes, assessmentDataRes, clientsDataRes] = await Promise.all([
+      const [usersRes, assessmentDataRes] = await Promise.all([
         supabase
           .from('user_profiles')
           .select('id, full_name, email, role, is_active, created_at')
@@ -190,19 +218,11 @@ export default function ComplianceOfficerDashboard() {
           .select('id, entity_category, overall_risk_rating, status, created_at')
           .eq('organization_id', profile.organization_id)
           .order('created_at', { ascending: false })
-          .limit(100),
-
-        supabase
-          .from('kyc_clients_decrypted')
-          .select('id, client_name, current_risk_rating, pep_status, screening_status, created_at')
-          .eq('organization_id', profile.organization_id)
-          .order('created_at', { ascending: false })
-          .limit(200)
+          .limit(100)
       ]);
 
       setOrganizationUsers(usersRes.data || []);
       setAssessments(assessmentDataRes.data || []);
-      setKycClients(clientsDataRes.data || []);
     } catch (error) {
       console.error('Error loading dashboard data:', error);
     } finally {
@@ -613,10 +633,11 @@ export default function ComplianceOfficerDashboard() {
               <select
                 onChange={(e) => {
                   if (e.target.value) {
-                    navigate(`/kyc-client/${e.target.value}`);
+                    navigate(`/kyc-client/${e.target.value}`, { state: { initialTab: 'monitoring' } });
                   }
                 }}
                 defaultValue=""
+                disabled={kycClientsLoading}
                 style={{
                   flex: 1,
                   padding: '10px 12px',
@@ -626,13 +647,22 @@ export default function ComplianceOfficerDashboard() {
                   color: 'white',
                   fontSize: '14px',
                   fontWeight: '600',
-                  cursor: 'pointer',
+                  cursor: kycClientsLoading ? 'wait' : 'pointer',
+                  opacity: kycClientsLoading ? 0.7 : 1,
                 }}
               >
-                <option value="" disabled>View Client Case File</option>
-                {kycClients.map((c) => (
-                  <option key={c.id} value={c.id}>{c.client_name}</option>
-                ))}
+                <option value="" disabled>
+                  {kycClientsLoading ? 'Loading clients...' : 'View Client Case File'}
+                </option>
+                {kycClients.map((c) => {
+                  const typeLabel = c.client_type === 'individual' ? 'Ind' : c.client_type === 'legal_entity' ? 'Ent' : c.client_type ? c.client_type.slice(0, 3) : '';
+                  const idFragment = c.id.slice(-4);
+                  return (
+                    <option key={c.id} value={c.id}>
+                      {c.client_name}{typeLabel ? ` (${typeLabel} …${idFragment})` : ` (…${idFragment})`}
+                    </option>
+                  );
+                })}
               </select>
             </div>
           </div>
