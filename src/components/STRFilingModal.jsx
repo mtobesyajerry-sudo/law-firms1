@@ -97,7 +97,7 @@ export default function STRFilingModal({ alert, onClose, onSuccess }) {
     currency: alert?.transaction_currency || 'TZS',
     transaction_count: '1',
     transaction_value_date: alert?.transaction_date ? alert.transaction_date.slice(0, 10) : '',
-    transaction_mode: '',
+    transaction_mode: { cash: 'Cash', cash_deposit: 'Cash', wire: 'Wire Transfer', wire_transfer: 'Wire Transfer', international_wire: 'Wire Transfer' }[alert?.transaction_type] || '',
     teller_initiator_name: '',
     transaction_authorizer_name: '',
     transaction_location: '',
@@ -167,7 +167,7 @@ export default function STRFilingModal({ alert, onClose, onSuccess }) {
     if (!profile?.organization_id) return;
     supabase
       .from('organizations')
-      .select('name, registration_number, business_type, physical_address, branch_name')
+      .select('name, brela_registration, business_type, physical_address, branch_name')
       .eq('id', profile.organization_id)
       .maybeSingle()
       .then(({ data }) => {
@@ -175,7 +175,7 @@ export default function STRFilingModal({ alert, onClose, onSuccess }) {
         setPartA(prev => ({
           ...prev,
           reporting_institution_name: prev.reporting_institution_name || data.name || '',
-          reporting_institution_code: prev.reporting_institution_code || data.registration_number || '',
+          reporting_institution_code: prev.reporting_institution_code || data.brela_registration || '',
           reporting_person_business_type: prev.reporting_person_business_type || data.business_type || '',
           reporting_person_address: prev.reporting_person_address || data.physical_address || '',
           reporting_person_branch: prev.reporting_person_branch || data.branch_name || '',
