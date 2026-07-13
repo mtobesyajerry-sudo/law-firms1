@@ -98,7 +98,8 @@ export default function STRAlertDashboard() {
         .select(`
           *,
           kyc_clients!transaction_alerts_client_id_fkey!left(client_type),
-          transaction_monitoring_rules!transaction_alerts_triggered_by_rule_id_fkey!left(rule_name, rule_code)
+          transaction_monitoring_rules!transaction_alerts_triggered_by_rule_id_fkey!left(rule_name, rule_code),
+          suspicious_activity_reports!suspicious_activity_reports_alert_id_fkey(str_status, fiu_reference_number, fiu_acknowledgment_date, id)
         `)
         .eq('organization_id', profile.organization_id);
 
@@ -506,17 +507,42 @@ export default function STRAlertDashboard() {
                               Assign to Me
                             </button>
                           )}
-                          {isComplianceRole && alert.investigation_status !== 'resolved' && !alert.is_false_positive && (
-                            <button
-                              onClick={() => setExpandedAlertId(expandedAlertId === alert.id ? null : alert.id)}
-                              style={{
-                                ...styles.escalateButton,
-                                backgroundColor: expandedAlertId === alert.id ? '#1e3a5f' : undefined,
-                              }}
-                            >
-                              {alert.str_filed ? 'File STR Form' : 'Action'}
-                            </button>
-                          )}
+                          {isComplianceRole && alert.investigation_status !== 'resolved' && !alert.is_false_positive && (() => {
+            const sarData = Array.isArray(alert.suspicious_activity_reports)
+              ? alert.suspicious_activity_reports[0]
+              : alert.suspicious_activity_reports;
+            const sarStatus = sarData?.str_status;
+            const filedWithFIU = alert.str_filed_at || sarStatus === 'filed_with_fiu';
+            const recordSaved = alert.str_record_saved_at || (sarStatus && sarStatus !== 'draft');
+            if (filedWithFIU) {
+              return (
+                <button
+                  onClick={() => sarData?.id ? navigate(`/str-records/${sarData.id}`) : navigate('/str-records')}
+                  style={{ ...styles.escalateButton, backgroundColor: '#065f46', color: '#fff', border: '1px solid #047857' }}
+                >
+                  Filed — View Record
+                </button>
+              );
+            }
+            if (recordSaved) {
+              return (
+                <button
+                  onClick={() => sarData?.id ? navigate(`/str-records/${sarData.id}`) : navigate('/str-records')}
+                  style={{ ...styles.escalateButton, backgroundColor: '#1e40af' }}
+                >
+                  View STR Record
+                </button>
+              );
+            }
+            return (
+              <button
+                onClick={() => setExpandedAlertId(expandedAlertId === alert.id ? null : alert.id)}
+                style={{ ...styles.escalateButton, backgroundColor: expandedAlertId === alert.id ? '#1e3a5f' : undefined }}
+              >
+                Action
+              </button>
+            );
+          })()}
                         </div>
                       </td>
                     </tr>
@@ -530,6 +556,13 @@ export default function STRAlertDashboard() {
                             onConfirm={() => handleConfirmSuspicious(alert.id)}
                             onClear={() => handleClearFalsePositive(alert.id)}
                             onOpenSTRForm={() => { setExpandedAlertId(null); setStrFormAlert(alert); }}
+                            onViewSTRRecord={() => {
+                              const sarData = Array.isArray(alert.suspicious_activity_reports)
+                                ? alert.suspicious_activity_reports[0]
+                                : alert.suspicious_activity_reports;
+                              setExpandedAlertId(null);
+                              navigate(sarData?.id ? `/str-records/${sarData.id}` : '/str-records');
+                            }}
                             inProgress={actionInProgress === alert.id}
                             error={actionError[alert.id]}
                           />
@@ -634,7 +667,7 @@ function STRDeadlineCountdown({ deadline }) {
   );
 }
 
-function AlertActionPanel({ alert, notes, onNotesChange, onConfirm, onClear, onOpenSTRForm, inProgress, error }) {
+function AlertActionPanel({ alert, notes, onNotesChange, onConfirm, onClear, onOpenSTRForm, onViewSTRRecord, inProgress, error }) {
   const isResolved = alert.investigation_status === 'resolved' || alert.is_false_positive;
   const isSuspiciousConfirmed = alert.str_filed === true;
   const hasStrRecordSaved = !!(alert.str_reference_number && alert.str_record_saved_at);
@@ -733,7 +766,7 @@ function AlertActionPanel({ alert, notes, onNotesChange, onConfirm, onClear, onO
                 </button>
               </>
             )}
-            {isSuspiciousConfirmed && (
+            {isSuspiciousConfirmed && !hasStrFiledWithFIU && !hasStrRecordSaved && (
               <button
                 onClick={onOpenSTRForm}
                 disabled={inProgress}
@@ -749,6 +782,40 @@ function AlertActionPanel({ alert, notes, onNotesChange, onConfirm, onClear, onO
                 }}
               >
                 Complete STR Filing — GN 397 Form
+              </button>
+            )}
+            {isSuspiciousConfirmed && hasStrRecordSaved && !hasStrFiledWithFIU && (
+              <button
+                onClick={onViewSTRRecord}
+                style={{
+                  padding: '7px 16px',
+                  backgroundColor: '#1e40af',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  fontSize: '12px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                }}
+              >
+                View/Continue STR Record
+              </button>
+            )}
+            {hasStrFiledWithFIU && (
+              <button
+                onClick={onViewSTRRecord}
+                style={{
+                  padding: '7px 16px',
+                  backgroundColor: '#065f46',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  fontSize: '12px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                }}
+              >
+                Filed — View Record
               </button>
             )}
           </div>
