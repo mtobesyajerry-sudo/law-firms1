@@ -61,7 +61,12 @@ function fmtDt(date) {
 function ConfirmFiledPanel({ record, onSuccess, onCancel }) {
   const { user } = useAuth();
   const [fiuRef, setFiuRef] = useState(record.fiu_reference_number || '');
-  const [filedDate, setFiledDate] = useState(new Date().toISOString().slice(0, 16));
+  const nowLocal = (() => {
+    const d = new Date();
+    const tzOffset = d.getTimezoneOffset() * 60000;
+    return new Date(d.getTime() - tzOffset).toISOString().slice(0, 16);
+  })();
+  const [filedDate, setFiledDate] = useState(nowLocal);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
 
@@ -171,7 +176,7 @@ function ConfirmFiledPanel({ record, onSuccess, onCancel }) {
             type="datetime-local"
             value={filedDate}
             onChange={e => setFiledDate(e.target.value)}
-            max={new Date().toISOString().slice(0, 16)}
+            max={nowLocal}
             style={{ width: '100%', padding: '8px 10px', border: '1px solid #86efac', borderRadius: '6px', fontSize: '13px', boxSizing: 'border-box', background: 'white' }}
           />
         </div>
