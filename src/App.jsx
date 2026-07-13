@@ -15,6 +15,8 @@ import AssessmentForm from './components/AssessmentForm';
 import AssessmentReport from './components/AssessmentReport';
 import KYCClientDetails from './components/KYCClientDetails';
 import STRAlertDashboard from './components/STRAlertDashboard';
+import STRRecordsDashboard from './components/STRRecordsDashboard';
+import STRRecordDetail from './components/STRRecordDetail';
 import ControlAssessmentForm from './components/ControlAssessmentForm';
 import IntegratedClientRiskView from './components/IntegratedClientRiskView';
 import LoadingSpinner from './components/LoadingSpinner';
@@ -646,6 +648,22 @@ function AppRoutes() {
         element={
           <ProtectedRoute adminOnly={true}>
             <STRAlertDashboard />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/str-records"
+        element={
+          <ProtectedRoute complianceOnly={true}>
+            <STRRecordsDashboard />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/str-records/:id"
+        element={
+          <ProtectedRoute complianceOnly={true}>
+            <STRRecordDetail />
           </ProtectedRoute>
         }
       />

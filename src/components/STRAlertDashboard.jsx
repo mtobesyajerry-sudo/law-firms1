@@ -272,33 +272,52 @@ export default function STRAlertDashboard() {
             <h2 style={styles.title}>Suspicious Transaction Reporting (STR) Dashboard</h2>
             <p style={styles.subtitle}>Monitor and manage alerts for regulatory compliance</p>
           </div>
-          {profile?.role === 'management' && (
-            <button
-              onClick={() => navigate('/dashboard/management')}
-              style={{
-                padding: '12px 24px',
-                background: 'transparent',
-                color: '#0a1929',
-                border: '2px solid #d4af37',
-                borderRadius: '8px',
-                cursor: 'pointer',
-                fontWeight: '600',
-                fontSize: '14px',
-                transition: 'all 0.2s ease',
-                marginBottom: '16px'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = 'rgba(212, 175, 55, 0.1)';
-                e.currentTarget.style.transform = 'translateY(-2px)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'transparent';
-                e.currentTarget.style.transform = 'translateY(0)';
-              }}
-            >
-              ← Back
-            </button>
-          )}
+          <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+            {(profile?.role === 'compliance_officer' || profile?.role === 'admin' || profile?.role === 'system_admin' || profile?.role === 'mlro') && (
+              <button
+                onClick={() => navigate('/str-records')}
+                style={{
+                  padding: '10px 20px',
+                  background: 'linear-gradient(135deg, #d4af37, #b8941f)',
+                  color: '#0a1929',
+                  border: 'none',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  fontWeight: '700',
+                  fontSize: '13px',
+                }}
+              >
+                STR Records
+              </button>
+            )}
+            {profile?.role === 'management' && (
+              <button
+                onClick={() => navigate('/dashboard/management')}
+                style={{
+                  padding: '12px 24px',
+                  background: 'transparent',
+                  color: '#0a1929',
+                  border: '2px solid #d4af37',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  fontWeight: '600',
+                  fontSize: '14px',
+                  transition: 'all 0.2s ease',
+                  marginBottom: '16px'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = 'rgba(212, 175, 55, 0.1)';
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'transparent';
+                  e.currentTarget.style.transform = 'translateY(0)';
+                }}
+              >
+                ← Back
+              </button>
+            )}
+          </div>
         </div>
 
         {statistics && (
