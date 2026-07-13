@@ -10,6 +10,7 @@ import { dashboardStyles, getBadgeStyle, getRiskBadgeStyle, getStatusBadgeStyle 
 import PageHeader from './PageHeader';
 import LoadingSpinner from './LoadingSpinner';
 import RoleUpgradeRequestForm from './RoleUpgradeRequestForm';
+import ClientCaseView from './ClientCaseView';
 
 export default function ComplianceOfficerDashboard() {
   const [showRoleUpgradeForm, setShowRoleUpgradeForm] = useState(false);
@@ -29,6 +30,7 @@ export default function ComplianceOfficerDashboard() {
   const [loading, setLoading] = useState(true);
   const [activeView, setActiveView] = useState('overview');
   const [clientInitialFilter, setClientInitialFilter] = useState(null);
+  const [selectedCaseClient, setSelectedCaseClient] = useState(null);
   const [assessments, setAssessments] = useState([]);
   const [organizationUsers, setOrganizationUsers] = useState([]);
   const [kycClients, setKycClients] = useState([]);
@@ -297,6 +299,18 @@ export default function ComplianceOfficerDashboard() {
         <div style={{ marginTop: '20px' }}>
           <DataDeletionRequestsPanel orgId={profile?.organization_id} />
         </div>
+      </div>
+    );
+  }
+
+  if (activeView === 'case' && selectedCaseClient) {
+    return (
+      <div style={dashboardStyles.pageContainer}>
+        <ClientCaseView
+          clientId={selectedCaseClient.id}
+          clientName={selectedCaseClient.name}
+          onBack={() => { setActiveView('overview'); setSelectedCaseClient(null); }}
+        />
       </div>
     );
   }
@@ -610,6 +624,34 @@ export default function ComplianceOfficerDashboard() {
               <span style={{ fontSize: '20px' }}>🗑</span>
               Data Erasure Requests
             </button>
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              <select
+                onChange={(e) => {
+                  const client = kycClients.find((c) => c.id === e.target.value);
+                  if (client) {
+                    setSelectedCaseClient({ id: client.id, name: client.client_name });
+                    setActiveView('case');
+                  }
+                }}
+                defaultValue=""
+                style={{
+                  flex: 1,
+                  padding: '10px 12px',
+                  background: 'linear-gradient(135deg, #0a1929, #1a2f45)',
+                  border: '2px solid #d4af37',
+                  borderRadius: '8px',
+                  color: 'white',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                }}
+              >
+                <option value="" disabled>View Client Case File</option>
+                {kycClients.map((c) => (
+                  <option key={c.id} value={c.id}>{c.client_name}</option>
+                ))}
+              </select>
+            </div>
           </div>
         </div>
 
