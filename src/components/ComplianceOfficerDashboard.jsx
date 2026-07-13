@@ -10,8 +10,6 @@ import { dashboardStyles, getBadgeStyle, getRiskBadgeStyle, getStatusBadgeStyle 
 import PageHeader from './PageHeader';
 import LoadingSpinner from './LoadingSpinner';
 import RoleUpgradeRequestForm from './RoleUpgradeRequestForm';
-import ClientCaseView from './ClientCaseView';
-
 export default function ComplianceOfficerDashboard() {
   const [showRoleUpgradeForm, setShowRoleUpgradeForm] = useState(false);
   const [stats, setStats] = useState({
@@ -30,7 +28,6 @@ export default function ComplianceOfficerDashboard() {
   const [loading, setLoading] = useState(true);
   const [activeView, setActiveView] = useState('overview');
   const [clientInitialFilter, setClientInitialFilter] = useState(null);
-  const [selectedCaseClient, setSelectedCaseClient] = useState(null);
   const [assessments, setAssessments] = useState([]);
   const [organizationUsers, setOrganizationUsers] = useState([]);
   const [kycClients, setKycClients] = useState([]);
@@ -299,18 +296,6 @@ export default function ComplianceOfficerDashboard() {
         <div style={{ marginTop: '20px' }}>
           <DataDeletionRequestsPanel orgId={profile?.organization_id} />
         </div>
-      </div>
-    );
-  }
-
-  if (activeView === 'case' && selectedCaseClient) {
-    return (
-      <div style={dashboardStyles.pageContainer}>
-        <ClientCaseView
-          clientId={selectedCaseClient.id}
-          clientName={selectedCaseClient.name}
-          onBack={() => { setActiveView('overview'); setSelectedCaseClient(null); }}
-        />
       </div>
     );
   }
@@ -627,10 +612,8 @@ export default function ComplianceOfficerDashboard() {
             <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
               <select
                 onChange={(e) => {
-                  const client = kycClients.find((c) => c.id === e.target.value);
-                  if (client) {
-                    setSelectedCaseClient({ id: client.id, name: client.client_name });
-                    setActiveView('case');
+                  if (e.target.value) {
+                    navigate(`/kyc-client/${e.target.value}`);
                   }
                 }}
                 defaultValue=""
