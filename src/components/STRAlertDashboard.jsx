@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
-import { confirmTransactionAlert, clearTransactionAlert, fileTransactionSTR } from '../services/screeningService';
+import { confirmTransactionAlert, clearTransactionAlert } from '../services/screeningService';
+import STRFilingModal from './STRFilingModal';
 
 export default function STRAlertDashboard() {
   const { user, profile } = useAuth();
@@ -18,10 +19,10 @@ export default function STRAlertDashboard() {
   const [selectedAlert, setSelectedAlert] = useState(null);
   const [showAlertDetail, setShowAlertDetail] = useState(false);
   const [actionNotes, setActionNotes] = useState({});
-  const [strRef, setStrRef] = useState({});
   const [actionInProgress, setActionInProgress] = useState(null);
   const [expandedAlertId, setExpandedAlertId] = useState(null);
   const [actionError, setActionError] = useState({});
+  const [strFormAlert, setStrFormAlert] = useState(null);
 
   useEffect(() => {
     if (user) {
@@ -240,25 +241,6 @@ export default function STRAlertDashboard() {
       setActionInProgress(alertId);
       await clearTransactionAlert(alertId, notes);
       setActionNotes({ ...actionNotes, [alertId]: '' });
-      setExpandedAlertId(null);
-      loadAlerts();
-      loadStatistics();
-    } catch (err) {
-      setActionError({ ...actionError, [alertId]: err.message });
-    } finally {
-      setActionInProgress(null);
-    }
-  };
-
-  const handleFileSTR = async (alertId) => {
-    const notes = actionNotes[alertId] || '';
-    const ref = strRef[alertId] || '';
-    setActionError({ ...actionError, [alertId]: null });
-    try {
-      setActionInProgress(alertId);
-      await fileTransactionSTR(alertId, ref, notes);
-      setActionNotes({ ...actionNotes, [alertId]: '' });
-      setStrRef({ ...strRef, [alertId]: '' });
       setExpandedAlertId(null);
       loadAlerts();
       loadStatistics();
@@ -513,7 +495,7 @@ export default function STRAlertDashboard() {
                                 backgroundColor: expandedAlertId === alert.id ? '#1e3a5f' : undefined,
                               }}
                             >
-                              {alert.str_filed ? 'File STR' : 'Action'}
+                              {alert.str_filed ? 'File STR Form' : 'Action'}
                             </button>
                           )}
                         </div>
@@ -526,11 +508,9 @@ export default function STRAlertDashboard() {
                             alert={alert}
                             notes={actionNotes[alert.id] || ''}
                             onNotesChange={(v) => setActionNotes({ ...actionNotes, [alert.id]: v })}
-                            strRef={strRef[alert.id] || ''}
-                            onStrRefChange={(v) => setStrRef({ ...strRef, [alert.id]: v })}
                             onConfirm={() => handleConfirmSuspicious(alert.id)}
                             onClear={() => handleClearFalsePositive(alert.id)}
-                            onFileSTR={() => handleFileSTR(alert.id)}
+                            onOpenSTRForm={() => { setExpandedAlertId(null); setStrFormAlert(alert); }}
                             inProgress={actionInProgress === alert.id}
                             error={actionError[alert.id]}
                           />
@@ -558,6 +538,18 @@ export default function STRAlertDashboard() {
             loadStatistics();
           }}
           user={user}
+        />
+      )}
+
+      {strFormAlert && (
+        <STRFilingModal
+          alert={strFormAlert}
+          onClose={() => setStrFormAlert(null)}
+          onSuccess={() => {
+            setStrFormAlert(null);
+            loadAlerts();
+            loadStatistics();
+          }}
         />
       )}
     </div>
@@ -623,7 +615,7 @@ function STRDeadlineCountdown({ deadline }) {
   );
 }
 
-function AlertActionPanel({ alert, notes, onNotesChange, strRef, onStrRefChange, onConfirm, onClear, onFileSTR, inProgress, error }) {
+function AlertActionPanel({ alert, notes, onNotesChange, onConfirm, onClear, onOpenSTRForm, inProgress, error }) {
   const isResolved = alert.investigation_status === 'resolved' || alert.is_false_positive;
   const isSuspiciousConfirmed = alert.str_filed === true;
   const hasStrFiled = !!(alert.str_reference_number && alert.str_filed_at);
@@ -671,27 +663,6 @@ function AlertActionPanel({ alert, notes, onNotesChange, strRef, onStrRefChange,
             />
           </div>
 
-          {isSuspiciousConfirmed && (
-            <div style={{ marginBottom: '10px' }}>
-              <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#374151', marginBottom: '4px' }}>
-                FIU STR Reference Number
-              </label>
-              <input
-                type="text"
-                value={strRef}
-                onChange={(e) => onStrRefChange(e.target.value)}
-                placeholder="e.g. FIU/STR/2026/001"
-                style={{
-                  width: '100%',
-                  padding: '7px 10px',
-                  border: '1px solid #d1d5db',
-                  borderRadius: '6px',
-                  fontSize: '13px',
-                  boxSizing: 'border-box',
-                }}
-              />
-            </div>
-          )}
 
           {error && (
             <div style={{ marginBottom: '10px', padding: '8px 12px', backgroundColor: '#fee2e2', borderRadius: '6px', fontSize: '12px', color: '#991b1b' }}>
@@ -738,20 +709,20 @@ function AlertActionPanel({ alert, notes, onNotesChange, strRef, onStrRefChange,
             )}
             {isSuspiciousConfirmed && (
               <button
-                onClick={onFileSTR}
-                disabled={inProgress || strRef.trim().length < 3 || notes.trim().length < 10}
+                onClick={onOpenSTRForm}
+                disabled={inProgress}
                 style={{
-                  padding: '7px 14px',
-                  backgroundColor: strRef.trim().length >= 3 && notes.trim().length >= 10 ? '#1d4ed8' : '#f3f4f6',
-                  color: strRef.trim().length >= 3 && notes.trim().length >= 10 ? 'white' : '#9ca3af',
+                  padding: '7px 16px',
+                  backgroundColor: '#1d4ed8',
+                  color: 'white',
                   border: 'none',
                   borderRadius: '6px',
                   fontSize: '12px',
                   fontWeight: '600',
-                  cursor: strRef.trim().length >= 3 && notes.trim().length >= 10 ? 'pointer' : 'not-allowed',
+                  cursor: 'pointer',
                 }}
               >
-                {inProgress ? 'Filing...' : 'File STR with FIU'}
+                Complete STR Filing — GN 397 Form
               </button>
             )}
           </div>
