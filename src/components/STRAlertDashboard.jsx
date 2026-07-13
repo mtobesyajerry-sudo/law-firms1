@@ -670,8 +670,13 @@ function STRDeadlineCountdown({ deadline }) {
 function AlertActionPanel({ alert, notes, onNotesChange, onConfirm, onClear, onOpenSTRForm, onViewSTRRecord, inProgress, error }) {
   const isResolved = alert.investigation_status === 'resolved' || alert.is_false_positive;
   const isSuspiciousConfirmed = alert.str_filed === true;
-  const hasStrRecordSaved = !!(alert.str_reference_number && alert.str_record_saved_at);
-  const hasStrFiledWithFIU = !!(alert.str_filed_at);
+  const sarData = Array.isArray(alert.suspicious_activity_reports)
+    ? alert.suspicious_activity_reports[0]
+    : alert.suspicious_activity_reports;
+  const sarStatus = sarData?.str_status;
+  const hasStrRecordSaved = !!(alert.str_reference_number && alert.str_record_saved_at)
+    || (sarStatus && sarStatus !== 'draft');
+  const hasStrFiledWithFIU = !!alert.str_filed_at || sarStatus === 'filed_with_fiu';
 
   return (
     <div style={{
@@ -689,7 +694,7 @@ function AlertActionPanel({ alert, notes, onNotesChange, onConfirm, onClear, onO
       )}
       {hasStrFiledWithFIU && (
         <div style={{ marginBottom: '12px', padding: '8px 12px', backgroundColor: '#f0fdf4', borderRadius: '6px', border: '1px solid #86efac', fontSize: '12px', color: '#166534' }}>
-          STR filed with FIU — ref: <strong>{alert.str_reference_number}</strong> at {new Date(alert.str_filed_at).toLocaleString()}
+          STR filed with FIU — ref: <strong>{alert.str_reference_number || sarData?.fiu_reference_number}</strong> at {new Date(alert.str_filed_at || sarData?.fiu_acknowledgment_date).toLocaleString()}
         </div>
       )}
       {hasStrRecordSaved && !hasStrFiledWithFIU && (
