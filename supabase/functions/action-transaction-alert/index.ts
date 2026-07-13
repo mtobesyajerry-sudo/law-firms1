@@ -134,8 +134,8 @@ Deno.serve(async (req) => {
         .from("transaction_alerts")
         .update({
           str_reference_number: str_reference_number.trim(),
-          str_filed_at: now,
-          str_filed_by: userId,
+          str_record_saved_at: now,
+          str_record_saved_by: userId,
           updated_at: now,
         })
         .eq("id", alert_id)
@@ -146,7 +146,7 @@ Deno.serve(async (req) => {
 
       await serviceClient.from("screening_audit_log").insert({
         organization_id: orgId,
-        action: "str_filed",
+        action: "str_record_saved",
         actor_id: userId,
         actor_email: userEmail,
         details: {
@@ -154,7 +154,7 @@ Deno.serve(async (req) => {
           alert_number: alert.alert_number,
           client_id: alert.client_id,
           str_reference_number: str_reference_number.trim(),
-          filed_at: now,
+          saved_at: now,
           str_deadline: alert.str_deadline,
           overdue: alert.str_deadline ? new Date(now) > new Date(alert.str_deadline) : false,
           notes: notes.trim(),

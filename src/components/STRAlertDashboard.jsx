@@ -637,7 +637,8 @@ function STRDeadlineCountdown({ deadline }) {
 function AlertActionPanel({ alert, notes, onNotesChange, onConfirm, onClear, onOpenSTRForm, inProgress, error }) {
   const isResolved = alert.investigation_status === 'resolved' || alert.is_false_positive;
   const isSuspiciousConfirmed = alert.str_filed === true;
-  const hasStrFiled = !!(alert.str_reference_number && alert.str_filed_at);
+  const hasStrRecordSaved = !!(alert.str_reference_number && alert.str_record_saved_at);
+  const hasStrFiledWithFIU = !!(alert.str_filed_at);
 
   return (
     <div style={{
@@ -648,18 +649,24 @@ function AlertActionPanel({ alert, notes, onNotesChange, onConfirm, onClear, onO
       borderTop: 'none',
       borderRadius: '0 0 8px 8px',
     }}>
-      {alert.str_deadline && (
+      {alert.str_deadline && !hasStrFiledWithFIU && (
         <div style={{ marginBottom: '12px' }}>
           <STRDeadlineCountdown deadline={alert.str_deadline} />
         </div>
       )}
-      {hasStrFiled && (
+      {hasStrFiledWithFIU && (
         <div style={{ marginBottom: '12px', padding: '8px 12px', backgroundColor: '#f0fdf4', borderRadius: '6px', border: '1px solid #86efac', fontSize: '12px', color: '#166534' }}>
-          STR filed — ref: <strong>{alert.str_reference_number}</strong> at {new Date(alert.str_filed_at).toLocaleString()}
+          STR filed with FIU — ref: <strong>{alert.str_reference_number}</strong> at {new Date(alert.str_filed_at).toLocaleString()}
+        </div>
+      )}
+      {hasStrRecordSaved && !hasStrFiledWithFIU && (
+        <div style={{ marginBottom: '12px', padding: '8px 12px', backgroundColor: '#eff6ff', borderRadius: '6px', border: '1px solid #93c5fd', fontSize: '12px', color: '#1e40af' }}>
+          STR record saved internally — ref: <strong>{alert.str_reference_number}</strong> at {new Date(alert.str_record_saved_at).toLocaleString()}.
+          Not yet filed with FIU. Use the STR Records tab to confirm FIU filing.
         </div>
       )}
 
-      {!isResolved && !hasStrFiled && (
+      {!isResolved && !hasStrFiledWithFIU && (
         <>
           <div style={{ marginBottom: '10px' }}>
             <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#374151', marginBottom: '4px' }}>

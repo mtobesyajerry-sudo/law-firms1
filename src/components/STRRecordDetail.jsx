@@ -102,6 +102,24 @@ function ConfirmFiledPanel({ record, onSuccess, onCancel }) {
 
       if (updateErr) throw new Error(updateErr.message);
 
+      // Also stamp transaction_alerts.str_filed_at — this is the actual FIU filing
+      // timestamp, distinct from str_record_saved_at (internal save). The Alert
+      // Dashboard reads str_filed_at to show "filed with FIU" and stop the deadline.
+      if (record.alert_id) {
+        const { error: alertErr } = await supabase
+          .from('transaction_alerts')
+          .update({
+            str_filed_at: new Date(filedDate).toISOString(),
+            str_filed_by: user.id,
+            str_reference_number: fiuRef.trim(),
+            updated_at: now,
+          })
+          .eq('id', record.alert_id)
+          .eq('organization_id', prof.organization_id);
+
+        if (alertErr) throw new Error(alertErr.message);
+      }
+
       // Audit — consistent with screening_audit_log pattern
       await supabase.from('screening_audit_log').insert({
         organization_id: prof.organization_id,
