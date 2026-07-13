@@ -462,9 +462,14 @@ export default function STRFilingModal({ alert, onClose, onSuccess }) {
               </Field>
 
               <div style={{ marginTop: '24px', paddingTop: '16px', borderTop: '1px solid #e5e7eb' }}>
-                <SectionHeading title="FIU Filing Details" reg="Required to complete transaction alert record" />
+                <SectionHeading title="FIU Filing Reference" reg="Required to complete transaction alert record" />
+                <div style={{ padding: '10px 14px', borderRadius: '8px', background: '#fffbeb', border: '1px solid #fcd34d', fontSize: '12px', color: '#92400e', marginBottom: '16px', lineHeight: '1.6' }}>
+                  <strong>Important — two-step process:</strong> This form creates an internal regulatory record only.
+                  You must separately submit this STR to the FIU via goAML or the official FIU channel.
+                  Once the FIU acknowledges your submission and issues a reference number, return here and enter it below.
+                </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 20px' }}>
-                  <Field label="FIU STR Reference Number" required>
+                  <Field label="FIU Reference Number (issued by FIU after external submission)" required>
                     <input
                       style={inputStyle}
                       value={partA.fiu_reference_number}
@@ -704,7 +709,7 @@ export default function STRFilingModal({ alert, onClose, onSuccess }) {
                 fontSize: '13px', fontWeight: '700', cursor: submitting ? 'not-allowed' : 'pointer',
               }}
             >
-              {submitting ? 'Filing...' : 'Submit STR to FIU'}
+              {submitting ? 'Saving...' : 'Finalize STR Record'}
             </button>
           </div>
         </div>
