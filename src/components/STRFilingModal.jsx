@@ -105,7 +105,7 @@ export default function STRFilingModal({ alert, onClose, onSuccess }) {
     destination_fund_type: '',
     source_subject_type: '',
     destination_subject_type: '',
-    narrative: '',
+    narrative: alert?.transaction_description || '',
     suspicion_indicators: Array.isArray(alert?.suspicious_indicators) ? [...alert.suspicious_indicators] : [],
   });
 
@@ -183,6 +183,17 @@ export default function STRFilingModal({ alert, onClose, onSuccess }) {
       })
       .catch(() => {});
   }, [profile?.organization_id]);
+
+  // Prefill reporting officer name/title from user profile
+  useEffect(() => {
+    if (!profile) return;
+    const fullName = profile.full_name || [profile.first_name, profile.last_name].filter(Boolean).join(' ').trim();
+    setPartA(prev => ({
+      ...prev,
+      reporting_officer_name: prev.reporting_officer_name || fullName || '',
+      reporting_officer_title: prev.reporting_officer_title || profile.position || '',
+    }));
+  }, [profile]);
 
   const toggleIndicator = (indicator) => {
     setPartB(prev => ({
