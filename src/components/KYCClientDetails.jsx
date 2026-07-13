@@ -1369,7 +1369,7 @@ export default function KYCClientDetails() {
                     <tbody>
                       {screeningResults.map((result) => (
                         <tr key={result.id} style={{borderBottom: '1px solid #e5e7eb'}}>
-                          <td style={{padding: '12px', textTransform: 'uppercase', fontWeight: '600'}}>{result.screening_type}</td>
+                          <td style={{padding: '12px', fontWeight: '600'}}>{result.screening_type?.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}</td>
                           <td style={{padding: '12px'}}>{new Date(result.screening_date).toLocaleDateString()}</td>
                           <td style={{padding: '12px'}}>
                             <span style={{
@@ -1377,11 +1377,10 @@ export default function KYCClientDetails() {
                               borderRadius: '6px',
                               fontSize: '11px',
                               fontWeight: '600',
-                              textTransform: 'capitalize',
                               backgroundColor: result.screening_status === 'cleared' ? '#d1fae5' : result.screening_status === 'pending' ? '#fef3c7' : '#e0e7ff',
                               color: result.screening_status === 'cleared' ? '#065f46' : result.screening_status === 'pending' ? '#92400e' : '#3730a3'
                             }}>
-                              {result.screening_status}
+                              {result.screening_status?.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
                             </span>
                           </td>
                           <td style={{padding: '12px'}}>
@@ -1390,11 +1389,10 @@ export default function KYCClientDetails() {
                               borderRadius: '6px',
                               fontSize: '11px',
                               fontWeight: '600',
-                              textTransform: 'capitalize',
                               backgroundColor: result.risk_level === 'low' ? '#d1fae5' : result.risk_level === 'high' || result.risk_level === 'critical' ? '#fee2e2' : '#fef3c7',
                               color: result.risk_level === 'low' ? '#065f46' : result.risk_level === 'high' || result.risk_level === 'critical' ? '#991b1b' : '#92400e'
                             }}>
-                              {result.risk_level}
+                              {result.risk_level?.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
                             </span>
                           </td>
                           <td style={{padding: '12px'}}>{result.match_count || 0}</td>
@@ -1469,11 +1467,10 @@ export default function KYCClientDetails() {
                                 borderRadius: '4px',
                                 backgroundColor: alert.investigation_status === 'new' ? '#fef3c7' : '#e0e7ff',
                                 color: alert.investigation_status === 'new' ? '#92400e' : '#3730a3',
-                                textTransform: 'uppercase',
                                 fontSize: '10px',
                                 fontWeight: '600'
                               }}>
-                                {alert.investigation_status}
+                                {alert.investigation_status?.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
                               </span>
                             </div>
                           </div>
@@ -1535,7 +1532,7 @@ export default function KYCClientDetails() {
                         <tr key={txn.id} style={{borderBottom: '1px solid #e5e7eb'}}>
                           <td style={{padding: '12px', fontSize: '11px', fontWeight: '600', color: '#6b7280'}}>{txn.transaction_ref}</td>
                           <td style={{padding: '12px', fontSize: '11px'}}>{new Date(txn.transaction_date).toLocaleDateString()}</td>
-                          <td style={{padding: '12px', textTransform: 'uppercase', fontSize: '11px', fontWeight: '600'}}>{txn.transaction_type}</td>
+                          <td style={{padding: '12px', fontSize: '11px', fontWeight: '600'}}>{txn.transaction_type?.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}</td>
                           <td style={{padding: '12px', textAlign: 'right', fontWeight: '600'}}>
                             {txn.currency} {parseInt(txn.amount).toLocaleString()}
                             {txn.amount_usd && <div style={{fontSize: '10px', color: '#6b7280'}}>~${parseInt(txn.amount_usd).toLocaleString()}</div>}
