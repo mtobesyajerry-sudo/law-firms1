@@ -221,6 +221,47 @@ export async function fileSTR(screeningResultId, strReferenceNumber) {
 }
 
 // ---------------------------------------------------------------------
+// 10. Action a transaction alert (confirm suspicious / clear false positive / file STR)
+// ---------------------------------------------------------------------
+async function invokeActionTransactionAlert(body) {
+  const { data, error } = await supabase.functions.invoke('action-transaction-alert', { body });
+  if (error) {
+    let msg = error.message;
+    try {
+      const parsed = await error.context?.json?.();
+      if (parsed?.error) msg = parsed.error;
+    } catch (_) { /* ignore */ }
+    throw new Error(msg);
+  }
+  if (data?.error) throw new Error(data.error);
+  return data;
+}
+
+export async function confirmTransactionAlert(alertId, notes) {
+  if (!notes || notes.trim().length < 10) {
+    throw new Error('Notes required (min 10 chars) — regulators expect a written reason.');
+  }
+  return invokeActionTransactionAlert({ action: 'confirm_suspicious', alert_id: alertId, notes });
+}
+
+export async function clearTransactionAlert(alertId, notes) {
+  if (!notes || notes.trim().length < 10) {
+    throw new Error('Notes required (min 10 chars) — regulators expect a written reason.');
+  }
+  return invokeActionTransactionAlert({ action: 'clear_false_positive', alert_id: alertId, notes });
+}
+
+export async function fileTransactionSTR(alertId, strReferenceNumber, notes) {
+  if (!strReferenceNumber || strReferenceNumber.trim().length < 3) {
+    throw new Error('A valid FIU STR reference number is required.');
+  }
+  if (!notes || notes.trim().length < 10) {
+    throw new Error('Notes required (min 10 chars) — regulators expect a written reason.');
+  }
+  return invokeActionTransactionAlert({ action: 'file_str', alert_id: alertId, notes, str_reference_number: strReferenceNumber });
+}
+
+// ---------------------------------------------------------------------
 // 9b. Record TFS freeze action
 // ---------------------------------------------------------------------
 export async function recordFreezeAction(matchId) {

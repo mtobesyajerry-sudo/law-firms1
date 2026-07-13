@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
+import { confirmTransactionAlert, clearTransactionAlert, fileTransactionSTR } from '../services/screeningService';
 
 export default function STRAlertDashboard() {
   const { user, profile } = useAuth();
@@ -16,6 +17,11 @@ export default function STRAlertDashboard() {
   });
   const [selectedAlert, setSelectedAlert] = useState(null);
   const [showAlertDetail, setShowAlertDetail] = useState(false);
+  const [actionNotes, setActionNotes] = useState({});
+  const [strRef, setStrRef] = useState({});
+  const [actionInProgress, setActionInProgress] = useState(null);
+  const [expandedAlertId, setExpandedAlertId] = useState(null);
+  const [actionError, setActionError] = useState({});
 
   useEffect(() => {
     if (user) {
@@ -208,27 +214,58 @@ export default function STRAlertDashboard() {
     }
   };
 
-  const handleEscalateAlert = async (alertId) => {
-    if (!confirm('Are you sure you want to escalate this alert?')) {
-      return;
-    }
+  const isComplianceRole = profile?.role === 'compliance_officer' || profile?.role === 'admin' || profile?.role === 'system_admin';
 
+  const handleConfirmSuspicious = async (alertId) => {
+    const notes = actionNotes[alertId] || '';
+    setActionError({ ...actionError, [alertId]: null });
     try {
-      const { error } = await supabase
-        .from('transaction_alerts')
-        .update({
-          investigation_status: 'escalated'
-        })
-        .eq('id', alertId);
-
-      if (error) throw error;
-
-      alert('Alert escalated successfully');
+      setActionInProgress(alertId);
+      await confirmTransactionAlert(alertId, notes);
+      setActionNotes({ ...actionNotes, [alertId]: '' });
+      setExpandedAlertId(null);
       loadAlerts();
       loadStatistics();
-    } catch (error) {
-      console.error('Error escalating alert:', error);
-      alert('Failed to escalate alert: ' + error.message);
+    } catch (err) {
+      setActionError({ ...actionError, [alertId]: err.message });
+    } finally {
+      setActionInProgress(null);
+    }
+  };
+
+  const handleClearFalsePositive = async (alertId) => {
+    const notes = actionNotes[alertId] || '';
+    setActionError({ ...actionError, [alertId]: null });
+    try {
+      setActionInProgress(alertId);
+      await clearTransactionAlert(alertId, notes);
+      setActionNotes({ ...actionNotes, [alertId]: '' });
+      setExpandedAlertId(null);
+      loadAlerts();
+      loadStatistics();
+    } catch (err) {
+      setActionError({ ...actionError, [alertId]: err.message });
+    } finally {
+      setActionInProgress(null);
+    }
+  };
+
+  const handleFileSTR = async (alertId) => {
+    const notes = actionNotes[alertId] || '';
+    const ref = strRef[alertId] || '';
+    setActionError({ ...actionError, [alertId]: null });
+    try {
+      setActionInProgress(alertId);
+      await fileTransactionSTR(alertId, ref, notes);
+      setActionNotes({ ...actionNotes, [alertId]: '' });
+      setStrRef({ ...strRef, [alertId]: '' });
+      setExpandedAlertId(null);
+      loadAlerts();
+      loadStatistics();
+    } catch (err) {
+      setActionError({ ...actionError, [alertId]: err.message });
+    } finally {
+      setActionInProgress(null);
     }
   };
 
@@ -403,7 +440,8 @@ export default function STRAlertDashboard() {
                 </thead>
                 <tbody>
                   {alerts.map((alert) => (
-                    <tr key={alert.id} style={styles.tr}>
+                    <React.Fragment key={alert.id}>
+                    <tr style={styles.tr}>
                       <td style={styles.td}>
                         <button
                           onClick={() => handleViewDetails(alert)}
@@ -467,17 +505,39 @@ export default function STRAlertDashboard() {
                               Assign to Me
                             </button>
                           )}
-                          {alert.investigation_status !== 'Escalated' && alert.investigation_status !== 'Resolved' && (
+                          {isComplianceRole && alert.investigation_status !== 'resolved' && !alert.is_false_positive && (
                             <button
-                              onClick={() => handleEscalateAlert(alert.id)}
-                              style={styles.escalateButton}
+                              onClick={() => setExpandedAlertId(expandedAlertId === alert.id ? null : alert.id)}
+                              style={{
+                                ...styles.escalateButton,
+                                backgroundColor: expandedAlertId === alert.id ? '#1e3a5f' : undefined,
+                              }}
                             >
-                              Escalate
+                              {alert.str_filed ? 'File STR' : 'Action'}
                             </button>
                           )}
                         </div>
                       </td>
                     </tr>
+                    {expandedAlertId === alert.id && isComplianceRole && (
+                      <tr>
+                        <td colSpan={9} style={{ padding: '0 0 8px 0', backgroundColor: '#f8fafc' }}>
+                          <AlertActionPanel
+                            alert={alert}
+                            notes={actionNotes[alert.id] || ''}
+                            onNotesChange={(v) => setActionNotes({ ...actionNotes, [alert.id]: v })}
+                            strRef={strRef[alert.id] || ''}
+                            onStrRefChange={(v) => setStrRef({ ...strRef, [alert.id]: v })}
+                            onConfirm={() => handleConfirmSuspicious(alert.id)}
+                            onClear={() => handleClearFalsePositive(alert.id)}
+                            onFileSTR={() => handleFileSTR(alert.id)}
+                            inProgress={actionInProgress === alert.id}
+                            error={actionError[alert.id]}
+                          />
+                        </td>
+                      </tr>
+                    )}
+                    </React.Fragment>
                   ))}
                 </tbody>
               </table>
@@ -528,6 +588,175 @@ function StatCard({ title, value, color, onClick }) {
     >
       <div style={styles.statTitle}>{title}</div>
       <div style={{...styles.statValue, color}}>{value}</div>
+    </div>
+  );
+}
+
+function STRDeadlineCountdown({ deadline }) {
+  if (!deadline) return null;
+  const deadlineDate = new Date(deadline);
+  const now = new Date();
+  const diffMs = deadlineDate - now;
+  const overdue = diffMs < 0;
+  const absDiff = Math.abs(diffMs);
+  const hours = Math.floor(absDiff / (1000 * 60 * 60));
+  const minutes = Math.floor((absDiff % (1000 * 60 * 60)) / (1000 * 60));
+
+  return (
+    <div style={{
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: '6px',
+      padding: '4px 10px',
+      borderRadius: '6px',
+      fontSize: '12px',
+      fontWeight: '700',
+      backgroundColor: overdue ? '#fee2e2' : hours < 4 ? '#fef3c7' : '#dcfce7',
+      color: overdue ? '#991b1b' : hours < 4 ? '#92400e' : '#166534',
+      border: `1px solid ${overdue ? '#fca5a5' : hours < 4 ? '#fde68a' : '#86efac'}`,
+    }}>
+      {overdue ? '⚠ STR OVERDUE' : `⏱ STR due in ${hours}h ${minutes}m`}
+      <span style={{ fontWeight: '400', fontSize: '11px' }}>
+        ({deadlineDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} {deadlineDate.toLocaleDateString()})
+      </span>
+    </div>
+  );
+}
+
+function AlertActionPanel({ alert, notes, onNotesChange, strRef, onStrRefChange, onConfirm, onClear, onFileSTR, inProgress, error }) {
+  const isResolved = alert.investigation_status === 'resolved' || alert.is_false_positive;
+  const isSuspiciousConfirmed = alert.str_filed === true;
+  const hasStrFiled = !!(alert.str_reference_number && alert.str_filed_at);
+
+  return (
+    <div style={{
+      margin: '0 8px 4px 8px',
+      padding: '16px',
+      backgroundColor: '#fff',
+      border: '1px solid #e5e7eb',
+      borderTop: 'none',
+      borderRadius: '0 0 8px 8px',
+    }}>
+      {alert.str_deadline && (
+        <div style={{ marginBottom: '12px' }}>
+          <STRDeadlineCountdown deadline={alert.str_deadline} />
+        </div>
+      )}
+      {hasStrFiled && (
+        <div style={{ marginBottom: '12px', padding: '8px 12px', backgroundColor: '#f0fdf4', borderRadius: '6px', border: '1px solid #86efac', fontSize: '12px', color: '#166534' }}>
+          STR filed — ref: <strong>{alert.str_reference_number}</strong> at {new Date(alert.str_filed_at).toLocaleString()}
+        </div>
+      )}
+
+      {!isResolved && !hasStrFiled && (
+        <>
+          <div style={{ marginBottom: '10px' }}>
+            <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#374151', marginBottom: '4px' }}>
+              Written Reason (min 10 chars — required by regulations)
+            </label>
+            <textarea
+              value={notes}
+              onChange={(e) => onNotesChange(e.target.value)}
+              placeholder="Describe why this alert is being confirmed as suspicious or cleared as false positive..."
+              rows={2}
+              style={{
+                width: '100%',
+                padding: '8px 10px',
+                border: '1px solid #d1d5db',
+                borderRadius: '6px',
+                fontSize: '13px',
+                resize: 'vertical',
+                boxSizing: 'border-box',
+              }}
+            />
+          </div>
+
+          {isSuspiciousConfirmed && (
+            <div style={{ marginBottom: '10px' }}>
+              <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#374151', marginBottom: '4px' }}>
+                FIU STR Reference Number
+              </label>
+              <input
+                type="text"
+                value={strRef}
+                onChange={(e) => onStrRefChange(e.target.value)}
+                placeholder="e.g. FIU/STR/2026/001"
+                style={{
+                  width: '100%',
+                  padding: '7px 10px',
+                  border: '1px solid #d1d5db',
+                  borderRadius: '6px',
+                  fontSize: '13px',
+                  boxSizing: 'border-box',
+                }}
+              />
+            </div>
+          )}
+
+          {error && (
+            <div style={{ marginBottom: '10px', padding: '8px 12px', backgroundColor: '#fee2e2', borderRadius: '6px', fontSize: '12px', color: '#991b1b' }}>
+              {error}
+            </div>
+          )}
+
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            {!isSuspiciousConfirmed && (
+              <>
+                <button
+                  onClick={onConfirm}
+                  disabled={inProgress || notes.trim().length < 10}
+                  style={{
+                    padding: '7px 14px',
+                    backgroundColor: notes.trim().length >= 10 ? '#dc2626' : '#f3f4f6',
+                    color: notes.trim().length >= 10 ? 'white' : '#9ca3af',
+                    border: 'none',
+                    borderRadius: '6px',
+                    fontSize: '12px',
+                    fontWeight: '600',
+                    cursor: notes.trim().length >= 10 ? 'pointer' : 'not-allowed',
+                  }}
+                >
+                  {inProgress ? 'Processing...' : 'Confirm Suspicious — Set STR Deadline'}
+                </button>
+                <button
+                  onClick={onClear}
+                  disabled={inProgress || notes.trim().length < 10}
+                  style={{
+                    padding: '7px 14px',
+                    backgroundColor: notes.trim().length >= 10 ? '#059669' : '#f3f4f6',
+                    color: notes.trim().length >= 10 ? 'white' : '#9ca3af',
+                    border: 'none',
+                    borderRadius: '6px',
+                    fontSize: '12px',
+                    fontWeight: '600',
+                    cursor: notes.trim().length >= 10 ? 'pointer' : 'not-allowed',
+                  }}
+                >
+                  {inProgress ? 'Processing...' : 'Clear — False Positive'}
+                </button>
+              </>
+            )}
+            {isSuspiciousConfirmed && (
+              <button
+                onClick={onFileSTR}
+                disabled={inProgress || strRef.trim().length < 3 || notes.trim().length < 10}
+                style={{
+                  padding: '7px 14px',
+                  backgroundColor: strRef.trim().length >= 3 && notes.trim().length >= 10 ? '#1d4ed8' : '#f3f4f6',
+                  color: strRef.trim().length >= 3 && notes.trim().length >= 10 ? 'white' : '#9ca3af',
+                  border: 'none',
+                  borderRadius: '6px',
+                  fontSize: '12px',
+                  fontWeight: '600',
+                  cursor: strRef.trim().length >= 3 && notes.trim().length >= 10 ? 'pointer' : 'not-allowed',
+                }}
+              >
+                {inProgress ? 'Filing...' : 'File STR with FIU'}
+              </button>
+            )}
+          </div>
+        </>
+      )}
     </div>
   );
 }

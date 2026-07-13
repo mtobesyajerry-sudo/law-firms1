@@ -25,6 +25,7 @@ import {
 } from '../data/kycData';
 import { checkEnhancedDDTriggers } from '../utils/documentUtils';
 import { isKycComplete } from '../utils/kycCompleteness';
+import { confirmTransactionAlert, clearTransactionAlert, fileTransactionSTR } from '../services/screeningService';
 
 function StandardDDStatusSection({ client }) {
   const getStatusColor = (isCompleted) => {
@@ -387,10 +388,70 @@ export default function KYCClientDetails() {
   const [screeningResults, setScreeningResults] = useState([]);
   const [transactions, setTransactions] = useState([]);
   const [transactionAlerts, setTransactionAlerts] = useState([]);
+  const [alertActionNotes, setAlertActionNotes] = useState({});
+  const [alertStrRef, setAlertStrRef] = useState({});
+  const [alertActionInProgress, setAlertActionInProgress] = useState(null);
+  const [alertExpandedId, setAlertExpandedId] = useState(null);
+  const [alertActionError, setAlertActionError] = useState({});
   const [showReviewForm, setShowReviewForm] = useState(false);
   const [clientReviews, setClientReviews] = useState([]);
   // Read-only access for management and compliance_officer roles
   const isReadOnly = profile?.role === 'management' || profile?.role === 'compliance_officer';
+  const canActionAlerts = profile?.role === 'compliance_officer' || profile?.role === 'admin' || profile?.role === 'system_admin';
+
+  const handleAlertConfirm = async (alertId) => {
+    const notes = alertActionNotes[alertId] || '';
+    setAlertActionError({ ...alertActionError, [alertId]: null });
+    try {
+      setAlertActionInProgress(alertId);
+      await confirmTransactionAlert(alertId, notes);
+      setAlertActionNotes({ ...alertActionNotes, [alertId]: '' });
+      setAlertExpandedId(null);
+      const { data } = await supabase.from('transaction_alerts').select('*').eq('client_id', clientId).order('alert_date', { ascending: false });
+      setTransactionAlerts(data || []);
+    } catch (err) {
+      setAlertActionError({ ...alertActionError, [alertId]: err.message });
+    } finally {
+      setAlertActionInProgress(null);
+    }
+  };
+
+  const handleAlertClear = async (alertId) => {
+    const notes = alertActionNotes[alertId] || '';
+    setAlertActionError({ ...alertActionError, [alertId]: null });
+    try {
+      setAlertActionInProgress(alertId);
+      await clearTransactionAlert(alertId, notes);
+      setAlertActionNotes({ ...alertActionNotes, [alertId]: '' });
+      setAlertExpandedId(null);
+      const { data } = await supabase.from('transaction_alerts').select('*').eq('client_id', clientId).order('alert_date', { ascending: false });
+      setTransactionAlerts(data || []);
+    } catch (err) {
+      setAlertActionError({ ...alertActionError, [alertId]: err.message });
+    } finally {
+      setAlertActionInProgress(null);
+    }
+  };
+
+  const handleAlertFileSTR = async (alertId) => {
+    const notes = alertActionNotes[alertId] || '';
+    const ref = alertStrRef[alertId] || '';
+    setAlertActionError({ ...alertActionError, [alertId]: null });
+    try {
+      setAlertActionInProgress(alertId);
+      await fileTransactionSTR(alertId, ref, notes);
+      setAlertActionNotes({ ...alertActionNotes, [alertId]: '' });
+      setAlertStrRef({ ...alertStrRef, [alertId]: '' });
+      setAlertExpandedId(null);
+      const { data } = await supabase.from('transaction_alerts').select('*').eq('client_id', clientId).order('alert_date', { ascending: false });
+      setTransactionAlerts(data || []);
+    } catch (err) {
+      setAlertActionError({ ...alertActionError, [alertId]: err.message });
+    } finally {
+      setAlertActionInProgress(null);
+    }
+  };
+
   const isPendingAssessment = client?.client_status === 'prospect' && client?.onboarding_status === 'pending';
   const isAccountantOrg = organization?.sector === 'accounting';
   const completenessResult = client && isPendingAssessment
@@ -1493,8 +1554,101 @@ export default function KYCClientDetails() {
                               </div>
                             </div>
                           )}
+                          {/* STR deadline countdown */}
+                          {alert.str_deadline && (() => {
+                            const deadlineDate = new Date(alert.str_deadline);
+                            const diffMs = deadlineDate - Date.now();
+                            const overdue = diffMs < 0;
+                            const absDiff = Math.abs(diffMs);
+                            const hours = Math.floor(absDiff / (1000 * 60 * 60));
+                            const minutes = Math.floor((absDiff % (1000 * 60 * 60)) / (1000 * 60));
+                            return (
+                              <div style={{marginTop: '10px', display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '4px 10px', borderRadius: '6px', fontSize: '12px', fontWeight: '700', backgroundColor: overdue ? '#fee2e2' : hours < 4 ? '#fef3c7' : '#dcfce7', color: overdue ? '#991b1b' : hours < 4 ? '#92400e' : '#166534', border: `1px solid ${overdue ? '#fca5a5' : hours < 4 ? '#fde68a' : '#86efac'}`}}>
+                                {overdue ? '⚠ STR OVERDUE' : `⏱ STR due in ${hours}h ${minutes}m`}
+                              </div>
+                            );
+                          })()}
+                          {alert.str_reference_number && alert.str_filed_at && (
+                            <div style={{marginTop: '8px', fontSize: '11px', color: '#166534', backgroundColor: '#f0fdf4', padding: '6px 10px', borderRadius: '6px', border: '1px solid #86efac'}}>
+                              STR filed — ref: <strong>{alert.str_reference_number}</strong>
+                            </div>
+                          )}
                         </div>
+                        {/* Action panel toggle */}
+                        {canActionAlerts && alert.investigation_status !== 'resolved' && !alert.is_false_positive && (
+                          <div style={{paddingTop: '8px'}}>
+                            <button
+                              onClick={() => setAlertExpandedId(alertExpandedId === alert.id ? null : alert.id)}
+                              style={{fontSize: '12px', padding: '5px 12px', borderRadius: '6px', border: '1px solid #d1d5db', backgroundColor: alertExpandedId === alert.id ? '#1e3a5f' : '#f9fafb', color: alertExpandedId === alert.id ? 'white' : '#374151', cursor: 'pointer', fontWeight: '600'}}
+                            >
+                              {alert.str_filed ? 'File STR' : 'Action Alert'}
+                            </button>
+                          </div>
+                        )}
                       </div>
+                      {/* Expanded action panel */}
+                      {alertExpandedId === alert.id && canActionAlerts && (
+                        <div style={{marginTop: '12px', padding: '14px', backgroundColor: '#f8fafc', borderRadius: '8px', border: '1px solid #e5e7eb'}}>
+                          <div style={{marginBottom: '10px'}}>
+                            <label style={{display: 'block', fontSize: '12px', fontWeight: '600', color: '#374151', marginBottom: '4px'}}>
+                              Written Reason (min 10 chars — required by regulations)
+                            </label>
+                            <textarea
+                              value={alertActionNotes[alert.id] || ''}
+                              onChange={(e) => setAlertActionNotes({...alertActionNotes, [alert.id]: e.target.value})}
+                              placeholder="Describe why this alert is confirmed as suspicious or cleared as false positive..."
+                              rows={2}
+                              style={{width: '100%', padding: '8px 10px', border: '1px solid #d1d5db', borderRadius: '6px', fontSize: '13px', resize: 'vertical', boxSizing: 'border-box'}}
+                            />
+                          </div>
+                          {alert.str_filed && (
+                            <div style={{marginBottom: '10px'}}>
+                              <label style={{display: 'block', fontSize: '12px', fontWeight: '600', color: '#374151', marginBottom: '4px'}}>FIU STR Reference Number</label>
+                              <input
+                                type="text"
+                                value={alertStrRef[alert.id] || ''}
+                                onChange={(e) => setAlertStrRef({...alertStrRef, [alert.id]: e.target.value})}
+                                placeholder="e.g. FIU/STR/2026/001"
+                                style={{width: '100%', padding: '7px 10px', border: '1px solid #d1d5db', borderRadius: '6px', fontSize: '13px', boxSizing: 'border-box'}}
+                              />
+                            </div>
+                          )}
+                          {alertActionError[alert.id] && (
+                            <div style={{marginBottom: '10px', padding: '8px 12px', backgroundColor: '#fee2e2', borderRadius: '6px', fontSize: '12px', color: '#991b1b'}}>
+                              {alertActionError[alert.id]}
+                            </div>
+                          )}
+                          <div style={{display: 'flex', gap: '8px', flexWrap: 'wrap'}}>
+                            {!alert.str_filed && (
+                              <>
+                                <button
+                                  onClick={() => handleAlertConfirm(alert.id)}
+                                  disabled={alertActionInProgress === alert.id || (alertActionNotes[alert.id] || '').trim().length < 10}
+                                  style={{padding: '6px 13px', backgroundColor: (alertActionNotes[alert.id] || '').trim().length >= 10 ? '#dc2626' : '#f3f4f6', color: (alertActionNotes[alert.id] || '').trim().length >= 10 ? 'white' : '#9ca3af', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: '600', cursor: (alertActionNotes[alert.id] || '').trim().length >= 10 ? 'pointer' : 'not-allowed'}}
+                                >
+                                  {alertActionInProgress === alert.id ? 'Processing...' : 'Confirm Suspicious — Set STR Deadline'}
+                                </button>
+                                <button
+                                  onClick={() => handleAlertClear(alert.id)}
+                                  disabled={alertActionInProgress === alert.id || (alertActionNotes[alert.id] || '').trim().length < 10}
+                                  style={{padding: '6px 13px', backgroundColor: (alertActionNotes[alert.id] || '').trim().length >= 10 ? '#059669' : '#f3f4f6', color: (alertActionNotes[alert.id] || '').trim().length >= 10 ? 'white' : '#9ca3af', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: '600', cursor: (alertActionNotes[alert.id] || '').trim().length >= 10 ? 'pointer' : 'not-allowed'}}
+                                >
+                                  {alertActionInProgress === alert.id ? 'Processing...' : 'Clear — False Positive'}
+                                </button>
+                              </>
+                            )}
+                            {alert.str_filed && (
+                              <button
+                                onClick={() => handleAlertFileSTR(alert.id)}
+                                disabled={alertActionInProgress === alert.id || (alertStrRef[alert.id] || '').trim().length < 3 || (alertActionNotes[alert.id] || '').trim().length < 10}
+                                style={{padding: '6px 13px', backgroundColor: (alertStrRef[alert.id] || '').trim().length >= 3 && (alertActionNotes[alert.id] || '').trim().length >= 10 ? '#1d4ed8' : '#f3f4f6', color: (alertStrRef[alert.id] || '').trim().length >= 3 && (alertActionNotes[alert.id] || '').trim().length >= 10 ? 'white' : '#9ca3af', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: '600', cursor: 'pointer'}}
+                              >
+                                {alertActionInProgress === alert.id ? 'Filing...' : 'File STR with FIU'}
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
