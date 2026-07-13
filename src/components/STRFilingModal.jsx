@@ -138,15 +138,27 @@ export default function STRFilingModal({ alert, onClose, onSuccess }) {
       .then(({ data }) => {
         if (!data) return;
         setClientData(data);
-        const parts = (data.client_name || '').trim().split(/\s+/);
-        setPartC(prev => ({
-          ...prev,
-          subject_first_name: parts[0] || '',
-          subject_middle_name: parts.length > 2 ? parts.slice(1, -1).join(' ') : '',
-          subject_last_name: parts.length > 1 ? parts[parts.length - 1] : '',
-          subject_occupation: data.occupation || '',
-          subject_place_of_birth: data.place_of_birth || '',
-        }));
+
+        const isEntity = data.client_type && data.client_type !== 'individual';
+
+        if (isEntity) {
+          // Corporate/entity clients go to Part D — do NOT split their name into person fields
+          setPartD(prev => ({
+            ...prev,
+            entity_directors_summary: prev.entity_directors_summary || data.beneficial_owners_summary || '',
+          }));
+        } else {
+          // Individual clients go to Part C
+          const parts = (data.client_name || '').trim().split(/\s+/);
+          setPartC(prev => ({
+            ...prev,
+            subject_first_name: parts[0] || '',
+            subject_middle_name: parts.length > 2 ? parts.slice(1, -1).join(' ') : '',
+            subject_last_name: parts.length > 1 ? parts[parts.length - 1] : '',
+            subject_occupation: data.occupation || '',
+            subject_place_of_birth: data.place_of_birth || '',
+          }));
+        }
       });
   }, [alert?.client_id]);
 

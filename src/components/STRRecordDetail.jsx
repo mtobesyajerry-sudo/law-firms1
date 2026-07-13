@@ -185,16 +185,14 @@ function ConfirmFiledPanel({ record, onSuccess, onCancel }) {
 
 // PrintView — shown via window.print(), styled for paper
 function PrintView({ record, alertNumber }) {
-  const subjectName = [record.subject_first_name, record.subject_middle_name, record.subject_last_name].filter(Boolean).join(' ');
-  const indicators = (record.report_indicator_codes || []).concat(record.suspicion_indicators || []).filter(Boolean);
   return (
-    <div id="str-print-view" style={{ fontFamily: 'Georgia, serif', color: '#000', lineHeight: '1.6' }}>
+    <div id="str-print-view" style={{ fontFamily: 'Georgia, serif', color: '#000', lineHeight: '1.6', display: 'none' }}>
       <style>{`
         @media print {
-          body > *:not(#str-print-root) { display: none !important; }
-          #str-print-view { display: block !important; }
+          body * { visibility: hidden; }
+          #str-print-view, #str-print-view * { visibility: visible; display: revert; }
+          #str-print-view { position: absolute; top: 0; left: 0; width: 100%; }
         }
-        #str-print-view { display: none; }
       `}</style>
       <div style={{ borderBottom: '3px solid #000', paddingBottom: '12px', marginBottom: '20px' }}>
         <h1 style={{ margin: 0, fontSize: '18px' }}>SUSPICIOUS TRANSACTION REPORT</h1>
@@ -375,13 +373,12 @@ export default function STRRecordDetail() {
   };
 
   const handlePrint = () => {
-    // Show the hidden print view, trigger print, then hide it again
     const el = document.getElementById('str-print-view');
-    if (el) {
-      el.style.display = 'block';
-      window.print();
-      el.style.display = 'none';
-    }
+    if (!el) return;
+    el.style.display = 'block';
+    const hide = () => { el.style.display = 'none'; window.removeEventListener('afterprint', hide); };
+    window.addEventListener('afterprint', hide);
+    window.print();
   };
 
   if (loading) {
