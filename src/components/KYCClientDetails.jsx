@@ -941,14 +941,12 @@ export default function KYCClientDetails() {
                         <span style={styles.infoValue}>{new Date(client.next_screening_due).toLocaleDateString()}</span>
                       </div>
                     )}
-                    {client.transaction_monitoring_active !== null && (
-                      <div style={styles.infoRow}>
-                        <span style={styles.infoLabel}>Transaction Monitoring:</span>
-                        <span style={{...styles.infoValue, color: client.transaction_monitoring_active ? '#059669' : '#dc2626', fontWeight: '600'}}>
-                          {client.transaction_monitoring_active ? '✓ ACTIVE' : '✗ INACTIVE'}
-                        </span>
-                      </div>
-                    )}
+                    <div style={styles.infoRow}>
+                      <span style={styles.infoLabel}>Transaction Monitoring:</span>
+                      <span style={{...styles.infoValue, color: (client.alert_count > 0 || client.monitoring_status === 'active') ? '#059669' : '#6b7280', fontWeight: '600'}}>
+                        {(client.alert_count > 0 || client.monitoring_status === 'active') ? '✓ ACTIVE' : '— Not enrolled'}
+                      </span>
+                    </div>
                     {client.enhanced_monitoring_required && (
                       <div style={styles.infoRow}>
                         <span style={styles.infoLabel}>Enhanced Monitoring:</span>
