@@ -61,7 +61,7 @@ function fmtDt(date) {
 function ConfirmFiledPanel({ record, onSuccess, onCancel }) {
   const { user } = useAuth();
   const [fiuRef, setFiuRef] = useState(record.fiu_reference_number || '');
-  const [filedDate, setFiledDate] = useState(new Date().toISOString().slice(0, 10));
+  const [filedDate, setFiledDate] = useState(new Date().toISOString().slice(0, 16));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
 
@@ -168,10 +168,10 @@ function ConfirmFiledPanel({ record, onSuccess, onCancel }) {
             Date Filed with FIU <span style={{ color: '#dc2626' }}>*</span>
           </label>
           <input
-            type="date"
+            type="datetime-local"
             value={filedDate}
             onChange={e => setFiledDate(e.target.value)}
-            max={new Date().toISOString().slice(0, 10)}
+            max={new Date().toISOString().slice(0, 16)}
             style={{ width: '100%', padding: '8px 10px', border: '1px solid #86efac', borderRadius: '6px', fontSize: '13px', boxSizing: 'border-box', background: 'white' }}
           />
         </div>
