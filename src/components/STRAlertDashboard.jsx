@@ -58,7 +58,7 @@ export default function STRAlertDashboard() {
       const stats = {
         total: alerts.length,
         new: alerts.filter(a => a.investigation_status === 'new').length,
-        underReview: alerts.filter(a => a.investigation_status === 'under_investigation' || a.investigation_status === 'assigned').length,
+        underReview: alerts.filter(a => a.investigation_status === 'assigned').length,
         escalated: alerts.filter(a => a.investigation_status === 'escalated').length,
         resolved: alerts.filter(a => a.investigation_status?.startsWith('resolved_')).length,
         high: alerts.filter(a => a.alert_severity === 'high').length,
@@ -108,17 +108,12 @@ export default function STRAlertDashboard() {
       if (filters.status !== 'all') {
         const statusMap = {
           'New': 'new',
-          'In Progress': ['under_investigation', 'assigned'],
+          'In Progress': 'assigned',
           'Escalated': 'escalated',
           'Resolved': 'resolved_no_action',
           'Closed': 'resolved_str_filed'
         };
-        const mappedStatus = statusMap[filters.status];
-        if (Array.isArray(mappedStatus)) {
-          query = query.in('investigation_status', mappedStatus);
-        } else {
-          query = query.eq('investigation_status', mappedStatus || filters.status.toLowerCase());
-        }
+        query = query.eq('investigation_status', statusMap[filters.status] || filters.status.toLowerCase());
       }
 
       if (filters.severity !== 'all') {
@@ -187,7 +182,6 @@ export default function STRAlertDashboard() {
       'in progress': '#f59e0b',
       'in_progress': '#f59e0b',
       'assigned': '#f59e0b',
-      'under_investigation': '#f59e0b',
       'escalated': '#ef4444',
       'resolved': '#10b981',
       'closed': '#10b981',
@@ -281,52 +275,78 @@ export default function STRAlertDashboard() {
             <h2 style={styles.title}>Suspicious Transaction Reporting (STR) Dashboard</h2>
             <p style={styles.subtitle}>Monitor and manage alerts for regulatory compliance</p>
           </div>
-          <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '2px solid #d4af37', marginBottom: '24px' }}>
+          <div style={{ display: 'flex', gap: '0' }}>
+            <button
+              style={{
+                padding: '10px 24px',
+                background: 'transparent',
+                color: '#0a1929',
+                border: 'none',
+                borderBottom: '3px solid #d4af37',
+                cursor: 'default',
+                fontWeight: '700',
+                fontSize: '13px',
+                marginBottom: '-2px',
+              }}
+            >
+              STR Alerts
+            </button>
             {(profile?.role === 'compliance_officer' || profile?.role === 'admin' || profile?.role === 'system_admin' || profile?.role === 'mlro') && (
               <button
                 onClick={() => navigate('/str-records')}
                 style={{
-                  padding: '10px 20px',
-                  background: 'linear-gradient(135deg, #d4af37, #b8941f)',
-                  color: '#0a1929',
+                  padding: '10px 24px',
+                  background: 'transparent',
+                  color: '#4a5568',
                   border: 'none',
-                  borderRadius: '8px',
+                  borderBottom: '3px solid transparent',
                   cursor: 'pointer',
-                  fontWeight: '700',
+                  fontWeight: '600',
                   fontSize: '13px',
+                  marginBottom: '-2px',
+                  transition: 'all 0.2s ease',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.color = '#0a1929';
+                  e.currentTarget.style.borderBottomColor = 'rgba(212, 175, 55, 0.4)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.color = '#4a5568';
+                  e.currentTarget.style.borderBottomColor = 'transparent';
                 }}
               >
                 STR Records
               </button>
             )}
-            {profile?.role === 'management' && (
-              <button
-                onClick={() => navigate('/dashboard/management')}
-                style={{
-                  padding: '12px 24px',
-                  background: 'transparent',
-                  color: '#0a1929',
-                  border: '2px solid #d4af37',
-                  borderRadius: '8px',
-                  cursor: 'pointer',
-                  fontWeight: '600',
-                  fontSize: '14px',
-                  transition: 'all 0.2s ease',
-                  marginBottom: '16px'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = 'rgba(212, 175, 55, 0.1)';
-                  e.currentTarget.style.transform = 'translateY(-2px)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = 'transparent';
-                  e.currentTarget.style.transform = 'translateY(0)';
-                }}
-              >
-                ← Back
-              </button>
-            )}
           </div>
+          {profile?.role === 'management' && (
+            <button
+              onClick={() => navigate('/dashboard/management')}
+              style={{
+                padding: '8px 16px',
+                background: 'transparent',
+                color: '#0a1929',
+                border: '2px solid #d4af37',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontWeight: '600',
+                fontSize: '13px',
+                transition: 'all 0.2s ease',
+                marginBottom: '8px',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'rgba(212, 175, 55, 0.1)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'transparent';
+              }}
+            >
+              ← Back
+            </button>
+          )}
         </div>
 
         {statistics && (

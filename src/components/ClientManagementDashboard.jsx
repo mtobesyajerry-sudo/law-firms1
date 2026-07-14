@@ -86,7 +86,7 @@ export default function ClientManagementDashboard() {
           .from('transaction_alerts')
           .select('id, alert_type, risk_score, investigation_status')
           .eq('organization_id', organization.id)
-          .in('investigation_status', ['new', 'assigned', 'under_investigation'])
+          .in('investigation_status', ['new', 'assigned'])
           .order('created_at', { ascending: false })
           .limit(50),
         supabase

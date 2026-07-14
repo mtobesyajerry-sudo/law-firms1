@@ -109,24 +109,60 @@ export default function STRRecordsDashboard() {
       <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
 
         {/* Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '28px', flexWrap: 'wrap', gap: '16px' }}>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '6px' }}>
-              <button
-                onClick={() => navigate('/str-alerts')}
-                style={{ background: 'none', border: 'none', color: '#6b7280', fontSize: '13px', cursor: 'pointer', padding: 0 }}
-              >
-                ← Back to Alert Dashboard
-              </button>
-            </div>
-            <h1 style={{ margin: 0, fontSize: '28px', fontWeight: '800', color: '#0a1929' }}>STR Records</h1>
-            <p style={{ margin: '4px 0 0', fontSize: '14px', color: '#6b7280' }}>
-              Internal regulatory records — GN No. 397 (AML Regulations 2022) Reg 14
-            </p>
+        <div style={{ marginBottom: '4px' }}>
+          <h1 style={{ margin: 0, fontSize: '28px', fontWeight: '800', color: '#0a1929' }}>Suspicious Transaction Reporting (STR) Dashboard</h1>
+          <p style={{ margin: '4px 0 0', fontSize: '14px', color: '#6b7280' }}>
+            Internal regulatory records — GN No. 397 (AML Regulations 2022) Reg 14
+          </p>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '2px solid #d4af37', marginBottom: '24px' }}>
+          <div style={{ display: 'flex', gap: '0' }}>
+            <button
+              onClick={() => navigate('/str-alerts')}
+              style={{
+                padding: '10px 24px',
+                background: 'transparent',
+                color: '#4a5568',
+                border: 'none',
+                borderBottom: '3px solid transparent',
+                cursor: 'pointer',
+                fontWeight: '600',
+                fontSize: '13px',
+                marginBottom: '-2px',
+                transition: 'all 0.2s ease',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.color = '#0a1929';
+                e.currentTarget.style.borderBottomColor = 'rgba(212, 175, 55, 0.4)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.color = '#4a5568';
+                e.currentTarget.style.borderBottomColor = 'transparent';
+              }}
+            >
+              STR Alerts
+            </button>
+            <button
+              style={{
+                padding: '10px 24px',
+                background: 'transparent',
+                color: '#0a1929',
+                border: 'none',
+                borderBottom: '3px solid #d4af37',
+                cursor: 'default',
+                fontWeight: '700',
+                fontSize: '13px',
+                marginBottom: '-2px',
+              }}
+            >
+              STR Records
+            </button>
           </div>
-          <div style={{ padding: '10px 16px', borderRadius: '10px', background: '#fffbeb', border: '1px solid #fcd34d', fontSize: '12px', color: '#92400e', maxWidth: '340px', lineHeight: '1.5' }}>
-            <strong>Two-step process:</strong> Save internally here first, then file with FIU via goAML separately, then return to mark as filed.
-          </div>
+        </div>
+
+        <div style={{ padding: '10px 16px', borderRadius: '10px', background: '#fffbeb', border: '1px solid #fcd34d', fontSize: '12px', color: '#92400e', maxWidth: '340px', lineHeight: '1.5', marginBottom: '24px' }}>
+          <strong>Two-step process:</strong> Save internally here first, then file with FIU via goAML separately, then return to mark as filed.
         </div>
 
         {/* Stats */}

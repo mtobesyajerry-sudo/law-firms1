@@ -141,7 +141,7 @@ export default function ComplianceOfficerDashboard() {
           .from('client_red_flag_incidents')
           .select('id, investigation_status')
           .eq('organization_id', profile.organization_id)
-          .in('investigation_status', ['identified', 'under_investigation']),
+          .in('investigation_status', ['identified']),
 
         supabase
           .from('conflict_checks')
