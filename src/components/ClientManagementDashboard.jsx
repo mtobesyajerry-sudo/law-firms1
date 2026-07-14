@@ -193,8 +193,8 @@ export default function ClientManagementDashboard() {
       setStatistics({
         totalClients: clients.length,
         activeMatters: mattersData.filter(m => m.status === 'active').length,
-        pendingReviews: clients.filter(c => c.kyc_status === 'pending_review').length,
-        highRiskClients: clients.filter(c => c.risk_rating === 'high').length,
+        pendingReviews: clients.filter(c => c.onboarding_status === 'pending').length,
+        highRiskClients: clients.filter(c => c.current_risk_rating?.toLowerCase() === 'high').length,
         sanctionedClients: clients.filter(c => c.sanctions_screening_status === 'match_found' || c.pep_status === 'confirmed').length,
         openAlerts: alertsData.length,
         matterAlerts: matterAlertsData.length,
@@ -1356,19 +1356,19 @@ export default function ClientManagementDashboard() {
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                       <span style={{ fontSize: '13px', color: '#475569' }}>Low Risk</span>
                       <span style={{ fontSize: '13px', fontWeight: '600', color: '#10b981' }}>
-                        {kycClients.filter(c => c.risk_rating === 'low').length}
+                        {kycClients.filter(c => c.current_risk_rating?.toLowerCase() === 'low').length}
                       </span>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                       <span style={{ fontSize: '13px', color: '#475569' }}>Medium Risk</span>
                       <span style={{ fontSize: '13px', fontWeight: '600', color: '#f59e0b' }}>
-                        {kycClients.filter(c => c.risk_rating === 'medium').length}
+                        {kycClients.filter(c => c.current_risk_rating?.toLowerCase() === 'medium').length}
                       </span>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                       <span style={{ fontSize: '13px', color: '#475569' }}>High Risk</span>
                       <span style={{ fontSize: '13px', fontWeight: '600', color: '#ef4444' }}>
-                        {kycClients.filter(c => c.risk_rating === 'high').length}
+                        {kycClients.filter(c => c.current_risk_rating?.toLowerCase() === 'high').length}
                       </span>
                     </div>
                   </div>
@@ -1488,20 +1488,20 @@ export default function ClientManagementDashboard() {
                             borderRadius: '6px',
                             fontSize: '12px',
                             fontWeight: '600',
-                            background: client.risk_rating === 'high' ? '#fee2e2' : client.risk_rating === 'medium' ? '#fef3c7' : '#dcfce7',
-                            color: client.risk_rating === 'high' ? '#dc2626' : client.risk_rating === 'medium' ? '#f59e0b' : '#16a34a'
+                            background: client.current_risk_rating?.toLowerCase() === 'high' ? '#fee2e2' : client.current_risk_rating?.toLowerCase() === 'medium' ? '#fef3c7' : client.current_risk_rating?.toLowerCase() === 'low' ? '#dcfce7' : '#f1f5f9',
+                            color: client.current_risk_rating?.toLowerCase() === 'high' ? '#dc2626' : client.current_risk_rating?.toLowerCase() === 'medium' ? '#f59e0b' : client.current_risk_rating?.toLowerCase() === 'low' ? '#16a34a' : '#64748b'
                           }}>
-                            {client.risk_rating?.toUpperCase() || 'UNRATED'}
+                            {client.current_risk_rating?.toUpperCase() || 'UNRATED'}
                           </div>
                           <div style={{
                             padding: '4px 12px',
                             borderRadius: '6px',
                             fontSize: '12px',
                             fontWeight: '600',
-                            background: client.kyc_status === 'approved' ? '#dcfce7' : '#fef3c7',
-                            color: client.kyc_status === 'approved' ? '#16a34a' : '#f59e0b'
+                            background: client.onboarding_status === 'completed' ? '#dcfce7' : client.onboarding_status === 'in_progress' ? '#fef3c7' : '#f1f5f9',
+                            color: client.onboarding_status === 'completed' ? '#16a34a' : client.onboarding_status === 'in_progress' ? '#f59e0b' : '#64748b'
                           }}>
-                            {client.kyc_status ? client.kyc_status.replace('_', ' ').toUpperCase() : 'PENDING'}
+                            {client.onboarding_status ? client.onboarding_status.replace('_', ' ').toUpperCase() : 'PENDING'}
                           </div>
                         </div>
                       </div>
