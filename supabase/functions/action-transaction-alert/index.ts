@@ -66,7 +66,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const allowedRoles = ["compliance_officer", "admin", "system_admin"];
+    const allowedRoles = ["compliance_officer", "mlro", "admin", "system_admin"];
     if (!allowedRoles.includes(profile.role)) {
       return new Response(JSON.stringify({ error: "Forbidden: only Compliance Officers may action transaction alerts" }), {
         status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
