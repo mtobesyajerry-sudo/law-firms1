@@ -145,7 +145,7 @@ export default function STRFilingModal({ alert, onClose, onSuccess }) {
           // Corporate/entity clients go to Part D — do NOT split their name into person fields
           setPartD(prev => ({
             ...prev,
-            entity_directors_summary: prev.entity_directors_summary || data.beneficial_owners_summary || '',
+            entity_directors_summary: prev.entity_directors_summary || (typeof data.beneficial_owners === 'string' ? data.beneficial_owners : JSON.stringify(data.beneficial_owners || [])) || '',
           }));
         } else {
           // Individual clients go to Part C
@@ -155,8 +155,8 @@ export default function STRFilingModal({ alert, onClose, onSuccess }) {
             subject_first_name: parts[0] || '',
             subject_middle_name: parts.length > 2 ? parts.slice(1, -1).join(' ') : '',
             subject_last_name: parts.length > 1 ? parts[parts.length - 1] : '',
-            subject_occupation: data.occupation || '',
-            subject_place_of_birth: data.place_of_birth || '',
+            subject_occupation: data.business_activity || '',
+            subject_place_of_birth: data.country_of_residence || '',
           }));
         }
       });

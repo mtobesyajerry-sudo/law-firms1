@@ -125,7 +125,7 @@ export const integrationService = {
       factors.push({ name: 'PEP Status', value: 4, weight: 15 });
     }
 
-    if (client.is_sanctioned) {
+    if (client.sanctioned_entity) {
       riskScore += 5 * 15;
       factors.push({ name: 'Sanctions Match', value: 5, weight: 15 });
     }
@@ -172,7 +172,7 @@ export const integrationService = {
       });
     }
 
-    if (alertStats.strFiled > 0 && !client.enhanced_monitoring_required) {
+    if (alertStats.strFiled > 0 && !client.enhanced_dd_required) {
       recommendations.push({
         priority: 'High',
         action: 'Enable Enhanced Monitoring',
@@ -579,8 +579,8 @@ export const integrationService = {
           .from('kyc_clients')
           .update({
             current_risk_rating: newRating,
-            enhanced_monitoring_required: true,
-            enhanced_monitoring_reason: reason,
+            enhanced_dd_required: true,
+            edd_reason: reason,
             updated_at: new Date().toISOString()
           })
           .eq('id', clientId);

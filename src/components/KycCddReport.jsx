@@ -40,7 +40,7 @@ export default function KycCddReport({ recordId: propRecordId, onClose }) {
       setLoading(true);
       const { data, error } = await supabase
         .from('kyc_clients_decrypted')
-        .select('*')
+        .select('*, organizations(name)')
         .eq('id', recordId)
         .maybeSingle();
 
@@ -251,7 +251,7 @@ export default function KycCddReport({ recordId: propRecordId, onClose }) {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px 20px' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
               <span style={{ fontSize: '11px', fontWeight: '600', color: '#6c757d', textTransform: 'uppercase' }}>Organization Name</span>
-              <span style={{ fontSize: '14px', fontWeight: '600', color: '#2c3e50' }}>{record.organization_name}</span>
+              <span style={{ fontSize: '14px', fontWeight: '600', color: '#2c3e50' }}>{record.organizations?.name || 'N/A'}</span>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
               <span style={{ fontSize: '11px', fontWeight: '600', color: '#6c757d', textTransform: 'uppercase' }}>Customer Type</span>

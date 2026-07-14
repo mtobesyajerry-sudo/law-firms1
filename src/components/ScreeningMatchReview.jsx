@@ -368,7 +368,7 @@ export default function ScreeningMatchReview() {
                   }}
                 >
                   <div style={{ fontWeight: '600', color: '#0a1929', marginBottom: '8px', fontSize: '15px' }}>
-                    {result.client?.full_name || result.client?.client_name || 'Unknown Client'}
+                    {result.client?.client_name || 'Unknown Client'}
                   </div>
                   <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '8px' }}>
                     {result.match_count} match{result.match_count !== 1 ? 'es' : ''} found • {result.screening_type}
@@ -438,7 +438,7 @@ export default function ScreeningMatchReview() {
                       MATCH REVIEW
                     </div>
                     <h2 style={{ fontSize: '24px', fontWeight: '700', color: '#ffffff', marginBottom: '8px' }}>
-                      {selectedResult.client?.full_name || selectedResult.client?.client_name || 'Unknown Client'}
+                      {selectedResult.client?.client_name || 'Unknown Client'}
                     </h2>
                     <p style={{ fontSize: '14px', color: 'rgba(255,255,255,0.8)' }}>
                       {selectedResult.client?.client_type || 'Individual'} • Risk Level: {selectedResult.client?.risk_level || 'N/A'}

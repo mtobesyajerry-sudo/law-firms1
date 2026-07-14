@@ -823,7 +823,7 @@ function ClientsList({ organizationId, navigate, initialFilter }) {
         if (initialFilter === 'high_risk') {
           query = query.eq('risk_level', 'high');
         } else if (initialFilter === 'pep') {
-          query = query.eq('is_pep', true);
+          query = query.eq('pep_status', true);
         } else if (initialFilter === 'overdue') {
           query = query.lt('next_review_date', todayEAT());
         }
@@ -872,7 +872,7 @@ function ClientsList({ organizationId, navigate, initialFilter }) {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: '16px', fontWeight: '600', color: '#0a1929', marginBottom: '8px' }}>
-                {client.client_name || client.full_name}
+                {client.client_name || ''}
               </div>
               <div style={{ fontSize: '13px', color: '#64748b', marginBottom: '4px' }}>
                 {client.client_type === 'individual' ? 'Individual Client' : 'Legal Entity'}
@@ -889,20 +889,20 @@ function ClientsList({ organizationId, navigate, initialFilter }) {
                 borderRadius: '6px',
                 fontSize: '12px',
                 fontWeight: '600',
-                background: client.risk_rating === 'high' ? '#fee2e2' : client.risk_rating === 'medium' ? '#fef3c7' : '#dcfce7',
-                color: client.risk_rating === 'high' ? '#dc2626' : client.risk_rating === 'medium' ? '#f59e0b' : '#16a34a'
+                background: client.current_risk_rating === 'high' ? '#fee2e2' : client.current_risk_rating === 'medium' ? '#fef3c7' : '#dcfce7',
+                color: client.current_risk_rating === 'high' ? '#dc2626' : client.current_risk_rating === 'medium' ? '#f59e0b' : '#16a34a'
               }}>
-                {client.risk_rating?.toUpperCase() || 'UNRATED'}
+                {client.current_risk_rating?.toUpperCase() || 'UNRATED'}
               </div>
               <div style={{
                 padding: '4px 12px',
                 borderRadius: '6px',
                 fontSize: '12px',
                 fontWeight: '600',
-                background: client.kyc_status === 'approved' ? '#dcfce7' : '#fef3c7',
-                color: client.kyc_status === 'approved' ? '#16a34a' : '#f59e0b'
+                background: client.onboarding_status === 'approved' ? '#dcfce7' : '#fef3c7',
+                color: client.onboarding_status === 'approved' ? '#16a34a' : '#f59e0b'
               }}>
-                {client.kyc_status ? client.kyc_status.replace('_', ' ').toUpperCase() : 'PENDING'}
+                {client.onboarding_status ? client.onboarding_status.replace('_', ' ').toUpperCase() : 'PENDING'}
               </div>
             </div>
           </div>

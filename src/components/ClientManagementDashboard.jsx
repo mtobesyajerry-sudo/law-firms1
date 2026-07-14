@@ -84,7 +84,7 @@ export default function ClientManagementDashboard() {
       const optionalQueries = await Promise.allSettled([
         supabase
           .from('transaction_alerts')
-          .select('id, alert_type, risk_score, investigation_status')
+          .select('id, alert_type, alert_severity, alert_score, investigation_status')
           .eq('organization_id', organization.id)
           .in('investigation_status', ['new', 'assigned'])
           .order('created_at', { ascending: false })
@@ -195,7 +195,7 @@ export default function ClientManagementDashboard() {
         activeMatters: mattersData.filter(m => m.status === 'active').length,
         pendingReviews: clients.filter(c => c.onboarding_status === 'pending').length,
         highRiskClients: clients.filter(c => c.current_risk_rating?.toLowerCase() === 'high').length,
-        sanctionedClients: clients.filter(c => c.sanctions_screening_status === 'match_found' || c.pep_status === 'confirmed').length,
+        sanctionedClients: clients.filter(c => (c.sanctions_screening?.status === 'match_found') || c.pep_status === 'confirmed').length,
         openAlerts: alertsData.length,
         matterAlerts: matterAlertsData.length,
         pendingRoleRequests: roleRequests.filter(r => r.status === 'pending' && r.user_id !== profile?.id).length,
@@ -1471,7 +1471,7 @@ export default function ClientManagementDashboard() {
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                         <div style={{ flex: 1 }}>
                           <div style={{ fontSize: '16px', fontWeight: '600', color: '#0a1929', marginBottom: '8px' }}>
-                            {client.client_name || client.full_name}
+                            {client.client_name || ''}
                           </div>
                           <div style={{ fontSize: '13px', color: '#64748b', marginBottom: '4px' }}>
                             {client.client_type === 'individual' ? 'Individual Client' : 'Legal Entity'}
@@ -1633,7 +1633,7 @@ export default function ClientManagementDashboard() {
                             {alert.alert_type ? alert.alert_type.replace('_', ' ').toUpperCase() : 'ALERT'}
                           </div>
                           <div style={{ fontSize: '13px', color: '#64748b', marginBottom: '4px' }}>
-                            Severity: {alert.severity?.toUpperCase() || 'UNKNOWN'}
+                            Severity: {alert.alert_severity?.toUpperCase() || 'UNKNOWN'}
                           </div>
                           <div style={{ fontSize: '13px', color: '#64748b' }}>
                             Created: {fmtDate(alert.created_at)}

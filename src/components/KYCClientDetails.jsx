@@ -637,7 +637,7 @@ export default function KYCClientDetails() {
             <h1 style={styles.title}>{client.client_name}</h1>
             <div style={styles.headerMeta}>
               <span>{client.client_type === 'individual' ? 'Individual Client' : 'Legal Entity'}</span>
-              {client.is_pep && <span>• PEP Status</span>}
+              {client.pep_status && <span>• PEP Status</span>}
             </div>
           </div>
           <div style={styles.headerBadges}>
@@ -834,10 +834,10 @@ export default function KYCClientDetails() {
                         {client.client_type === 'individual' ? 'Individual' : 'Legal Entity'}
                       </span>
                     </div>
-                    {client.id_number && (
+                    {client.national_id && (
                       <div style={styles.infoRow}>
                         <span style={styles.infoLabel}>ID Number:</span>
-                        <span style={styles.infoValue}>{client.id_number}</span>
+                        <span style={styles.infoValue}>{client.national_id}</span>
                       </div>
                     )}
                     {client.date_of_birth && (
@@ -916,18 +916,17 @@ export default function KYCClientDetails() {
                         <span style={styles.infoValue}>{client.source_of_wealth}</span>
                       </div>
                     )}
-                    {client.estimated_annual_turnover && (
+                    {client.estimated_annual_income && (
                       <div style={styles.infoRow}>
-                        <span style={styles.infoLabel}>Est. Annual Turnover:</span>
-                        <span style={styles.infoValue}>{client.estimated_annual_turnover}</span>
+                        <span style={styles.infoLabel}>Est. Annual Income:</span>
+                        <span style={styles.infoValue}>{client.estimated_annual_income}</span>
                       </div>
                     )}
-                    {client.expected_monthly_volume_tzs && (
+                    {client.expected_transaction_volume && (
                       <div style={styles.infoRow}>
-                        <span style={styles.infoLabel}>Expected Monthly Volume:</span>
+                        <span style={styles.infoLabel}>Expected Transaction Volume:</span>
                         <span style={styles.infoValue}>
-                          TZS {parseInt(client.expected_monthly_volume_tzs).toLocaleString()}
-                          {client.expected_monthly_volume_usd && ` (~ USD ${parseInt(client.expected_monthly_volume_usd).toLocaleString()})`}
+                          {client.expected_transaction_volume.toLocaleString()}
                         </span>
                       </div>
                     )}
@@ -1009,7 +1008,7 @@ export default function KYCClientDetails() {
                         {(client.alert_count > 0 || client.monitoring_status === 'active') ? '✓ ACTIVE' : '— Not enrolled'}
                       </span>
                     </div>
-                    {client.enhanced_monitoring_required && (
+                    {client.enhanced_dd_required && (
                       <div style={styles.infoRow}>
                         <span style={styles.infoLabel}>Enhanced Monitoring:</span>
                         <span style={{...styles.infoValue, color: '#dc2626', fontWeight: '600'}}>
@@ -1017,11 +1016,11 @@ export default function KYCClientDetails() {
                         </span>
                       </div>
                     )}
-                    {client.enhanced_monitoring_reason && (
+                    {client.edd_reason && (
                       <div style={styles.infoRow}>
                         <span style={styles.infoLabel}>Monitoring Reason:</span>
                         <span style={{...styles.infoValue, fontSize: '11px', color: '#dc2626'}}>
-                          {client.enhanced_monitoring_reason}
+                          {client.edd_reason}
                         </span>
                       </div>
                     )}
@@ -1359,23 +1358,23 @@ export default function KYCClientDetails() {
                 </div>
               </div>
 
-              {client.is_pep && (
+              {client.pep_status && (
                 <div style={styles.riskAlert}>
                   <strong>PEP Status:</strong> This client is a Politically Exposed Person
                 </div>
               )}
 
-              {client.sanctions_screening_result && (
+              {client.sanctions_screening && (
                 <div style={styles.infoRow}>
                   <span style={styles.infoLabel}>Sanctions Screening:</span>
-                  <span style={styles.infoValue}>{client.sanctions_screening_result}</span>
+                  <span style={styles.infoValue}>{client.sanctions_screening?.status || JSON.stringify(client.sanctions_screening)}</span>
                 </div>
               )}
 
-              {client.adverse_media_findings && (
+              {client.adverse_media && (
                 <div style={styles.infoRow}>
                   <span style={styles.infoLabel}>Adverse Media:</span>
-                  <span style={styles.infoValue}>{client.adverse_media_findings}</span>
+                  <span style={styles.infoValue}>Flagged</span>
                 </div>
               )}
             </div>
