@@ -58,12 +58,15 @@ export async function rescreenClient(clientId, options = {}) {
 // 3. Fetch screening history
 // ---------------------------------------------------------------------
 export async function getScreeningHistory({ status, page = 1, pageSize = 25 } = {}) {
+  // organizations!inner excludes rows whose organization_id doesn't exist in organizations —
+  // i.e. orphaned/test screenings that have no real org owner.
   let query = supabase
     .from('screening_results')
     .select(`
       id, screened_name, screened_dob, screened_nationality,
       match_count, highest_score, overall_risk, status, opensanctions_used,
-      screened_at, screened_by, client_id
+      screened_at, screened_by, client_id,
+      organizations!inner(id)
     `, { count: 'exact' })
     .order('screened_at', { ascending: false })
     .range((page - 1) * pageSize, page * pageSize - 1);
@@ -98,12 +101,16 @@ export async function getScreeningHistory({ status, page = 1, pageSize = 25 } = 
 // 4. Dashboard summary counters
 // ---------------------------------------------------------------------
 export async function getDashboardCounters() {
+  // All counts use an inner join to organizations so rows with dangling/non-existent
+  // organization_id values are excluded. screening_results and screening_matches have
+  // no FK constraint on organization_id (tracked as backlog item), so this join is the
+  // defensive guard that prevents orphaned test/system rows from inflating stat cards.
   const [total, matches, pending, cleared, highRisk] = await Promise.all([
-    supabase.from('screening_results').select('id', { count: 'exact', head: true }),
-    supabase.from('screening_results').select('id', { count: 'exact', head: true }).gt('match_count', 0),
-    supabase.from('screening_matches').select('id', { count: 'exact', head: true }).eq('status', 'pending_review'),
-    supabase.from('screening_results').select('id', { count: 'exact', head: true }).eq('status', 'cleared'),
-    supabase.from('screening_results').select('id', { count: 'exact', head: true }).in('overall_risk', ['high', 'critical']),
+    supabase.from('screening_results').select('id, organizations!inner(id)', { count: 'exact', head: true }),
+    supabase.from('screening_results').select('id, organizations!inner(id)', { count: 'exact', head: true }).gt('match_count', 0),
+    supabase.from('screening_matches').select('id, organizations!inner(id)', { count: 'exact', head: true }).eq('status', 'pending_review'),
+    supabase.from('screening_results').select('id, organizations!inner(id)', { count: 'exact', head: true }).eq('status', 'cleared'),
+    supabase.from('screening_results').select('id, organizations!inner(id)', { count: 'exact', head: true }).in('overall_risk', ['high', 'critical']),
   ]);
   return {
     total: total.count ?? 0,
