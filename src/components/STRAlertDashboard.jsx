@@ -108,12 +108,17 @@ export default function STRAlertDashboard() {
       if (filters.status !== 'all') {
         const statusMap = {
           'New': 'new',
-          'In Progress': 'under_investigation',
+          'In Progress': ['under_investigation', 'assigned'],
           'Escalated': 'escalated',
           'Resolved': 'resolved_no_action',
           'Closed': 'resolved_str_filed'
         };
-        query = query.eq('investigation_status', statusMap[filters.status] || filters.status.toLowerCase());
+        const mappedStatus = statusMap[filters.status];
+        if (Array.isArray(mappedStatus)) {
+          query = query.in('investigation_status', mappedStatus);
+        } else {
+          query = query.eq('investigation_status', mappedStatus || filters.status.toLowerCase());
+        }
       }
 
       if (filters.severity !== 'all') {
@@ -181,6 +186,8 @@ export default function STRAlertDashboard() {
       'new': '#3b82f6',
       'in progress': '#f59e0b',
       'in_progress': '#f59e0b',
+      'assigned': '#f59e0b',
+      'under_investigation': '#f59e0b',
       'escalated': '#ef4444',
       'resolved': '#10b981',
       'closed': '#10b981',
