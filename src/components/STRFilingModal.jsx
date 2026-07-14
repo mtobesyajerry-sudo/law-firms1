@@ -156,7 +156,7 @@ export default function STRFilingModal({ alert, onClose, onSuccess }) {
             subject_middle_name: parts.length > 2 ? parts.slice(1, -1).join(' ') : '',
             subject_last_name: parts.length > 1 ? parts[parts.length - 1] : '',
             subject_occupation: data.business_activity || '',
-            subject_place_of_birth: data.country_of_residence || '',
+            subject_place_of_birth: '',
           }));
         }
       });
