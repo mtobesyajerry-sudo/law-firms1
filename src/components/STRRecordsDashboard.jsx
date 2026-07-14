@@ -159,6 +159,28 @@ export default function STRRecordsDashboard() {
               STR Records
             </button>
           </div>
+          <button
+            onClick={() => {
+              if (profile?.role === 'admin' || profile?.role === 'system_admin') navigate('/admin/dashboard');
+              else if (profile?.role === 'management' || profile?.role === 'senior_partner') navigate('/dashboard/management');
+              else navigate('/dashboard/compliance');
+            }}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: '#6b7280',
+              fontSize: '13px',
+              cursor: 'pointer',
+              padding: 0,
+              marginBottom: '8px',
+              fontWeight: '500',
+              transition: 'color 0.2s ease',
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.color = '#0a1929'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.color = '#6b7280'; }}
+          >
+            ← Back to Dashboard
+          </button>
         </div>
 
         <div style={{ padding: '10px 16px', borderRadius: '10px', background: '#fffbeb', border: '1px solid #fcd34d', fontSize: '12px', color: '#92400e', maxWidth: '340px', lineHeight: '1.5', marginBottom: '24px' }}>

@@ -322,31 +322,28 @@ export default function STRAlertDashboard() {
               </button>
             )}
           </div>
-          {profile?.role === 'management' && (
-            <button
-              onClick={() => navigate('/dashboard/management')}
-              style={{
-                padding: '8px 16px',
-                background: 'transparent',
-                color: '#0a1929',
-                border: '2px solid #d4af37',
-                borderRadius: '8px',
-                cursor: 'pointer',
-                fontWeight: '600',
-                fontSize: '13px',
-                transition: 'all 0.2s ease',
-                marginBottom: '8px',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = 'rgba(212, 175, 55, 0.1)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'transparent';
-              }}
-            >
-              ← Back
-            </button>
-          )}
+          <button
+            onClick={() => {
+              if (profile?.role === 'admin' || profile?.role === 'system_admin') navigate('/admin/dashboard');
+              else if (profile?.role === 'management' || profile?.role === 'senior_partner') navigate('/dashboard/management');
+              else navigate('/dashboard/compliance');
+            }}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: '#6b7280',
+              fontSize: '13px',
+              cursor: 'pointer',
+              padding: 0,
+              marginBottom: '8px',
+              fontWeight: '500',
+              transition: 'color 0.2s ease',
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.color = '#0a1929'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.color = '#6b7280'; }}
+          >
+            ← Back to Dashboard
+          </button>
         </div>
 
         {statistics && (
