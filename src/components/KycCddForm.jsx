@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { kycSections, KYC_SECTIONS } from '../data/kycCddData';
 import { lawFirmKycSections } from '../data/lawFirmKycData';
 import { calculateKycRiskScore, validateKycSection, getNextReviewDate, checkSuspiciousActivity } from '../utils/kycRiskCalculator';
+import { calculateLawFirmKycRisk } from '../utils/lawFirmKycRiskCalculator';
 import { calculateRiskScore as calculateInsuranceRiskScore, beneficiaryRiskFactors } from '../data/insuranceKycData';
 import { isKycComplete } from '../utils/kycCompleteness';
 
@@ -661,16 +662,29 @@ export default function KycCddForm({ recordId: propRecordId, onSave, onCancel })
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
-      const riskCalculation = calculateKycRiskScore({
-        customer_data: formData.customer_data,
-        policy_information: formData.policy_information,
-        source_of_funds: formData.source_of_funds,
-        pep_declaration: formData.pep_declaration,
-        customer_risk: formData.customer_risk,
-        ongoing_monitoring: formData.ongoing_monitoring,
-        suspicious_indicators: formData.suspicious_indicators,
-        beneficiaries: formData.beneficiaries
-      });
+      // Law firms use a dedicated calculator that reads lawFirmKycData field ids
+      // (§7 client-account factors, §6 R.22 activities, §5 service type, §11 risk
+      // assessment, §9 PEP, §10 sanctions, §8 high-risk jurisdiction, §12 red flags).
+      // Insurance and all other sectors keep the existing calculateKycRiskScore path.
+      const riskCalculation = isLawFirm
+        ? calculateLawFirmKycRisk({
+            customer_data: formData.customer_data,
+            source_of_funds: formData.source_of_funds,
+            pep_declaration: formData.pep_declaration,
+            sanctions_screening: formData.sanctions_screening,
+            customer_risk: formData.customer_risk,
+            suspicious_indicators: formData.suspicious_indicators,
+          })
+        : calculateKycRiskScore({
+            customer_data: formData.customer_data,
+            policy_information: formData.policy_information,
+            source_of_funds: formData.source_of_funds,
+            pep_declaration: formData.pep_declaration,
+            customer_risk: formData.customer_risk,
+            ongoing_monitoring: formData.ongoing_monitoring,
+            suspicious_indicators: formData.suspicious_indicators,
+            beneficiaries: formData.beneficiaries
+          });
 
       // Insurance-specific beneficiary/payer risk overlay
       const insuranceRiskScore = isInsurance

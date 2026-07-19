@@ -470,7 +470,7 @@ export default function MatterMilestones({ matterId, organizationId, onMilestone
                         <span style={styles.milestoneLabel}>Date & Time</span>
                         <span style={styles.milestoneValue}>
                           {fmtDate(milestone.milestone_date)}
-                          {milestone.milestone_time && ` at ${milestone.milestone_time}`}}
+                          {milestone.milestone_time && ` at ${milestone.milestone_time}`}
                         </span>
                       </div>
                     </div>
