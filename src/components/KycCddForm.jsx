@@ -3,15 +3,53 @@ import { useParams } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
 import { kycSections, KYC_SECTIONS } from '../data/kycCddData';
+import { lawFirmKycSections } from '../data/lawFirmKycData';
 import { calculateKycRiskScore, validateKycSection, getNextReviewDate, checkSuspiciousActivity } from '../utils/kycRiskCalculator';
 import { calculateRiskScore as calculateInsuranceRiskScore, beneficiaryRiskFactors } from '../data/insuranceKycData';
 import { isKycComplete } from '../utils/kycCompleteness';
+
+// Maps a section.id to the formData key that holds its fields. Works for both
+// insurance (kycCddData.js / KYC_SECTIONS enum ids) and law-firm
+// (lawFirmKycData.js string ids) section lists.
+const SECTION_TO_FORM_KEY = {
+  [KYC_SECTIONS.NATURAL_PERSON]: 'customer_data',
+  [KYC_SECTIONS.LEGAL_ENTITY]: 'customer_data',
+  [KYC_SECTIONS.PERSON_ACTING]: 'customer_data',
+  [KYC_SECTIONS.POLICY_INFO]: 'policy_information',
+  [KYC_SECTIONS.SOURCE_FUNDS]: 'source_of_funds',
+  [KYC_SECTIONS.PEP_DECLARATION]: 'pep_declaration',
+  [KYC_SECTIONS.SANCTIONS_SCREENING]: 'sanctions_screening',
+  [KYC_SECTIONS.CUSTOMER_RISK]: 'customer_risk',
+  [KYC_SECTIONS.ONGOING_MONITORING]: 'ongoing_monitoring',
+  [KYC_SECTIONS.SUSPICIOUS_INDICATORS]: 'suspicious_indicators',
+  [KYC_SECTIONS.CUSTOMER_DECLARATION]: 'customer_declaration',
+  [KYC_SECTIONS.INSURER_USE]: 'compliance_approval',
+  // Law-firm section ids (lawFirmKycData.js)
+  'client_profile_natural': 'customer_data',
+  'client_profile_entity': 'customer_data',
+  'beneficial_ownership': 'customer_data',
+  'person_acting': 'customer_data',
+  'matter_scope': 'customer_data',
+  'designated_activity': 'customer_data',
+  'client_account': 'customer_data',
+  'source_of_funds': 'source_of_funds',
+  'pep_declaration': 'pep_declaration',
+  'sanctions_screening': 'sanctions_screening',
+  'client_risk_assessment': 'customer_risk',
+  'red_flags': 'suspicious_indicators',
+  'ongoing_monitoring': 'ongoing_monitoring',
+  'declaration_approval': 'customer_declaration',
+};
 
 export default function KycCddForm({ recordId: propRecordId, onSave, onCancel }) {
   const { id: paramId } = useParams();
   const { profile, organization } = useAuth();
   const recordId = propRecordId || paramId;
   const isInsurance = organization?.sector === 'insurance' || organization?.sector === 'insurer';
+  const isLawFirm = organization?.sector === 'law_firm';
+  // Sector-selected section list. Law firms render lawFirmKycSections (lawFirmKycData.js);
+  // insurance/insurer and any other sector render kycSections (kycCddData.js).
+  const activeSections = isLawFirm ? lawFirmKycSections : kycSections;
   const [currentSection, setCurrentSection] = useState(0);
   const [customerType, setCustomerType] = useState('natural_person');
   const [formData, setFormData] = useState({});
@@ -150,87 +188,38 @@ export default function KycCddForm({ recordId: propRecordId, onSave, onCancel })
   };
 
   const getSectionData = (section) => {
-    switch (section.id) {
-      case KYC_SECTIONS.NATURAL_PERSON:
-      case KYC_SECTIONS.LEGAL_ENTITY:
-        return formData.customer_data || {};
-      case KYC_SECTIONS.BENEFICIAL_OWNERSHIP:
-        return { beneficial_owners: formData.beneficial_owners || [] };
-      case KYC_SECTIONS.PERSON_ACTING:
-        return formData.customer_data || {};
-      case KYC_SECTIONS.POLICY_INFO:
-        return formData.policy_information || {};
-      case KYC_SECTIONS.BENEFICIARY_INFO:
-        return { beneficiaries: formData.beneficiaries || [] };
-      case KYC_SECTIONS.SOURCE_FUNDS:
-        return formData.source_of_funds || {};
-      case KYC_SECTIONS.PEP_DECLARATION:
-        return formData.pep_declaration || {};
-      case KYC_SECTIONS.SANCTIONS_SCREENING:
-        return formData.sanctions_screening || {};
-      case KYC_SECTIONS.CUSTOMER_RISK:
-        return formData.customer_risk || {};
-      case KYC_SECTIONS.ONGOING_MONITORING:
-        return formData.ongoing_monitoring || {};
-      case KYC_SECTIONS.SUSPICIOUS_INDICATORS:
-        return formData.suspicious_indicators || {};
-      case KYC_SECTIONS.CUSTOMER_DECLARATION:
-        return formData.customer_declaration || {};
-      case KYC_SECTIONS.INSURER_USE:
-        return formData.compliance_approval || {};
-      default:
-        return {};
+    // Insurance-only repeater sections carry arrays, not plain objects.
+    if (!isLawFirm && section.id === KYC_SECTIONS.BENEFICIAL_OWNERSHIP) {
+      return { beneficial_owners: formData.beneficial_owners || [] };
     }
+    if (!isLawFirm && section.id === KYC_SECTIONS.BENEFICIARY_INFO) {
+      return { beneficiaries: formData.beneficiaries || [] };
+    }
+    const key = SECTION_TO_FORM_KEY[section.id];
+    return key ? (formData[key] || {}) : {};
   };
 
   const updateSectionData = (section, fieldName, value) => {
     const newFormData = { ...formData };
 
-    switch (section.id) {
-      case KYC_SECTIONS.NATURAL_PERSON:
-      case KYC_SECTIONS.LEGAL_ENTITY:
-      case KYC_SECTIONS.PERSON_ACTING:
+    if (!isLawFirm && section.id === KYC_SECTIONS.BENEFICIAL_OWNERSHIP) {
+      if (fieldName === 'beneficial_owners') {
+        newFormData.beneficial_owners = value;
+      } else {
         newFormData.customer_data = { ...newFormData.customer_data, [fieldName]: value };
-        break;
-      case KYC_SECTIONS.BENEFICIAL_OWNERSHIP:
-        if (fieldName === 'beneficial_owners') {
-          newFormData.beneficial_owners = value;
-        } else {
-          newFormData.customer_data = { ...newFormData.customer_data, [fieldName]: value };
-        }
-        break;
-      case KYC_SECTIONS.POLICY_INFO:
-        newFormData.policy_information = { ...newFormData.policy_information, [fieldName]: value };
-        break;
-      case KYC_SECTIONS.BENEFICIARY_INFO:
-        newFormData.beneficiaries = value;
-        break;
-      case KYC_SECTIONS.SOURCE_FUNDS:
-        newFormData.source_of_funds = { ...newFormData.source_of_funds, [fieldName]: value };
-        break;
-      case KYC_SECTIONS.PEP_DECLARATION:
-        newFormData.pep_declaration = { ...newFormData.pep_declaration, [fieldName]: value };
-        break;
-      case KYC_SECTIONS.SANCTIONS_SCREENING:
-        newFormData.sanctions_screening = { ...newFormData.sanctions_screening, [fieldName]: value };
-        break;
-      case KYC_SECTIONS.CUSTOMER_RISK:
-        newFormData.customer_risk = { ...newFormData.customer_risk, [fieldName]: value };
-        break;
-      case KYC_SECTIONS.ONGOING_MONITORING:
-        newFormData.ongoing_monitoring = { ...newFormData.ongoing_monitoring, [fieldName]: value };
-        break;
-      case KYC_SECTIONS.SUSPICIOUS_INDICATORS:
-        newFormData.suspicious_indicators = { ...newFormData.suspicious_indicators, [fieldName]: value };
-        break;
-      case KYC_SECTIONS.CUSTOMER_DECLARATION:
-        newFormData.customer_declaration = { ...newFormData.customer_declaration, [fieldName]: value };
-        break;
-      case KYC_SECTIONS.INSURER_USE:
-        newFormData.compliance_approval = { ...newFormData.compliance_approval, [fieldName]: value };
-        break;
+      }
+      setFormData(newFormData);
+      return;
     }
-
+    if (!isLawFirm && section.id === KYC_SECTIONS.BENEFICIARY_INFO) {
+      newFormData.beneficiaries = value;
+      setFormData(newFormData);
+      return;
+    }
+    const key = SECTION_TO_FORM_KEY[section.id];
+    if (key) {
+      newFormData[key] = { ...newFormData[key], [fieldName]: value };
+    }
     setFormData(newFormData);
   };
 
@@ -458,6 +447,56 @@ export default function KycCddForm({ recordId: propRecordId, onSave, onCancel })
             }}
           />
         );
+      case 'radio':
+        return (
+          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+            {field.options.map(option => (
+              <button
+                key={option}
+                type="button"
+                onClick={() => onChange(option)}
+                style={{
+                  padding: '10px 24px',
+                  backgroundColor: value === option ? '#007bff' : '#e9ecef',
+                  color: value === option ? 'white' : '#495057',
+                  border: value === option ? '2px solid #007bff' : '2px solid #ced4da',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  fontWeight: '500',
+                  fontSize: '14px'
+                }}
+              >
+                {option}
+              </button>
+            ))}
+          </div>
+        );
+      case 'checkbox-group': {
+        const currentValues = Array.isArray(value) ? value : [];
+        return (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {field.options.map(option => {
+              const checked = currentValues.includes(option);
+              return (
+                <label key={option} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={(e) => {
+                      const next = e.target.checked
+                        ? [...currentValues, option]
+                        : currentValues.filter(o => o !== option);
+                      onChange(next);
+                    }}
+                    style={{ width: '18px', height: '18px' }}
+                  />
+                  {option}
+                </label>
+              );
+            })}
+          </div>
+        );
+      }
       default:
         return (
           <input
@@ -476,8 +515,15 @@ export default function KycCddForm({ recordId: propRecordId, onSave, onCancel })
   };
 
   const handleNext = () => {
-    const availableSections = kycSections.filter(s => s.customerTypes.includes(customerType));
-    const sectionErrors = validateKycSection(availableSections[currentSection], getSectionData(availableSections[currentSection]));
+    const availableSections = activeSections.filter(s => s.customerTypes.includes(customerType));
+    const rawSection = availableSections[currentSection];
+    // validateKycSection expects section.fields; law-firm sections use subsections.
+    // Flatten subsections into a single fields array and normalise field.name so
+    // validation sees the same ids the renderer writes.
+    const sectionForValidation = rawSection.subsections
+      ? { ...rawSection, fields: rawSection.subsections.flatMap(sub => sub.fields.map(f => ({ ...f, name: f.name || f.id }))) }
+      : { ...rawSection, fields: (rawSection.fields || []).map(f => ({ ...f, name: f.name || f.id })) };
+    const sectionErrors = validateKycSection(sectionForValidation, getSectionData(rawSection));
     if (Object.keys(sectionErrors).length > 0) {
       setErrors(sectionErrors);
       return;
@@ -508,10 +554,10 @@ export default function KycCddForm({ recordId: propRecordId, onSave, onCancel })
       // Form fields use snake_case (full_name, national_id, …); matter pre-population uses
       // camelCase (fullName, legalName) — accept both so neither path is silently dropped.
       const {
-        full_name, registered_name, fullName, legalName,
-        national_id, registration_number, nationalId, registrationNumber,
-        tin_number, tinNumber,
-        telephone, phoneNumber, contact_phone, contactPhone,
+        full_name, registered_name, legal_name, fullName, legalName,
+        national_id, registration_number, id_number, nationalId, registrationNumber,
+        tin_number, tin, entity_tin, tinNumber,
+        telephone, telephone_number, phoneNumber, contact_phone, contactPhone,
         residential_address, registered_address, residentialAddress, registeredAddress,
         passport_number, passportNumber,
         ...safeCustomerData
@@ -525,12 +571,14 @@ export default function KycCddForm({ recordId: propRecordId, onSave, onCancel })
       const kycRecord = {
         customer_type: customerType,
         customer_data: customerDataWithRisk,
-        // PII fields — trigger encrypts these and nulls them immediately
-        client_name_plain:     full_name || registered_name || fullName || legalName || null,
-        national_id_plain:     national_id || registration_number || nationalId || registrationNumber || null,
-        tax_id_plain:          tin_number || tinNumber || null,
+        // PII fields — trigger encrypts these and nulls them immediately.
+        // Law-firm fields (legal_name, id_number, telephone_number, tin, entity_tin)
+        // route to the same encrypted columns as the insurance/camelCase variants.
+        client_name_plain:     full_name || registered_name || legal_name || fullName || legalName || null,
+        national_id_plain:     national_id || registration_number || id_number || nationalId || registrationNumber || null,
+        tax_id_plain:          tin_number || tin || entity_tin || tinNumber || null,
         passport_number_plain: passport_number || passportNumber || null,
-        phone_plain:           telephone || phoneNumber || contact_phone || contactPhone || null,
+        phone_plain:           telephone || telephone_number || phoneNumber || contact_phone || contactPhone || null,
         address_plain:         residential_address || registered_address || residentialAddress || registeredAddress || null,
         // Insurance: write beneficiaries/beneficial_owners as encrypted plain columns;
         // law-firm: write to the JSONB columns unchanged
@@ -699,10 +747,10 @@ export default function KycCddForm({ recordId: propRecordId, onSave, onCancel })
       // Form fields use snake_case (full_name, national_id, …); matter pre-population uses
       // camelCase (fullName, legalName) — accept both so neither path is silently dropped.
       const {
-        full_name, registered_name, fullName, legalName,
-        national_id, registration_number, nationalId, registrationNumber,
-        tin_number, tinNumber,
-        telephone, phoneNumber, contact_phone, contactPhone,
+        full_name, registered_name, legal_name, fullName, legalName,
+        national_id, registration_number, id_number, nationalId, registrationNumber,
+        tin_number, tin, entity_tin, tinNumber,
+        telephone, telephone_number, phoneNumber, contact_phone, contactPhone,
         residential_address, registered_address, residentialAddress, registeredAddress,
         passport_number, passportNumber,
         ...safeCustomerData
@@ -716,12 +764,14 @@ export default function KycCddForm({ recordId: propRecordId, onSave, onCancel })
       const kycRecord = {
         customer_type: customerType,
         customer_data: customerDataWithRisk,
-        // PII fields — trigger encrypts these and nulls them immediately
-        client_name_plain:     full_name || registered_name || fullName || legalName || null,
-        national_id_plain:     national_id || registration_number || nationalId || registrationNumber || null,
-        tax_id_plain:          tin_number || tinNumber || null,
+        // PII fields — trigger encrypts these and nulls them immediately.
+        // Law-firm fields (legal_name, id_number, telephone_number, tin, entity_tin)
+        // route to the same encrypted columns as the insurance/camelCase variants.
+        client_name_plain:     full_name || registered_name || legal_name || fullName || legalName || null,
+        national_id_plain:     national_id || registration_number || id_number || nationalId || registrationNumber || null,
+        tax_id_plain:          tin_number || tin || entity_tin || tinNumber || null,
         passport_number_plain: passport_number || passportNumber || null,
-        phone_plain:           telephone || phoneNumber || contact_phone || contactPhone || null,
+        phone_plain:           telephone || telephone_number || phoneNumber || contact_phone || contactPhone || null,
         address_plain:         residential_address || registered_address || residentialAddress || registeredAddress || null,
         // Insurance: write beneficiaries/beneficial_owners as encrypted plain columns;
         // law-firm: write to the JSONB columns unchanged
@@ -803,7 +853,7 @@ export default function KycCddForm({ recordId: propRecordId, onSave, onCancel })
     }
   };
 
-  const availableSections = kycSections.filter(s => s.customerTypes.includes(customerType));
+  const availableSections = activeSections.filter(s => s.customerTypes.includes(customerType));
   const section = availableSections[currentSection];
   const sectionData = getSectionData(section);
 
@@ -822,7 +872,9 @@ export default function KycCddForm({ recordId: propRecordId, onSave, onCancel })
         <p style={{ color: '#666', marginBottom: '20px' }}>
           {isInsurance
             ? 'Based on Tanzania AML Act, AML Regulations 2022, and FIU AML/CFT Guidelines to Insurers'
-            : 'Based on Tanzania AML Act, AML Regulations 2022, and FIU AML/CFT Guidelines to Legal Professionals'}
+            : isLawFirm
+              ? 'FATF Risk-Based Approach Guidance for Legal Professionals (2019); FIU Guide to DNFBPs 2023; Anti-Money Laundering Act, Cap. 423; AML Regulations 2022 (GN 397).'
+              : 'Based on Tanzania AML Act, AML Regulations 2022, and FIU AML/CFT Guidelines to Legal Professionals'}
         </p>
         {matterInfo && (
           <div style={{
@@ -914,12 +966,12 @@ export default function KycCddForm({ recordId: propRecordId, onSave, onCancel })
                   </div>
                 )}
                 <div>
-                  {subsection.fields.map(field => renderField(field, section, sectionData))}
+                  {subsection.fields.map(field => renderField({ ...field, name: field.name || field.id }, section, sectionData))}
                 </div>
               </div>
             ))
           ) : (
-            section.fields.map(field => renderField(field, section, sectionData))
+            section.fields.map(field => renderField({ ...field, name: field.name || field.id }, section, sectionData))
           )}
         </div>
 
