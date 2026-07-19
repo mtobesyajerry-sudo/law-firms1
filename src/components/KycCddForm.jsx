@@ -817,6 +817,11 @@ export default function KycCddForm({ recordId: propRecordId, onSave, onCancel })
         risk_assessment: riskCalculation.riskAssessment,
         total_risk_score: effectiveScore,
         risk_level: effectiveRiskLevel,
+        // Dashboard badge column — KYCClientManagement reads current_risk_rating.
+        // Without this, the badge reflects NewClientModal's pre-assessment rating,
+        // not the score computed from the completed questionnaire. Both calculators
+        // emit bare 'Low'/'Medium'/'High'/'Very High' — matches the CHECK constraint.
+        current_risk_rating: effectiveRiskLevel,
         // Derived from finalDdLevel (effectiveScore > 60), not riskCalculation.enhancedDdRequired.
         // If calculateKycRiskScore ever adds non-score EDD triggers (PEP, sanctions hit,
         // high-risk country), mirror them here so they aren't silently dropped.
